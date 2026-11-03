@@ -1,0 +1,308 @@
+import { create } from "zustand";
+import type { NodeContext } from "../core/protocol.ts";
+import { layout, type Box, type Sizes } from "../canvas/layout.ts";
+import { INTERRUPTED, maxSeq } from "../history/snapshot.ts";
+import type { GNode } from "./types.ts";
+
+// 画布状态的唯一来源与节点读写的基础操作。视角与焦点在 view.ts，请求编排在 runs.ts，界面调用的操作在 graph.ts。
+
+export interface View { x: number; y: number; s: number; glide: boolean }
+/** 当前地图在历史记录里的身份；自动保存见 history/store.ts */
+export interface MapInfo { id: string; createdAt: number; updatedAt: number }
+
+export interface GraphState {
+  screen: "home" | "workspace";
+  map: MapInfo | null;
+  nodes: Record<string, GNode>;
+  sizes: Sizes;
+  pos: Record<string, Box>;
+  visible: string[];
+  /** 各节点延伸列表底部的输入框位置，键为节点 id：回答完成的节点都留好位置，当前节点的常显，其余悬停时淡出（AskSlot） */
+  slots: Record<string, Box>;
+  /** 问透的节点连线末端的收尾记号位置，键为节点 id */
+  ends: Record<string, Box>;
+  /** 正在等模型判断意图的输入框（键为节点 id）；各输入框互不阻塞 */
+  slotBusy: Record<string, true>;
+  /** 鼠标所在的节点或输入框所属的节点：它的输入框淡出显示 */
+  hovered: string | null;
+  /** 有焦点或打了字的输入框（键为节点 id）：保持显示 */
+  slotKeep: Record<string, true>;
+  activeId: string | null;
+  /** 主线终点：从根到它的路径排成水平线（layout 的 spineId）。只在提问时切换，单纯点选浏览不切换，免得画布跟着晃 */
+  spineId: string | null;
+  /** 激活过的节点；设置为「保持展开」时它们的要点一直显示。只在本次打开地图期间有效，不存档 */
+  opened: Record<string, true>;
+  /** 正看着答出来、内容还没放完的回答节点：它的延伸问题、输入框和收尾记号先占好位置但不显示，放完再淡入。不存档 */
+  revealing: Record<string, true>;
+  /** 卡片上方问题行被点开、显示完整问题的节点 */
+  headOpen: string | null;
+  selected: string[];
+  drawerId: string | null;
+  /** 侧边栏里正在阅读的来源（节点 id 与来源 id）；为 null 时侧边栏显示节点详情。
+   * 按 id 而不是序号定位：回答过程中复查会剔除来源，序号会变 */
+  reading: { nodeId: string; sourceId: string } | null;
+  summaryOpen: boolean;
+  search: boolean;
+  view: View;
+  /** 离开正在回答的地图前的确认：还有几个节点在进行，以及确认后要做的事 */
+  leaving: { count: number; next: () => void } | null;
+}
+
+export const initial = (): Omit<GraphState, "search" | "screen" | "map"> => ({
+  nodes: {},
+  sizes: {},
+  pos: {},
+  visible: [],
+  slots: {},
+  ends: {},
+  slotBusy: {},
+  hovered: null,
+  slotKeep: {},
+  activeId: null,
+  spineId: null,
+  opened: {},
+  revealing: {},
+  headOpen: null,
+  selected: [],
+  drawerId: null,
+  reading: null,
+  summaryOpen: false,
+  view: { x: 0, y: 0, s: 1, glide: false },
+  leaving: null,
+});
+
+export const useGraph = create<GraphState>(() => ({ screen: "home", map: null, search: true, ...initial() }));
+
+export const get = useGraph.getState;
+export const set = useGraph.setState;
+
+/** 节点 id 形如 n12：新地图从 0 开始，打开存档时接着最大编号 */
+let seq = 0;
+export const resetSeq = (n = 0) => { seq = n; };
+
+/** 回答完成的节点下面都有输入框（加载中、出错、未回答的问题没有） */
+export const hasSlot = (n: GNode) => n.kind === "answer" && n.status === "ready";
+
+/** 写入节点并重新布局 */
+export function commitNodes(nodes: Record<string, GNode>, extra: Partial<GraphState> = {}) {
+  const spineId = "spineId" in extra ? extra.spineId : get().spineId;
+  const { pos, visible, slots, ends } = layout(nodes, extra.sizes ?? get().sizes, hasSlot, spineId ?? null);
+  set({ nodes, pos, visible, slots, ends, ...extra });
+}
+
+/**
+ * 把主线切到这个节点。重新排列后它所在那棵树整体平移（改根节点锚点），让它留在原处：
+ * 看起来是来路和兄弟让开，而不是画布跳走
+ */
+export function setSpine(id: string) {
+  const { nodes, pos, sizes } = get();
+  if (!nodes[id] || get().spineId === id) return;
+  const before = pos[id];
+  const after = layout(nodes, sizes, hasSlot, id).pos[id];
+  const root = chain(nodes, id)[0];
+  const dy = before && after ? after.y - before.y : 0;
+  commitNodes(dy ? { ...nodes, [root.id]: { ...root, ay: root.ay - dy } } : nodes, { spineId: id });
+}
+
+/** 子树所有节点的 id（含自己） */
+export function subtreeIds(nodes: Record<string, GNode>, id: string): string[] {
+  const n = nodes[id];
+  return n ? [id, ...n.children.flatMap((c) => subtreeIds(nodes, c))] : [];
+}
+
+/** 关闭掉的回答：节点原样与下面的整棵子树，撤销时放回去 */
+export type Closed = Record<string, GNode>;
+
+/**
+ * 关闭一个点开过的回答：它变回点开之前那条延伸问题（同样的问题、方向与先问理由；看看新进展保留起始日期，再点开照样只查新内容），
+ * 回答和下面长出来的所有节点都去掉。返回新的节点表与被关掉的部分
+ */
+export function closeAnswer(nodes: Record<string, GNode>, id: string): { nodes: Record<string, GNode>; closed: Closed } {
+  const n = nodes[id];
+  const ids = subtreeIds(nodes, id);
+  const closed: Closed = Object.fromEntries(ids.map((k) => [k, nodes[k]]));
+  const out = { ...nodes };
+  for (const k of ids) delete out[k];
+  out[id] = { ...blank(), id, kind: "question", q: n.q, dir: n.dir, nextWhy: n.nextWhy, parent: n.parent, since: n.since, dx: n.dx, dy: n.dy };
+  return { nodes: out, closed };
+}
+
+/** 撤销关闭：那条延伸问题还在、没有被再次点开时，把回答和子树放回去。关闭时请求已经取消：
+ * 还在回答的按中断处理，没写完的详解按没生成处理（打开详情时重新生成），与打开存档时一致 */
+export function reopenAnswer(nodes: Record<string, GNode>, id: string, closed: Closed): Record<string, GNode> | null {
+  if (nodes[id]?.kind !== "question" || !closed[id]) return null;
+  const out = { ...nodes };
+  for (const [k, n] of Object.entries(closed)) {
+    let x = n;
+    if (x.status === "loading" || x.status === "streaming") x = { ...x, status: "error", error: INTERRUPTED, errorCode: null, errorHint: null };
+    if (x.detailStatus === "loading" || x.detailStatus === "streaming") x = { ...x, detail: "", detailStatus: "idle" };
+    out[k] = x;
+  }
+  return out;
+}
+
+/** 节点回报测量到的尺寸（head：卡片上方问题行的高度）并重新布局 */
+export function setSize(id: string, w: number, h: number, head = 0) {
+  const { nodes, sizes, spineId } = get();
+  const cur = sizes[id];
+  if (cur && cur.w === w && cur.h === h && (cur.head ?? 0) === head) return;
+  const next = { ...sizes, [id]: head ? { w, h, head } : { w, h } };
+  // 主线按卡片顶边对齐，主线节点的问题行一变高（延伸问题刚点开变成回答卡片），整个节点会被往上提、问题文字跳走。
+  // 和 setSpine 一样平移整棵树补回来，让被点的节点留在原处；根节点的锚点本来就是节点左上角，不用补。
+  // 第一次测量的节点还没在旧位置显示过（打开地图、新建的追问），没有原处要保，不补
+  const dh = head - (cur?.head ?? 0);
+  if (cur && dh && id === spineId && nodes[id]?.parent) {
+    const root = chain(nodes, id)[0];
+    commitNodes({ ...nodes, [root.id]: { ...root, ay: root.ay + dh } }, { sizes: next });
+    return;
+  }
+  commitNodes(nodes, { sizes: next });
+}
+
+/** 打开地图时的主线：最近回答完成的节点（综合节点自成一棵树，不算） */
+export function latestAnswered(nodes: Record<string, GNode>) {
+  let best: GNode | null = null;
+  for (const n of Object.values(nodes)) if (!n.links.length && n.answeredAt > (best?.answeredAt ?? 0)) best = n;
+  return best?.id ?? null;
+}
+
+/** 切换当前节点（同时记入 opened）。侧栏开着时跟着切到它的详情、退出正在阅读的来源：侧栏显示的始终是当前节点 */
+export const focusOf = (id: string): Partial<GraphState> => ({
+  activeId: id,
+  opened: get().opened[id] ? get().opened : { ...get().opened, [id]: true as const },
+  ...(get().drawerId && get().drawerId !== id ? { drawerId: id, reading: null } : {}),
+});
+
+export function patch(id: string, fn: (n: GNode) => Partial<GNode>) {
+  const n = get().nodes[id];
+  if (!n) return;
+  commitNodes({ ...get().nodes, [id]: { ...n, ...fn(n) } });
+}
+
+export function newNode(p: Partial<GNode> & Pick<GNode, "kind" | "q">): GNode {
+  return { ...blank(), id: "n" + ++seq, ...p };
+}
+
+/** 新节点的默认字段（不含 id、kind、q） */
+function blank(): Omit<GNode, "id" | "kind" | "q"> {
+  return {
+    dir: null, nextWhy: null, parent: null, links: [], op: null, instruction: null, children: [], collapsed: false, settled: false,
+    status: "idle", stage: null, stageDetail: null, images: [], imageNote: "", summary: "", framed: false, thinking: "", points: [], visual: null, memory: null, sources: [], queries: [], searchResults: 0, searches: [], steps: [], dropped: [], searchMs: 0, searchMode: null, compareOf: null, answeredAt: 0, since: null, detail: "", detailStatus: "idle", error: null, errorCode: null, errorHint: null,
+    dx: 0, dy: 0, ax: 0, ay: 0,
+  };
+}
+
+/* ============ 后台地图 ============ */
+
+/** 离开时选择「在后台继续」的地图：还在进行的回答继续写到这里，全部完成后存档并移除；再次打开时接着用这份 */
+export interface Parked { map: MapInfo; nodes: Record<string, GNode>; view: View; opened: Record<string, true> }
+export const parked = new Map<string, Parked>();
+/** 后台地图的 id，供首页与历史列表显示「后台回答中」 */
+export const useParked = create<{ ids: string[] }>(() => ({ ids: [] }));
+const syncParked = () => useParked.setState({ ids: [...parked.keys()] });
+
+/** 后台地图有写入（done 为 false）或全部完成（done 为 true）时通知存档，见 history/store.ts */
+let parkedListener: (mapId: string, done: boolean) => void = () => {};
+export const onParkedChange = (fn: typeof parkedListener) => { parkedListener = fn; };
+
+export function park(p: Parked) {
+  parked.set(p.map.id, p);
+  syncParked();
+}
+export function unpark(mapId: string) {
+  const p = parked.get(mapId);
+  parked.delete(mapId);
+  syncParked();
+  return p;
+}
+export const parkedDone = (mapId: string) => parked.has(mapId) && parkedListener(mapId, true);
+
+/** 某张地图的节点：打开着的在画布状态里，后台的在 parked 里，都不在（已关闭）时为 null */
+export const nodesOf = (mapId: string) => (get().map?.id === mapId ? get().nodes : parked.get(mapId)?.nodes ?? null);
+
+function writeNodes(mapId: string, nodes: Record<string, GNode>) {
+  if (get().map?.id === mapId) return commitNodes(nodes);
+  const p = parked.get(mapId);
+  if (!p) return;
+  p.nodes = nodes;
+  parkedListener(mapId, false);
+}
+
+/** 按地图写节点：请求的结果写回发起它的那张地图，不管它现在是否打开 */
+export function patchAt(mapId: string, id: string, fn: (n: GNode) => Partial<GNode>) {
+  const nodes = nodesOf(mapId);
+  const n = nodes?.[id];
+  if (!nodes || !n) return;
+  writeNodes(mapId, { ...nodes, [id]: { ...n, ...fn(n) } });
+}
+
+export function addAt(mapId: string, p: Partial<GNode> & Pick<GNode, "kind" | "q">) {
+  const nodes = nodesOf(mapId);
+  if (!nodes) return;
+  // 后台地图不能用当前地图的编号序列，接着它自己的最大编号
+  const n = get().map?.id === mapId ? newNode(p) : newNode({ ...p, id: `n${maxSeq(nodes) + 1}` });
+  writeNodes(mapId, withChild(nodes, n));
+}
+
+function withChild(nodes: Record<string, GNode>, n: GNode) {
+  const out = { ...nodes, [n.id]: n };
+  if (n.parent && out[n.parent]) out[n.parent] = { ...out[n.parent], children: [...out[n.parent].children, n.id] };
+  return out;
+}
+
+export function addNode(n: GNode) {
+  commitNodes(withChild(get().nodes, n));
+  return n.id;
+}
+
+/** 从根到这个节点的链 */
+export const chain = (nodes: Record<string, GNode>, id: string) => {
+  const out: GNode[] = [];
+  for (let n: GNode | undefined = nodes[id]; n; n = n.parent ? nodes[n.parent] : undefined) out.unshift(n);
+  return out;
+};
+
+export const isReady = (n: GNode | undefined): n is GNode => !!n && n.kind === "answer" && n.status === "ready";
+export const stripCites = (s: string) => s.replace(/\[\d+\]/g, "");
+
+const ymd = (t: number) => {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+/** 回答后至少过这么久才提供「看看新进展」，刚回答完再查没有意义 */
+const NEWS_AFTER = 3_600_000;
+
+/**
+ * 「看看新进展」从哪天查起：联网回答过的普通节点取回答完成那天；早期存档没有回答时间，取最新来源的发布日期。
+ * 综合节点、没有来源、刚回答完的节点不提供，返回 null。
+ */
+export function newsSince(n: GNode, now = Date.now()): string | null {
+  if (!isReady(n) || n.links.length || !n.sources.length) return null;
+  if (n.answeredAt) return now - n.answeredAt >= NEWS_AFTER ? ymd(n.answeredAt) : null;
+  const latest = Math.max(...n.sources.map((s) => (s.date ? Date.parse(s.date) : NaN)).filter((t) => !Number.isNaN(t)));
+  return Number.isFinite(latest) ? ymd(latest) : null;
+}
+
+export function toContext(n: GNode): NodeContext {
+  return { q: n.q, summary: stripCites(n.summary), points: n.points, sources: n.sources };
+}
+
+/** 探索路径：从根到上一层里已完成的节点，交给模型理解追问语境 */
+export function pathOf(id: string) {
+  return chain(get().nodes, id).slice(0, -1).filter(isReady).map((n) => ({ q: n.q, summary: stripCites(n.summary) }));
+}
+
+/** 延伸问题去重用的「已有问题」：只取相关的部分（路径上的节点、它们的直接子问题、来源节点及其子问题），
+ * 不把整张画布塞给模型 */
+const MAX_EXISTING = 20;
+export function relatedQuestions(ids: string[]) {
+  const { nodes } = get();
+  const out = new Set<string>();
+  for (const id of ids) {
+    for (const a of chain(nodes, id)) {
+      out.add(a.q);
+      for (const c of a.children) if (nodes[c]) out.add(nodes[c].q);
+    }
+  }
+  return [...out].slice(-MAX_EXISTING);
+}

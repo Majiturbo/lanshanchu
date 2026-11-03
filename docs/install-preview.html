@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>阑珊处 安装</title>
+<style>
+  :root {
+    --paper: #f3efe9;
+    --surface: #fcfcfc;
+    --sunken: #ebe6df;
+    --ink: #1c2024;
+    --ink-2: #60646c;
+    --ink-3: #777b84;
+    --line: rgba(28,32,36,0.1);
+    --seal: #c45142;
+    --night: #11131f;
+    --font: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 13px/1.45 var(--font);
+    color: var(--ink);
+    background: #3a3d48;
+    background-image: linear-gradient(180deg, #4a4e5c 0%, #2f323c 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px 12px;
+  }
+
+  .switch {
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
+  }
+  .switch button {
+    appearance: none; border: 0; cursor: pointer;
+    height: 26px; padding: 0 10px; border-radius: 4px;
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
+    font: 500 12px/1 var(--font);
+  }
+  .switch button.on { background: #fff; color: var(--ink); }
+
+  .note {
+    max-width: 504px;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 11px; line-height: 1.5;
+    color: rgba(255,255,255,0.55);
+    text-align: center;
+  }
+
+  .win {
+    width: 504px;
+    height: 360px;
+    background: var(--surface);
+    border-radius: 8px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+  }
+  .win.on { display: flex; }
+
+  .titlebar {
+    height: 32px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 8px 0 12px;
+    background: var(--paper);
+    border-bottom: 0.5px solid var(--line);
+  }
+  .appicon {
+    width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0;
+    background: linear-gradient(145deg, #2a3148, var(--night));
+  }
+  .titlebar .ttl {
+    flex: 1; font-size: 12px; font-weight: 500; color: var(--ink-2);
+  }
+  .caption {
+    width: 36px; height: 24px; border: 0; border-radius: 4px;
+    background: transparent; color: var(--ink-3); cursor: pointer;
+    font-size: 12px; line-height: 1;
+  }
+  .caption:hover { background: rgba(0,0,0,0.06); color: var(--ink); }
+  .caption.close:hover { background: #e81123; color: #fff; }
+
+  .main { flex: 1; min-height: 0; display: flex; }
+
+  .side {
+    width: 156px; flex-shrink: 0;
+    background: url("../src-tauri/windows/nsis/sidebar.png") center/cover no-repeat;
+  }
+
+  .pane {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    background: var(--surface);
+  }
+
+  .banner {
+    height: 56px; flex-shrink: 0;
+    display: flex; align-items: stretch;
+    background: var(--paper);
+    border-bottom: 0.5px solid var(--line);
+  }
+  .banner-text {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; justify-content: center; gap: 3px;
+    padding: 0 16px;
+  }
+  .banner-text h1 {
+    margin: 0;
+    font: 600 14px/1.2 var(--font);
+    color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .banner-text p {
+    margin: 0;
+    font-size: 12px; line-height: 1.2; color: var(--ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .banner-art {
+    width: 140px; flex-shrink: 0;
+    background: url("../src-tauri/windows/nsis/header.png") center/cover no-repeat;
+    border-left: 0.5px solid var(--line);
+  }
+
+  .body {
+    flex: 1; min-height: 0;
+    padding: 14px 18px 8px;
+    overflow: auto;
+  }
+  .body p {
+    margin: 0 0 10px;
+    font-size: 13px; line-height: 1.5; color: var(--ink-2);
+  }
+  .body p strong { color: var(--ink); font-weight: 600; }
+
+  .pathbox {
+    margin: 8px 0 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--sunken);
+  }
+  .pathbox .k { font-size: 11px; color: var(--ink-3); margin-bottom: 6px; }
+  .pathbox .row { display: flex; gap: 8px; align-items: center; }
+  .pathbox input {
+    flex: 1; min-width: 0; height: 28px; padding: 0 8px;
+    border: 0.5px solid var(--line); border-radius: 4px;
+    background: var(--surface);
+    font: 500 12px/28px Consolas, "SF Mono", monospace;
+    color: var(--ink);
+  }
+  .pathbox button {
+    height: 28px; padding: 0 10px; border-radius: 4px;
+    border: 0.5px solid var(--line); background: var(--surface);
+    font: 500 12px/1 var(--font); color: var(--ink); cursor: pointer;
+  }
+  .check {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 4px; color: var(--ink-2); font-size: 12px;
+  }
+  .check input { accent-color: var(--seal); }
+
+  .opts { display: grid; gap: 4px; margin-top: 2px; }
+  .opt {
+    display: grid; grid-template-columns: 16px 1fr; gap: 8px;
+    align-items: start; padding: 7px 8px; border-radius: 6px;
+    border: 0.5px solid transparent; cursor: pointer;
+  }
+  .opt:hover { background: var(--paper); }
+  .opt.on {
+    background: color-mix(in srgb, var(--seal) 7%, var(--surface));
+    border-color: color-mix(in srgb, var(--seal) 28%, transparent);
+  }
+  .opt input { margin-top: 2px; accent-color: var(--seal); }
+  .opt .t { font-weight: 500; color: var(--ink); font-size: 13px; }
+  .opt .d { margin-top: 2px; font-size: 12px; color: var(--ink-3); line-height: 1.35; }
+
+  /* 占满侧栏右侧剩余高度，把 .foot 顶到窗口底（与带 banner 的页一致） */
+  .welcome-body { flex: 1; min-height: 0; padding: 22px 20px 10px; }
+  .welcome-body h1 {
+    margin: 0 0 12px;
+    font: 600 17px/1.35 var(--font);
+    color: var(--ink);
+  }
+  .welcome-body p {
+    margin: 0 0 8px;
+    font-size: 13px; line-height: 1.6; color: var(--ink-2);
+  }
+
+  .foot {
+    height: 48px; flex-shrink: 0;
+    display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+    padding: 0 14px;
+    border-top: 0.5px solid var(--line);
+    background: color-mix(in srgb, var(--paper) 55%, var(--surface));
+  }
+  .btn {
+    appearance: none; cursor: pointer;
+    min-width: 72px; height: 28px; padding: 0 12px; border-radius: 4px;
+    border: 0.5px solid var(--line);
+    background: var(--surface);
+    font: 500 12px/1 var(--font); color: var(--ink);
+  }
+  .btn:hover { background: var(--paper); }
+  .btn.primary {
+    border-color: var(--ink); background: var(--ink); color: #fff;
+  }
+  .btn.primary:hover { opacity: 0.9; background: var(--ink); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+</style>
+</head>
+<body>
+  <div class="switch" role="tablist">
+    <button type="button" class="on" data-show="welcome">欢迎</button>
+    <button type="button" data-show="upgrade">已安装·升级</button>
+    <button type="button" data-show="same">已安装·同版本</button>
+    <button type="button" data-show="dir">安装位置</button>
+  </div>
+  <p class="note">对照 Tauri NSIS <code>PageReinstall</code>：选项顺序与默认勾选和真实安装包一致；升级时第二项才是原地覆盖。</p>
+
+  <!-- 欢迎：MUI 欢迎页，有侧栏图 -->
+  <section class="win on" id="welcome">
+    <div class="titlebar">
+      <div class="appicon" aria-hidden="true"></div>
+      <div class="ttl">阑珊处 安装</div>
+      <button type="button" class="caption" tabindex="-1" aria-hidden="true">─</button>
+      <button type="button" class="caption close" tabindex="-1" aria-label="关闭">✕</button>
+    </div>
+    <div class="main">
+      <div class="side" aria-hidden="true"></div>
+      <div class="pane">
+        <div class="welcome-body">
+          <h1>欢迎安装阑珊处</h1>
+          <p>一张会生长的知识地图。</p>
+          <p>建议先关闭正在运行的旧版，再继续。</p>
+        </div>
+        <div class="foot">
+          <button type="button" class="btn" disabled>上一步</button>
+          <button type="button" class="btn primary">下一步</button>
+          <button type="button" class="btn">取消</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 升级：已装更旧版本（$R0 = 1） -->
+  <section class="win" id="upgrade">
+    <div class="titlebar">
+      <div class="appicon" aria-hidden="true"></div>
+      <div class="ttl">阑珊处 安装</div>
+      <button type="button" class="caption" tabindex="-1" aria-hidden="true">─</button>
+      <button type="button" class="caption close" tabindex="-1" aria-label="关闭">✕</button>
+    </div>
+    <div class="main">
+      <div class="pane">
+        <div class="banner">
+          <div class="banner-text">
+            <h1>已经安装</h1>
+            <p>请选择如何安装 阑珊处。</p>
+          </div>
+          <div class="banner-art" aria-hidden="true"></div>
+        </div>
+        <div class="body">
+          <p>系统里已有版本为 <strong>旧的</strong> 的 阑珊处。<br />一般选「直接覆盖安装」即可升级；只有需要清空安装目录时才选「先卸载再安装」。<br />选择操作后点下一步。</p>
+          <div class="opts">
+            <label class="opt on">
+              <input type="radio" name="up" checked />
+              <span>
+                <span class="t">先卸载再安装</span>
+                <span class="d">Tauri 默认勾选这一项；会先跑卸载程序，再进入安装位置页。</span>
+              </span>
+            </label>
+            <label class="opt">
+              <input type="radio" name="up" />
+              <span>
+                <span class="t">直接覆盖安装（推荐）</span>
+                <span class="d">不卸载，原地写入新文件；登录与历史留在应用数据里。</span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <div class="foot">
+          <button type="button" class="btn" disabled>上一步</button>
+          <button type="button" class="btn primary">下一步</button>
+          <button type="button" class="btn">取消</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 同版本：已装相同版本（$R0 = 0） -->
+  <section class="win" id="same">
+    <div class="titlebar">
+      <div class="appicon" aria-hidden="true"></div>
+      <div class="ttl">阑珊处 安装</div>
+      <button type="button" class="caption" tabindex="-1" aria-hidden="true">─</button>
+      <button type="button" class="caption close" tabindex="-1" aria-label="关闭">✕</button>
+    </div>
+    <div class="main">
+      <div class="pane">
+        <div class="banner">
+          <div class="banner-text">
+            <h1>已经安装</h1>
+            <p>请选择维护操作。</p>
+          </div>
+          <div class="banner-art" aria-hidden="true"></div>
+        </div>
+        <div class="body">
+          <p>阑珊处 0.1.0 已经安装。<br />请选择要执行的操作，然后点下一步。</p>
+          <div class="opts">
+            <label class="opt on">
+              <input type="radio" name="same" checked />
+              <span>
+                <span class="t">重新安装</span>
+                <span class="d">修复 / 覆盖当前安装目录里的文件。</span>
+              </span>
+            </label>
+            <label class="opt">
+              <input type="radio" name="same" />
+              <span>
+                <span class="t">卸载 阑珊处</span>
+                <span class="d">只卸载，不继续安装。</span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <div class="foot">
+          <button type="button" class="btn" disabled>上一步</button>
+          <button type="button" class="btn primary">下一步</button>
+          <button type="button" class="btn">取消</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 安装位置：始终会出现；升级时会恢复上次路径 -->
+  <section class="win" id="dir">
+    <div class="titlebar">
+      <div class="appicon" aria-hidden="true"></div>
+      <div class="ttl">阑珊处 安装</div>
+      <button type="button" class="caption" tabindex="-1" aria-hidden="true">─</button>
+      <button type="button" class="caption close" tabindex="-1" aria-label="关闭">✕</button>
+    </div>
+    <div class="main">
+      <div class="pane">
+        <div class="banner">
+          <div class="banner-text">
+            <h1>选择安装位置</h1>
+            <p>请选择安装位置。建议使用默认路径。</p>
+          </div>
+          <div class="banner-art" aria-hidden="true"></div>
+        </div>
+        <div class="body">
+          <p>默认如下。点「浏览」换文件夹时，会装到「所选路径\LanshanChu」。窗口标题仍显示「阑珊处」。</p>
+          <div class="pathbox">
+            <div class="k">目标文件夹</div>
+            <div class="row">
+              <input readonly value="C:\Users\你\AppData\Local\LanshanChu" />
+              <button type="button">浏览</button>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" checked /> 创建桌面快捷方式</label>
+        </div>
+        <div class="foot">
+          <button type="button" class="btn">上一步</button>
+          <button type="button" class="btn primary">安装</button>
+          <button type="button" class="btn">取消</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const tabs = document.querySelectorAll(".switch button");
+    const wins = [...document.querySelectorAll(".win")];
+    tabs.forEach((b) => b.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.toggle("on", t === b));
+      wins.forEach((w) => w.classList.toggle("on", w.id === b.dataset.show));
+    }));
+    document.querySelectorAll(".opts").forEach((g) => {
+      g.querySelectorAll(".opt").forEach((o) => o.addEventListener("click", () => {
+        g.querySelectorAll(".opt").forEach((x) => x.classList.remove("on"));
+        o.classList.add("on");
+        o.querySelector("input").checked = true;
+      }));
+    });
+  </script>
+</body>
+</html>

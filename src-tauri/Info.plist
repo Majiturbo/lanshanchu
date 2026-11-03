@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 安装路径与 .app 目录名用 ASCII productName；Finder / Launchpad 显示中文名 -->
+	<key>CFBundleDisplayName</key>
+	<string>阑珊处</string>
+	<key>CFBundleName</key>
+	<string>阑珊处</string>
+</dict>
+</plist>

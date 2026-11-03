@@ -1,0 +1,39 @@
+{
+  "name": "lanshanchu",
+  "private": true,
+  "version": "0.1.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "app:dev": "tauri dev",
+    "app:build": "tauri build",
+    "app:pkg:mac": "bash scripts/pack-macos-pkg.sh",
+    "app:ios": "tauri ios dev",
+    "app:ios:build": "tauri ios build",
+    "app:android": "tauri android dev",
+    "app:android:build": "tauri android build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-http": "^2.8.3",
+    "lucide-react": "^1.59.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

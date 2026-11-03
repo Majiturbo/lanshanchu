@@ -1,0 +1,23 @@
+#!/bin/bash
+# 升级前退出正在运行的应用，并清掉旧版 ASCII 目录名，避免「应用程序」里留下 LanshanChu 与「阑珊处」两份。
+set -euo pipefail
+
+if pgrep -xq "LanshanChu"; then
+  osascript -e 'tell application "LanshanChu" to quit' >/dev/null 2>&1 || true
+  osascript -e 'tell application "阑珊处" to quit' >/dev/null 2>&1 || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -xq "LanshanChu" || break
+    sleep 0.3
+  done
+  if pgrep -xq "LanshanChu"; then
+    killall "LanshanChu" >/dev/null 2>&1 || true
+    sleep 0.3
+  fi
+fi
+
+# 旧包安装路径是 /Applications/LanshanChu.app；新包装到「阑珊处.app」
+if [[ -d "/Applications/LanshanChu.app" ]]; then
+  rm -rf "/Applications/LanshanChu.app"
+fi
+
+exit 0

@@ -1,0 +1,11 @@
+#!/bin/bash
+# 去掉浏览器下载 / 安装器带上的隔离属性，避免旧系统提示「已损坏，无法打开」。
+set -euo pipefail
+
+APP="/Applications/阑珊处.app"
+if [[ -d "$APP" ]]; then
+  xattr -cr "$APP" 2>/dev/null || true
+  xattr -d com.apple.quarantine "$APP" 2>/dev/null || true
+fi
+
+exit 0

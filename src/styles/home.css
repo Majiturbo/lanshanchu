@@ -1,0 +1,208 @@
+.home { position: relative; min-height: 100%; display: flex; justify-content: center; padding: 0 16px; }
+.home-titlebar {
+  position: absolute; z-index: 10; top: 0; left: 0; right: 0;
+  height: var(--titlebar-h);
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding-left: 12px;
+  user-select: none;
+}
+.home-brand { display: none; margin: 0; line-height: 1; font-size: 22px; color: var(--ink); }
+.home-brand .wordmark-svg { display: block; height: 1em; width: auto; }
+.home-titlebar-actions { display: flex; align-items: center; gap: 8px; margin-right: 12px; }
+.home-titlebar:has(.window-controls) .home-titlebar-actions { margin-right: 0; }
+.home-inner { width: 100%; max-width: 640px; padding: clamp(72px, 22vh, 220px) 0 64px; }
+/* 桌面：包装层不占布局，字标与提问仍是 home-inner 的直接子级 */
+.home-hero { display: contents; }
+/* 没有历史时整体居中，略偏上一点（视觉中心） */
+.home.is-empty { align-items: center; }
+.home.is-empty .home-inner { padding: var(--titlebar-h) 0 calc(var(--titlebar-h) + 6vh); }
+/* 历史记录读出之前先不显示，避免布局从居中跳到靠上 */
+.home.is-pending .home-inner { visibility: hidden; }
+
+/* 字标是图形，字号只决定它的高度，不算文字字号。灯从提问框顶边升起，穿过字标一直往上 */
+.wordmark { position: relative; z-index: 1; margin: 0 0 28px; font-size: clamp(40px, 6.4vw, 56px); line-height: 1; display: flex; justify-content: center; }
+.doodle { display: inline-block; }
+.doodle .wordmark-svg { display: block; height: 1em; width: auto; }
+/* 浅色朱砂印泥纹理；深色灯纸 */
+.doodle .wordmark-lamp { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .doodle .wordmark-ink { display: none; }
+  :root:not([data-theme="light"]) .doodle .wordmark-lamp { display: inline; }
+  :root:not([data-theme="light"]) .doodle .wordmark-svg {
+    filter: drop-shadow(0 0 16px rgba(255, 176, 80, 0.34)) drop-shadow(0 10px 24px rgba(255, 150, 50, 0.16));
+  }
+}
+:root[data-theme="dark"] .doodle .wordmark-ink { display: none; }
+:root[data-theme="dark"] .doodle .wordmark-lamp { display: inline; }
+:root[data-theme="dark"] .doodle .wordmark-svg {
+  filter: drop-shadow(0 0 16px rgba(255, 176, 80, 0.34)) drop-shadow(0 10px 24px rgba(255, 150, 50, 0.16));
+}
+:root[data-theme="light"] .doodle .wordmark-ink { display: inline; }
+:root[data-theme="light"] .doodle .wordmark-lamp { display: none; }
+:root[data-theme="light"] .doodle .wordmark-svg { filter: none; }
+.lantern-sky { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lantern-sky.is-back { z-index: 0; }
+.lantern-sky.is-front { z-index: 2; }
+
+/* 盖住从框顶升起的灯；叠在最近列表之上，回答偏好的下拉弹层才不会被盖住 */
+.ask {
+  position: relative; z-index: 3;
+  background: var(--surface);
+  border: var(--hair) solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  padding: 16px 14px 10px 20px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.ask:focus-within { border-color: var(--line-hover); box-shadow: var(--shadow-2); }
+.ask.is-drop { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-2); }
+/* 浅色：朱砂印边，不浮影；跟随系统时也只在浅色生效 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .ask {
+    border: 1px solid var(--seal);
+    box-shadow: none;
+  }
+  :root:not([data-theme="dark"]) .ask:focus-within {
+    border-color: var(--seal-strong);
+    box-shadow: none;
+  }
+  :root:not([data-theme="dark"]) .ask.is-drop {
+    border-color: var(--seal-strong);
+    box-shadow: 0 0 0 3px var(--seal-soft);
+  }
+}
+:root[data-theme="light"] .ask {
+  border: 1px solid var(--seal);
+  box-shadow: none;
+}
+:root[data-theme="light"] .ask:focus-within {
+  border-color: var(--seal-strong);
+  box-shadow: none;
+}
+:root[data-theme="light"] .ask.is-drop {
+  border-color: var(--seal-strong);
+  box-shadow: 0 0 0 3px var(--seal-soft);
+}
+.ask textarea {
+  display: block; width: 100%; resize: none; border: 0; outline: 0; background: none;
+  font-size: var(--fs-lg); line-height: 1.7; max-height: 200px;
+}
+.ask textarea::placeholder { color: var(--ink-4); }
+.ask-bar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 0 -8px; }
+.ask-tools { display: flex; align-items: center; gap: 4px; }
+.ask-tools .icon-btn { width: 30px; height: 30px; color: var(--ink-3); }
+.ask-tools .icon-btn:disabled { opacity: 0.4; }
+
+.home-status {
+  position: relative; z-index: 3;
+  display: flex; align-items: center; gap: 6px;
+  margin: 14px 4px 0; font-size: var(--fs-sm); color: var(--ink-2);
+}
+.home-status .lucide { color: var(--accent); }
+
+.recent { position: relative; z-index: 3; margin-top: 56px; }
+.recent-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 12px; }
+.recent-all {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-sm); color: var(--ink-3);
+  transition: color var(--t-fast);
+}
+.recent-all:hover { color: var(--ink); }
+/* 列表行之间不画线，悬停时整行浅底 */
+.recent .hist-row:hover { background: var(--surface-hover); }
+.recent .hist-open { padding: 11px 8px; }
+/* 区域高度约五行半（露出半行也提示还能往下滚），更多的在里面滚动；原生滚动条隐藏，滑块画在列表右侧外面，不挤占行宽、时间列保持对齐 */
+.recent-scroll { position: relative; }
+.recent .hist-list {
+  max-height: calc(5.5 * 43px); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.recent .hist-list::-webkit-scrollbar { display: none; }
+/* 下面还有内容时底部羽化，滚到底就去掉 */
+.recent .hist-list.has-more { mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent); }
+.recent .scroll-thumb { right: -12px; }
+.recent-head { padding-left: 8px; padding-right: 8px; }
+
+/* 移动端：字标+提问作为一组垂直居中并略偏上；有「最近」时落在偏上位置，列表在下 */
+@media (max-width: 720px) {
+  .home {
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px));
+  }
+  .home.is-empty { justify-content: flex-start; align-items: stretch; }
+  .home-titlebar {
+    justify-content: flex-start;
+    height: calc(var(--titlebar-h) + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: max(4px, env(safe-area-inset-left, 0px));
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+    gap: 8px;
+  }
+  .home-brand { display: none; }
+  .home-titlebar-actions { gap: 2px; margin-right: 0; }
+  .home-titlebar-actions > .icon-btn:first-of-type { display: none; }
+  .home-titlebar .icon-btn { width: 40px; height: 40px; }
+  .home-inner {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    padding: calc(var(--titlebar-h) + env(safe-area-inset-top, 0px)) 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .home.is-empty .home-inner { flex: 1; padding: calc(var(--titlebar-h) + env(safe-area-inset-top, 0px)) 0 calc(16px + env(safe-area-inset-bottom, 0px)); }
+  /* 上方略小于下方，大字标+提问仍略偏上；主要靠加大字标填满空旷感 */
+  .home-inner::before {
+    content: "";
+    flex: 0.55 1 0;
+    min-height: 8px;
+  }
+  .home.is-empty .home-inner::after {
+    content: "";
+    flex: 1 1 0;
+    min-height: 8px;
+  }
+  .home-hero {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: 100%;
+  }
+  .wordmark {
+    display: flex;
+    /* 比桌面落地页字标更大一档，往上长、把空白吃掉；提问框位置跟在下面 */
+    font-size: clamp(52px, 14vw, 64px);
+    margin: 0 0 22px;
+  }
+  .ask {
+    flex: none;
+    margin: 0;
+    padding: 16px 14px 12px;
+    border-radius: var(--r-lg);
+  }
+  .ask-bar { margin: 8px 0 0 -6px; }
+  .ask-tools .toggle-label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .home-status { margin: 12px 4px 0; }
+  .recent {
+    flex: 1 1 0;
+    min-height: 0;
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+  }
+  .recent-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .recent .hist-list { flex: 1; max-height: none; }
+  .recent .scroll-thumb { right: -8px; }
+  .recent .hist-open { gap: 12px; padding: 14px 8px; }
+  .recent-head { padding-top: 4px; }
+}

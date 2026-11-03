@@ -1,0 +1,32 @@
+; Match Tauri NSIS PageReinstall semantics (installer.nsi).
+; Same version: Add/Reinstall vs Uninstall.
+; Upgrade: Uninstall first vs Don't uninstall (in-place overwrite).
+; Prefer in-place upgrade wording for the second option.
+
+LangString addOrReinstall ${LANG_ENGLISH} "Reinstall"
+LangString alreadyInstalled ${LANG_ENGLISH} "Already Installed"
+LangString alreadyInstalledLong ${LANG_ENGLISH} "${DISPLAYNAME} ${VERSION} is already installed.$\r$\nSelect an operation and click Next."
+LangString appRunning ${LANG_ENGLISH} "{{product_name}} is running. Close it first, then try again."
+LangString appRunningOkKill ${LANG_ENGLISH} "{{product_name}} is running.$\r$\nClick OK to end the process and continue."
+LangString chooseMaintenanceOption ${LANG_ENGLISH} "Choose the maintenance option to perform."
+LangString chooseHowToInstall ${LANG_ENGLISH} "Choose how to install ${DISPLAYNAME}."
+LangString createDesktop ${LANG_ENGLISH} "Create desktop shortcut"
+LangString dontUninstall ${LANG_ENGLISH} "Overwrite in place (recommended)"
+LangString dontUninstallDowngrade ${LANG_ENGLISH} "Do not uninstall (downgrading without uninstall is disabled)"
+LangString failedToKillApp ${LANG_ENGLISH} "Failed to end {{product_name}}. Close it manually, then try again."
+LangString installingWebview2 ${LANG_ENGLISH} "Installing WebView2..."
+LangString newerVersionInstalled ${LANG_ENGLISH} "A newer version of ${DISPLAYNAME} is already installed. Installing an older build is not recommended.$\r$\nIf you still want this older version, uninstall the current one first. Select an option and click Next."
+LangString older ${LANG_ENGLISH} "older"
+LangString olderOrUnknownVersionInstalled ${LANG_ENGLISH} "An $R4 version of ${DISPLAYNAME} is installed.$\r$\nFor a normal upgrade, choose Overwrite in place. Only uninstall first if you need a clean install folder.$\r$\nSelect an option and click Next."
+LangString silentDowngrades ${LANG_ENGLISH} "Downgrades are disabled for this installer. Use the graphical installer instead.$\r$\n"
+LangString unableToUninstall ${LANG_ENGLISH} "Unable to uninstall."
+LangString uninstallApp ${LANG_ENGLISH} "Uninstall ${DISPLAYNAME}"
+LangString uninstallBeforeInstalling ${LANG_ENGLISH} "Uninstall before installing"
+LangString unknown ${LANG_ENGLISH} "unknown"
+LangString webview2AbortError ${LANG_ENGLISH} "Failed to install WebView2. The app cannot run without it. Restart the installer."
+LangString webview2DownloadError ${LANG_ENGLISH} "Error: downloading WebView2 failed - $0"
+LangString webview2DownloadSuccess ${LANG_ENGLISH} "WebView2 bootstrapper downloaded successfully"
+LangString webview2Downloading ${LANG_ENGLISH} "Downloading WebView2 bootstrapper..."
+LangString webview2InstallError ${LANG_ENGLISH} "Error: installing WebView2 failed with exit code $1"
+LangString webview2InstallSuccess ${LANG_ENGLISH} "WebView2 installed successfully"
+LangString deleteAppData ${LANG_ENGLISH} "Delete the application data"

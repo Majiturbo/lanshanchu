@@ -1,0 +1,104 @@
+name: 构建发布
+
+# 推送 v* 标签或手动运行：构建 Windows NSIS 与 macOS 通用版 PKG，上传到同名的草稿 Release，确认后再发布。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          V=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=v$V" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: meta
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ needs.meta.outputs.tag }}
+          releaseName: 阑珊处 v__VERSION__
+          # GitHub 会去掉附件名里的中文；安装目录名是 ASCII 的 LanshanChu，附件仍用拼音
+          assetNamePattern: lanshanchu_[version]_[platform]_[arch][setup][ext]
+          releaseBody: |
+            - Windows：下载 `-setup.exe`。默认装到 `%LocalAppData%\LanshanChu`；自选路径会装到「所选文件夹\LanshanChu」。升级直接运行新安装包并选「添加 / 重新安装」。旧版若在「阑珊处」目录，装好新版后自行删除旧文件夹即可。安装包无代码签名，SmartScreen 提示时点“更多信息 → 仍要运行”。
+            - macOS：下载 `.pkg`（Apple 芯片与 Intel 通用），双击安装到「应用程序」。没有经过公证，首次打开被拦时到“系统设置 → 隐私与安全性”点“仍要打开”。
+            - 使用前在应用「设置」里登录账号（与 AudioFlow 同一套）。
+          releaseDraft: true
+          args: ""
+
+  macos:
+    needs: meta
+    permissions:
+      contents: write
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - name: 构建通用 .app
+        env:
+          # 没有 Apple 开发者证书，用临时签名：Apple 芯片上不会提示“已损坏”，首次打开仍需在“隐私与安全性”里放行
+          APPLE_SIGNING_IDENTITY: "-"
+        run: npm run tauri -- build --target universal-apple-darwin --bundles app
+
+      - name: 封装 PKG
+        run: npm run app:pkg:mac
+
+      - name: 上传到草稿 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: 阑珊处 v${{ needs.meta.outputs.version }}
+          draft: true
+          files: src-tauri/target/universal-apple-darwin/release/bundle/pkg/lanshanchu_${{ needs.meta.outputs.version }}_darwin_universal.pkg
+          fail_on_unmatched_files: true
+          body: |
+            - Windows：下载 `-setup.exe`。默认装到 `%LocalAppData%\LanshanChu`；自选路径会装到「所选文件夹\LanshanChu」。升级直接运行新安装包并选「添加 / 重新安装」。旧版若在「阑珊处」目录，装好新版后自行删除旧文件夹即可。安装包无代码签名，SmartScreen 提示时点“更多信息 → 仍要运行”。
+            - macOS：下载 `.pkg`（Apple 芯片与 Intel 通用），双击安装到「应用程序」。没有经过公证，首次打开被拦时到“系统设置 → 隐私与安全性”点“仍要打开”。
+            - 使用前在应用「设置」里登录账号（与 AudioFlow 同一套）。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

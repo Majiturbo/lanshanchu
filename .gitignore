@@ -1,0 +1,31 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+tmp/
+.debug/
+*.local
+.packs/
+.claude/
+.prd_fix5/
+doc-fetch-resources/
+
+# 软著申请材料与内部产品规格，不进公开仓库
+docs/soft-copyright/
+docs/PRD.md
+
+src-tauri/target/
+src-tauri/gen/schemas/
+# 移动工程保留源码；构建产物仍忽略
+src-tauri/gen/apple/build/
+src-tauri/gen/apple/Externals/
+src-tauri/gen/apple/Pods/
+src-tauri/gen/apple/*.xcworkspace/xcuserdata/
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/.kotlin/
+src-tauri/gen/android/**/build/
+src-tauri/gen/android/local.properties

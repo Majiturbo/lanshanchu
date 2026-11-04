@@ -234,18 +234,25 @@ function startIosEdgeSwipe(): () => void {
     el.style.transform = `translate3d(${x}px,0,0)`;
   };
 
-  /** 侧滑已把顶层拖走：禁止再播 is-closing / is-pop-out，否则会闪回整页再退一次 */
+  /** 侧滑已把顶层拖走：禁止再播 is-closing / is-pop-out，否则会闪回整页再退一次。
+   * 设置二级的 `.nav-pane.is-front` 会被复用成一级页——行内 opacity/transform 必须在卸层后清掉，否则一级空白。 */
   const beginSwipeDismiss = (el: HTMLElement) => {
     const root = document.documentElement;
     root.dataset.swipeDismiss = "";
-    el.style.transition = "none";
-    el.style.animation = "none";
-    el.style.transform = `translate3d(${width || window.innerWidth || 1}px,0,0)`;
-    el.style.opacity = "0";
-    el.style.pointerEvents = "none";
-    el.style.willChange = "";
     dismissOne();
+    // dismissOne 可能同步改栈：清掉拖拽行内样式，让复用后的一级页能显示
+    const wipe = () => {
+      el.style.transform = "";
+      el.style.transition = "";
+      el.style.animation = "";
+      el.style.opacity = "";
+      el.style.pointerEvents = "";
+      el.style.willChange = "";
+    };
+    wipe();
+    requestAnimationFrame(wipe);
     window.setTimeout(() => {
+      wipe();
       delete root.dataset.swipeDismiss;
     }, 400);
   };

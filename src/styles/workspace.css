@@ -192,6 +192,8 @@ html[data-swipe-dismiss] .nav-pane.is-pop-out {
   opacity: 0 !important;
   transform: translate3d(100%, 0, 0) !important;
 }
+/* 设置栈 front 会被复用成一级：侧滑卸层后必须立刻可见，不能被拖拽残留压成空白 */
+html[data-swipe-dismiss] .mset .nav-pane.is-front,
 html[data-swipe-dismiss] .nav-pane.is-pop-reveal {
   animation: none !important;
   opacity: 1 !important;

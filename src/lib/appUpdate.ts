@@ -40,6 +40,27 @@ function pickAsset(assets: GhRelease["assets"], re: RegExp) {
   return (assets ?? []).find((a) => re.test(a.name || "") && a.browser_download_url);
 }
 
+const RELEASE_HOSTS = new Set([
+  "github.com",
+  "www.github.com",
+  "objects.githubusercontent.com",
+  "release-assets.githubusercontent.com",
+  "github-releases.githubusercontent.com",
+]);
+
+/** 只接受本仓库 GitHub 发布页 / 安装包域名；其余退回发布页，避免把任意下载地址交给系统浏览器 */
+export function trustedReleaseUrl(url: string | undefined, fallback: string): string {
+  const page = fallback.startsWith("https://github.com/") ? fallback : "https://github.com/Majiturbo/lanshanchu/releases/latest";
+  if (!url) return page;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:" && RELEASE_HOSTS.has(u.hostname)) return url;
+  } catch {
+    /* 非法地址 */
+  }
+  return page;
+}
+
 /**
  * 查 GitHub 最新 Release。
  * Android：优先 APK 直链；iOS 旁加载：优先 IPA 直链（交给签名工具安装，不做应用内静默更新 / App Store）。
@@ -59,34 +80,38 @@ export async function checkAppUpdate(signal?: AbortSignal): Promise<UpdateInfo> 
       return { status: "latest", latest };
     }
 
-    const page = data.html_url || "https://github.com/Majiturbo/lanshanchu/releases/latest";
+    const page = trustedReleaseUrl(data.html_url, "https://github.com/Majiturbo/lanshanchu/releases/latest");
     if (!IS_MOBILE_APP) {
       return { status: "available", latest, url: page, packageKind: "page" };
     }
 
     if (IS_IOS_APP) {
       const ipa = pickAsset(data.assets, /\.ipa$/i);
+      const url = trustedReleaseUrl(ipa?.browser_download_url, page);
       return {
         status: "available",
         latest,
-        url: ipa?.browser_download_url || page,
-        packageKind: ipa?.browser_download_url ? "ipa" : "page",
+        url,
+        packageKind: ipa?.browser_download_url && url === ipa.browser_download_url ? "ipa" : "page",
       };
     }
 
     if (IS_ANDROID_APP) {
       const apk = pickAsset(data.assets, /\.apk$/i);
+      const url = trustedReleaseUrl(apk?.browser_download_url, page);
       return {
         status: "available",
         latest,
-        url: apk?.browser_download_url || page,
-        packageKind: apk?.browser_download_url ? "apk" : "page",
+        url,
+        packageKind: apk?.browser_download_url && url === apk.browser_download_url ? "apk" : "page",
       };
     }
 
     const any = pickAsset(data.assets, /\.(apk|ipa)$/i);
-    const kind: UpdatePackageKind = /\.ipa$/i.test(any?.name || "") ? "ipa" : any ? "apk" : "page";
-    return { status: "available", latest, url: any?.browser_download_url || page, packageKind: kind };
+    const url = trustedReleaseUrl(any?.browser_download_url, page);
+    const direct = !!any?.browser_download_url && url === any.browser_download_url;
+    const kind: UpdatePackageKind = !direct ? "page" : /\.ipa$/i.test(any?.name || "") ? "ipa" : "apk";
+    return { status: "available", latest, url, packageKind: kind };
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
     return { status: "error", message: "检查失败，请稍后重试" };

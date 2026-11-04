@@ -12,6 +12,7 @@
 .workspace.has-drawer .stage { right: var(--drawer-w); }
 /* 遮罩 / 底栏菜单 / 对话框开着时，地图不能再平移捏合或点选（顶栏、弹层照常） */
 html.is-mobile-app:has(
+  .path-pop:not(.is-closing),
   .mobile-sheet:not(.is-closing),
   .ctx-sheet:not(.is-closing),
   .ctx-pick:not(.is-closing),

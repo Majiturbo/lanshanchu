@@ -86,7 +86,7 @@ function Topbar() {
             type="button"
             className="icon-btn topbar-more-btn"
             aria-label="更多"
-            aria-expanded={!!sheet}
+            aria-expanded={sheet === "menu" || sheet === "prefs"}
             onClick={() => setSheet((s) => (s ? null : "menu"))}
           >
             <Ellipsis size={16} strokeWidth={1.6} />

@@ -1,5 +1,6 @@
 import { ArrowLeft, Copy, FileDown, RotateCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { track } from "../analytics/index.ts";
 import { IS_MOBILE_APP } from "../core/device.ts";
 import type { Source, SummaryRequest } from "../core/protocol.ts";
@@ -168,7 +169,8 @@ function Sheet({ closing }: { closing: boolean }) {
   );
 
   if (IS_MOBILE_APP) {
-    return (
+    // 必须 portal 到 body：组件挂在 .workspace 里，nav-cover 的 brightness 滤镜会连总结一起压暗
+    return createPortal(
       <div className={`auth-screen summary-screen${closing ? " is-closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="summary-title">
         <header className="auth-head">
           <button type="button" className="icon-btn" aria-label="返回" onClick={actions.closeSummary}>
@@ -182,7 +184,8 @@ function Sheet({ closing }: { closing: boolean }) {
           {article}
           {foot}
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 

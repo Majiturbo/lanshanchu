@@ -212,7 +212,13 @@ function Panel({ closing }: { closing: boolean }) {
     <>
       <div className="history-search">
         <Search size={15} strokeWidth={1.6} />
-        <input ref={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索问题" aria-label="搜索历史记录" />
+        <input
+          ref={input}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={IS_MOBILE_APP ? "搜索历史" : "搜索问题"}
+          aria-label="搜索历史记录"
+        />
         {query && (
           <button type="button" className="icon-btn" aria-label="清空搜索" onClick={() => { setQuery(""); input.current?.focus(); }}>
             <X size={14} strokeWidth={1.6} />
@@ -247,10 +253,9 @@ function Panel({ closing }: { closing: boolean }) {
             <ArrowLeft size={18} strokeWidth={1.6} />
           </button>
           <h1 id="history-title">历史记录</h1>
-          <span className="auth-head-spacer" aria-hidden="true" />
+          <span className="hist-screen-count" aria-label={`${items.length} 条记录`}>{items.length || ""}</span>
         </header>
         <div className="auth-body hist-screen-body">
-          {items.length ? <p className="hist-screen-count">{items.length} 张地图</p> : null}
           {body}
         </div>
       </div>

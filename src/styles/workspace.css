@@ -140,7 +140,8 @@ html.is-mobile-app .crumbs .crumb {
   background: var(--path-pop-current);
   color: var(--ink); font-weight: 500;
 }
-.path-pop-list .lucide { flex: none; color: var(--ink); }
+/* 原型 17：当前路径勾为朱砂印，不是墨色 */
+.path-pop-list .lucide { flex: none; color: var(--seal); }
 
 /* 移动底栏菜单：每一行统一「图标 + 文字」（原型 18 / 19） */
 .mobile-sheet {
@@ -152,14 +153,14 @@ html.is-mobile-app .crumbs .crumb {
 .mobile-sheet-panel {
   position: relative; z-index: 1; width: min(480px, 100%);
   padding: 8px 12px max(12px, env(safe-area-inset-bottom, 0px));
-  background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0;
-  box-shadow: var(--shadow-3);
+  background: var(--path-pop-bg); border-radius: 14px 14px 0 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   animation: enter var(--t-mid) var(--ease) both;
 }
 .mobile-sheet.is-closing .mobile-sheet-panel { animation: leave var(--t-fast) var(--ease-in) both; }
 .mobile-sheet-handle {
   width: 36px; height: 4px; margin: 4px auto 12px;
-  border-radius: 999px; background: var(--line-strong);
+  border-radius: 2px; background: rgba(0, 0, 0, 0.2);
 }
 .mobile-sheet-title {
   margin: 0 8px 12px; font-size: var(--fs-md); font-weight: 600; color: var(--ink);
@@ -167,23 +168,42 @@ html.is-mobile-app .crumbs .crumb {
 .mobile-sheet-item {
   display: flex; align-items: center; gap: 12px;
   width: 100%; min-height: 48px; padding: 0 12px;
-  border-radius: var(--r-md); font-size: var(--fs-lg); color: var(--ink); text-align: left;
+  border-radius: var(--r-md); font-size: var(--fs-lg); color: var(--ink-2); text-align: left;
 }
 .mobile-sheet-item-label { flex: 1; min-width: 0; text-align: left; }
 .mobile-sheet-item .lucide { flex: none; color: var(--ink-3); }
 .mobile-sheet-item:disabled { opacity: 0.4; }
-.mobile-sheet-item:not(:disabled):active { background: var(--surface-hover); }
 .mobile-sheet-cancel {
   margin-top: 8px; justify-content: center; font-weight: 500; color: var(--ink);
-  border-top: var(--hair) solid var(--line);
+  border-top: 0.5px solid rgba(0, 0, 0, 0.11);
+  border-radius: 0;
 }
 .mobile-sheet-switch {
   width: 100%; min-height: 48px; margin-bottom: 4px;
   justify-content: flex-start; padding: 0 12px; border-radius: var(--r-md);
+  color: var(--ink-2);
 }
 .mobile-sheet-prefs { padding: 0 4px 8px; }
 .mobile-sheet-prefs .prefs-row { margin-top: 12px; }
-.mobile-sheet-prefs .prefs-label { font-size: var(--fs-sm); color: var(--ink-3); }
+.mobile-sheet-prefs .prefs-label { font-size: 12px; color: var(--ink-3); }
+/* 原型 06：偏好 chips 选中粉底 #f6e6e3，未选井色 #ebe4da，不是分段条 */
+.mobile-sheet-prefs .segmented {
+  width: auto; margin: 0; min-height: 0; padding: 0; gap: 8px;
+  background: transparent; flex-wrap: wrap;
+}
+.mobile-sheet-prefs .segmented button {
+  flex: none; min-height: 32px; padding: 0 12px; border-radius: 8px;
+  background: #ebe4da; color: var(--ink-2); font-weight: 400; box-shadow: none;
+}
+.mobile-sheet-prefs .segmented button[aria-checked="true"] {
+  background: var(--search-on-bg); color: var(--ink); font-weight: 400; box-shadow: none;
+}
+html.is-mobile-app[data-theme="dark"] .mobile-sheet-prefs .segmented button {
+  background: var(--surface-sunken); color: var(--ink-3);
+}
+html.is-mobile-app[data-theme="dark"] .mobile-sheet-prefs .segmented button[aria-checked="true"] {
+  background: var(--search-on-bg); color: var(--ink);
+}
 .export-preview-panel { max-height: min(78vh, 640px); display: flex; flex-direction: column; }
 .export-preview-name {
   margin: 0 8px 8px; font-size: var(--fs-sm); color: var(--ink-3);
@@ -272,6 +292,12 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 .auth-head h1 {
   flex: 1; margin: 0; text-align: center;
   font-size: var(--fs-lg); font-weight: 600;
+}
+/* 设置 / 历史 / 总结 / 额度：标题左贴返回（原型 10/07/11/26），17 粗；登录品牌页仍居中 */
+html.is-mobile-app :is(.mset, .hist-screen, .summary-screen, .auth-screen) .auth-head h1 {
+  text-align: left;
+  font-size: 17px;
+  font-weight: 700;
 }
 .auth-head h1.auth-title-swap {
   animation: nav-title-in calc(var(--t-nav) * 0.85) var(--ease-nav) both;
@@ -376,8 +402,8 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
   color: var(--auth-title);
 }
 .auth-brand p { margin: 6px 0 0; font-size: 14px; color: var(--ink-3); }
-.auth-tabs { display: flex; gap: 28px; margin: 22px 0 16px; }
-.auth-tabs button { padding: 0 0 8px; font-size: var(--fs-lg); color: var(--ink-3); font-weight: 400; }
+.auth-tabs { display: flex; gap: 32px; margin: 22px 0 16px; }
+.auth-tabs button { padding: 0 0 8px; font-size: 16px; color: var(--ink-3); font-weight: 400; }
 .auth-tabs button.on {
   color: var(--auth-tab-on); font-weight: 700;
   box-shadow: inset 0 -2px 0 var(--auth-tab-on);
@@ -398,9 +424,15 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 .auth-well .icon-btn { color: var(--ink-4); width: 32px; height: 32px; }
 .auth-well input {
   flex: 1; min-width: 0; height: 44px; border: 0; outline: 0;
-  background: transparent; font-size: var(--fs-lg); color: var(--ink);
+  background: transparent; font-size: 15px; color: var(--ink);
 }
 .auth-well input::placeholder { color: var(--ink-4); }
+/* 原型 20–23 浅色占位偏冷灰 #b9bbc6 */
+html.is-mobile-app .auth-well input::placeholder { color: #b9bbc6; }
+html.is-mobile-app[data-theme="dark"] .auth-well input::placeholder { color: var(--ink-4); }
+@media (prefers-color-scheme: dark) {
+  html.is-mobile-app:not([data-theme="light"]) .auth-well input::placeholder { color: var(--ink-4); }
+}
 /* iOS 自动填充会刷掉底色/字色，钉回当前主题 */
 .auth-well input:-webkit-autofill,
 .auth-well input:-webkit-autofill:hover,
@@ -443,39 +475,131 @@ html.is-mobile-app .auth-submit.btn.btn-primary:disabled {
 .auth-sent { margin: 0; font-size: var(--fs-sm); color: var(--ink-3); }
 .auth-foot { flex: none; margin-top: 0; padding: 24px 0 8px; text-align: center; color: var(--ink-3); }
 .auth-foot button { margin-left: 4px; color: var(--auth-link); font-weight: 600; }
-/* 设置一级：分卡片（原型 10） */
+/* 设置一级：分卡片（原型 10：浅色白底 #fcfcfd、无描边；分组分割线从图标后起） */
 .mset-card {
-  margin-top: 12px; padding: 0 12px;
-  background: var(--path-pop-bg);
-  border: 1px solid var(--path-pop-line);
+  margin-top: 12px; padding: 0 16px;
+  background: var(--ask-fill);
+  border: none;
   border-radius: 12px;
 }
 .mset-card:first-child { margin-top: 0; }
+/* 原型：账号→购买 12；购买→分组 / 分组→更新 20 */
+.mset-card + .mset-group,
+.mset-group + .mset-card { margin-top: 20px; }
 .mset-account, .mset-row {
   display: flex; align-items: center; gap: 12px;
-  width: 100%; min-height: 52px; padding: 12px 2px; text-align: left;
+  width: 100%; min-height: 52px; padding: 12px 0; text-align: left;
 }
+.mset-card.mset-account { min-height: 76px; padding-top: 16px; padding-bottom: 16px; }
+/* 购买套餐行按原型略矮、无箭头 */
+.mset-card.mset-row:has(.mset-soon) { min-height: 44px; padding-top: 12px; padding-bottom: 12px; }
 .mset-account { align-items: center; }
 .mset-account-copy { flex: 1; min-width: 0; }
-.mset-account-name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-lg); }
-.mset-account-status { display: block; margin-top: 2px; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 400; }
-.mset-plan-label { font-weight: 500; color: var(--ink-2); font-size: var(--fs-md); }
+.mset-account-name { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 17px; }
+.mset-account-status { display: block; margin-top: 6px; color: var(--ink-3); font-size: 12px; font-weight: 400; }
+.mset-plan-label { font-weight: 500; color: var(--ink-2); font-size: 17px; }
 .mset-account-name .plan-mark {
-  display: block; flex-shrink: 0; width: 1em; height: 1em; margin: 0;
+  display: block; flex-shrink: 0; width: 18px; height: 18px; margin: 0;
   object-fit: contain; user-select: none; pointer-events: none;
 }
-.mset-row > span { flex: 1; min-width: 0; text-align: left; }
-.mset-row em { flex: none; font-style: normal; color: var(--ink-3); font-size: var(--fs-sm); }
+.mset-row > span { flex: 1; min-width: 0; text-align: left; font-size: 15px; }
+.mset-row em { flex: none; font-style: normal; color: var(--ink-3); font-size: 13px; }
+.mset-row em.mset-soon { color: var(--seal); font-weight: 400; }
 .mset-row .lucide, .mset-account .lucide { color: var(--ink-3); flex: none; }
-.mset-group { padding: 0 12px; }
-.mset-group .mset-row + .mset-row { border-top: var(--hair) solid var(--line); }
+.mset-group { padding: 0 16px; }
+/* 原型 10：分割线从文字列起（卡内 16+20+12=48） */
+.mset-group .mset-row { position: relative; padding-left: 0; padding-right: 0; }
+.mset-group .mset-row + .mset-row { border-top: none; }
+.mset-group .mset-row + .mset-row::before {
+  content: ""; position: absolute; left: 32px; right: 0; top: 0;
+  height: 1px; background: rgba(0, 0, 0, 0.06);
+}
+html.is-mobile-app[data-theme="dark"] .mset-group .mset-row + .mset-row::before {
+  background: rgba(255, 255, 255, 0.1);
+}
+@media (prefers-color-scheme: dark) {
+  html.is-mobile-app:not([data-theme="light"]) .mset-group .mset-row + .mset-row::before {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
 .mset-row:disabled { opacity: 0.45; }
-.mset-account-page { display: flex; flex-direction: column; }
+.mset-account-page {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.mset-phone-card {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 64px; margin-top: 20px; padding: 12px 16px;
+  background: var(--ask-fill); border: none; border-radius: 12px; text-align: left;
+}
+.mset-phone-copy { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.mset-phone-label { font-size: 15px; font-weight: 500; color: var(--ink); }
+.mset-phone-meta { font-size: 12px; color: var(--ink-3); }
+.mset-phone-act { flex: none; font-style: normal; font-size: 14px; font-weight: 500; color: var(--seal); }
+.mset-account-foot {
+  margin-top: auto; padding-top: 28px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.mset-delete-outline {
+  width: 100%; min-height: 44px; border-radius: 12px;
+  border: 1px solid var(--danger); color: var(--danger);
+  background: transparent; font-size: 15px; font-weight: 500;
+}
+.mset-delete-outline:disabled { opacity: 0.4; }
+.mset-logout-card {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; min-height: 48px; border-radius: 12px;
+  background: var(--ask-fill); border: none;
+  color: var(--danger); font-size: 15px; font-weight: 500;
+}
+.mset-logout-card .lucide { color: var(--danger); }
 .mset-logout { margin-top: 28px; min-height: 48px; color: var(--danger); font-weight: 600; }
 .mset .field + .field { margin-top: 18px; }
 .mset-note { display: grid; gap: 8px; margin-top: 8px; }
 .mset-note p { margin: 0; font-size: var(--fs-md); line-height: 1.7; color: var(--ink-2); }
-.mset-form-note { margin: 8px 0 0; font-size: var(--fs-sm); line-height: 1.6; color: var(--ink-3); text-align: center; }
+.mset-form-note { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: var(--ink-3); text-align: left; }
+/* 原型 27–29：正文大标题 24，顶栏无小标题 */
+.mset-form-brand { gap: 12px; }
+.mset-form-title {
+  margin: 8px 0 0; font-size: 24px; font-weight: 700; line-height: 1.2; color: var(--ink);
+}
+.mset-form-brand .auth-lead { margin: 0; font-size: 14px; color: var(--ink-3); }
+/* 原型 15：检查更新 = 品牌头 + 白卡状态 + 朱砂主按钮 */
+.mset-update {
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: 24px;
+}
+.mset-update-brand {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin-bottom: 24px;
+}
+.mset-update-mark {
+  display: block; width: 64px; height: 64px;
+  object-fit: contain; user-select: none; pointer-events: none;
+}
+.mset-update-brand h2 {
+  margin: 0; font-size: 18px; font-weight: 700; color: var(--ink);
+}
+.mset-update-brand p {
+  margin: 0; font-size: 13px; color: var(--ink-3);
+}
+.mset-update-card {
+  width: 100%; padding: 16px;
+  background: var(--ask-fill); border-radius: 12px;
+}
+.mset-update-status {
+  margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--seal);
+}
+.mset-update-status.is-error { color: var(--danger); }
+.mset-update-notes {
+  margin: 0 0 16px; padding: 0; list-style: none;
+  font-size: 13px; line-height: 22px; color: var(--ink-2);
+}
+.mset-update-notes li::before { content: "· "; }
+.mset-update-btn { width: 100%; min-height: 40px; border-radius: 10px; }
+.mset-update-time {
+  margin: 16px 0 0; font-size: 12px; color: #b9bbc6;
+}
 /* 原型 29：确认注销用实心危险色 */
 html.is-mobile-app .mset-delete-submit.btn.btn-danger,
 html.is-mobile-app .mset-delete-submit.btn.btn-danger:hover,
@@ -496,46 +620,72 @@ html.is-mobile-app .mset-delete-submit.btn.btn-danger:disabled { opacity: 0.5; }
 .quota-hero {
   margin: 8px 0 0; font-size: 22px; font-weight: 700; line-height: 1.3; color: var(--ink);
 }
-.quota-flow .auth-lead { margin-top: 10px; }
+.quota-flow .auth-lead { margin-top: 10px; font-size: 15px; color: var(--ink-2); }
 .quota-card {
-  margin: 20px 0 0; padding: 14px 14px 12px;
-  background: var(--path-pop-bg);
-  border: 1px solid var(--path-pop-line);
+  margin: 20px 0 0; padding: 16px;
+  background: var(--ask-fill);
+  border: none;
   border-radius: 12px;
 }
 .quota-card-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 .quota-card-plan {
   display: inline-flex; align-items: center; gap: 6px;
-  font-weight: 600; font-size: var(--fs-lg); color: var(--ink);
+  font-weight: 700; font-size: 15px; color: var(--ink);
 }
 .quota-card-plan .plan-mark {
   display: block; width: 1em; height: 1em; object-fit: contain;
 }
-.quota-card-expire { font-size: var(--fs-sm); color: var(--ink-3); }
+.quota-card-expire { font-size: 12px; color: var(--ink-3); }
+/* 原型 26：额度卡进度横排「标签 | 条 | %」 */
+.quota-card .usage-meters { gap: 16px; }
+.quota-card .usage-meter {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 40px;
+  align-items: center; gap: 8px;
+}
+.quota-card .usage-meter-top { display: contents; }
+.quota-card .usage-meter-label { font-size: 12px; font-weight: 400; color: var(--ink-2); }
+.quota-card .usage-meter-pct { font-size: 12px; text-align: right; }
+.quota-card .usage-meter-track { grid-column: 2; }
+.quota-flow .auth-submit {
+  margin-top: 24px; border-radius: 12px;
+}
 .quota-secondary {
-  width: 100%; min-height: 48px; margin-top: 10px; justify-content: center;
-  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  width: 100%; min-height: 48px; margin-top: 12px; justify-content: center;
+  border: 1px solid #c9bfb2; border-radius: 12px; color: var(--ink-2); font-weight: 500;
 }
 .quota-note {
-  margin: 14px 0 0; text-align: center;
-  font-size: var(--fs-sm); color: var(--ink-3);
+  margin: 16px 0 0; text-align: left;
+  font-size: 12px; color: #b9bbc6;
 }
 
 .hist-screen .auth-body,
 .summary-screen .auth-body { max-width: none; padding-inline: 16px; }
 .hist-screen-body { gap: 0; }
-.hist-screen-count { margin: 0 0 8px; font-size: var(--fs-sm); color: var(--ink-3); }
-.hist-screen .history-search { margin: 0 0 12px; }
+/* 原型 07：数量在顶栏右侧 12 次级墨；搜索井 36 高、8 圆角 */
+.hist-screen-count {
+  min-width: 28px; height: 44px; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-3);
+}
+.hist-screen .history-search {
+  margin: 0 0 16px; padding: 0 12px; min-height: 36px; border-radius: 8px;
+  background: var(--surface-sunken);
+}
+.hist-screen .history-search input { height: 36px; font-size: 13px; }
+.hist-screen .history-search input::placeholder { color: #b9bbc6; }
 .hist-screen .history-body { flex: 1; overflow-y: auto; padding: 0; }
-.summary-screen-body { gap: 12px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+/* 安全区只由 .auth-screen 垫一次；这里再加会叠出一大块底空 */
+.summary-screen { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.summary-screen-body { gap: 12px; padding-bottom: 12px; }
 .summary-screen-body .segmented { align-self: stretch; }
 .summary-screen-body .summary-body { flex: 1; overflow-y: auto; min-height: 0; }
 .summary-screen-body .summary-foot {
-  position: sticky; bottom: 0; margin: 0 -4px;
-  padding: 12px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  flex: none; margin: 0 -4px;
+  padding: 12px 4px 4px;
   background: var(--bg);
 }
 

@@ -403,6 +403,19 @@ html.is-touch .card-actions .icon-btn {
 html.is-touch .attach-del { opacity: 1; }
 /* SPA 壳：锁死 document 橡胶带滚动（Capacitor scrollEnabled:false 同思路）；
    真正滚动只发生在 .auth-body / .nav-pane-body / .drawer-body 等内层。 */
+/* 移动浅色主字对齐 Figma 浅色稿 #484b4e / #60646c / #80838d（桌面仍用暖墨；深色不改） */
+html.is-mobile-app[data-theme="light"] {
+  --ink: #484b4e;
+  --ink-2: #60646c;
+  --ink-3: #80838d;
+}
+@media (prefers-color-scheme: light) {
+  html.is-mobile-app:not([data-theme="dark"]) {
+    --ink: #484b4e;
+    --ink-2: #60646c;
+    --ink-3: #80838d;
+  }
+}
 html.is-mobile-app,
 html.is-mobile-app body {
   position: fixed;
@@ -420,19 +433,24 @@ html.is-mobile-app #root {
   height: 100%;
   overflow: hidden;
 }
-/* 触控上 :hover 会粘住。只清「图标/幽灵」控件的粘住灰底；不要动 .btn——
-   实心主按钮与描边按钮清成 transparent 会变成点一下底色消失（登录按钮即此）。
-   真·鼠标才恢复图标悬停底。选中态必须保留底色。 */
+/* 触控上 :hover 会粘住、:active 也会闪灰底。图标/幽灵/列表行一律不铺；
+   不要动 .btn——实心主按钮清成 transparent 会点一下底色消失（登录按钮即此）。
+   真·鼠标才恢复图标悬停底。选中 / 联网开态必须保留底色。 */
 html.is-mobile-app :is(
-  .icon-btn, .toggle, .wc, .crumb, .zoom-value, .slot-send,
-  .followup, .reader-back, .hist-del, .preset, .ctx-item,
+  .icon-btn, .toggle, .wc, .crumb, .zoom-value, .slot-send, .topbar-current,
+  .followup, .reader-back, .hist-del, .hist-open, .hist-row, .preset, .ctx-item, .path-pop-list button,
   .source:is(a, button), .research-queries li, a.dropped-row,
-  .mset-account, .mset-row, .mobile-sheet-item, .phone-bind-leave
+  .mset-account, .mset-row, .mobile-sheet-item, .mobile-switch, .phone-bind-leave
 ):is(:hover, :focus, :focus-visible):not([aria-selected="true"]):not([aria-pressed="true"]):not([aria-expanded="true"]) {
   background: transparent;
   outline: none;
 }
-html.is-mobile-app :is(.icon-btn, .toggle, .wc, .slot-send):active {
+html.is-mobile-app :is(
+  .icon-btn, .toggle, .wc, .crumb, .zoom-value, .slot-send, .topbar-current,
+  .followup, .reader-back, .hist-del, .hist-open, .hist-row, .preset, .ctx-item, .path-pop-list button,
+  .source:is(a, button), .research-queries li, a.dropped-row,
+  .mset-account, .mset-row, .mobile-sheet-item, .mobile-switch, .phone-bind-leave
+):active:not([aria-selected="true"]):not([aria-pressed="true"]) {
   background: transparent;
 }
 /* 触屏：取消次按钮粘住 hover；主按钮任何伪类都保持实底（按下才加深） */
@@ -448,8 +466,9 @@ html.is-mobile-app .btn.btn-primary:focus-visible {
   color: var(--on-solid-btn);
   opacity: 1;
 }
+/* 次按钮按下也不铺灰底（登录描边钮除外靠自身边框辨认） */
 html.is-mobile-app .btn:not(.btn-primary):active:not(:disabled) {
-  background: var(--surface-active);
+  background: var(--surface);
 }
 html.is-mobile-app .btn.btn-primary:active:not(:disabled) {
   background: var(--solid-hover);
@@ -457,8 +476,12 @@ html.is-mobile-app .btn.btn-primary:active:not(:disabled) {
   color: var(--on-solid-btn);
 }
 html.is-mobile-app .recent .hist-row:hover,
+html.is-mobile-app .recent .hist-row:active,
 html.is-mobile-app .history .hist-row:hover,
-html.is-mobile-app .hist-row.is-active {
+html.is-mobile-app .history .hist-row:active,
+html.is-mobile-app .hist-row.is-active,
+html.is-mobile-app .hist-open:hover,
+html.is-mobile-app .hist-open:active {
   background: transparent;
 }
 /* 移动端联网开关跟原型：开有底色+对应图标色，关无底+灰图标；回答偏好展开仍无底 */

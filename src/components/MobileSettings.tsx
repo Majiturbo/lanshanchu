@@ -1,4 +1,4 @@
-import { ArrowLeft, Brain, ChevronRight, LoaderCircle, Map, Palette, RefreshCw, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Brain, ChevronRight, LoaderCircle, LogOut, Map, Palette, RefreshCw, ShoppingCart } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useMemory } from "../memory/store.ts";
 import { bindSettingsBack } from "../lib/backStack.ts";
@@ -78,9 +78,11 @@ function MobileSettings({ closing }: { closing: boolean }) {
     pendingPage = null;
     return ["root", target];
   })();
-  const { stack, stackRef, phase, outgoing, push, pop, popSwipe, replace } = useStackNav<Page>(initial);
+  const { stack, stackRef, phase, push, pop, popSwipe, replace } = useStackNav<Page>(initial);
   const page = stack[stack.length - 1] ?? "root";
   const under = stack.length >= 2 ? stack[stack.length - 2]! : null;
+  /** pop 动画期间标题先切到下层，避免等切栈才换 */
+  const titlePage = phase === "pop" && under ? under : page;
   const accountId = useSettings((s) => s.account?.id ?? "");
 
   useEffect(() => {
@@ -141,15 +143,15 @@ function MobileSettings({ closing }: { closing: boolean }) {
 
   const underClass = [
     "nav-pane",
-    "is-under",
+    phase === "pop" ? "is-pop-reveal" : "is-under",
     phase === "push" ? "is-push-under" : "",
   ].filter(Boolean).join(" ");
   const frontClass = [
     "nav-pane",
     "is-front",
-    under || outgoing ? "" : "is-alone",
+    under ? "" : "is-alone",
     phase === "push" ? "is-push-in" : "",
-    phase === "pop" ? "is-pop-reveal" : "",
+    phase === "pop" ? "is-pop-out" : "",
   ].filter(Boolean).join(" ");
 
   return (
@@ -158,23 +160,23 @@ function MobileSettings({ closing }: { closing: boolean }) {
         <button type="button" className="icon-btn" aria-label="返回" onClick={back}>
           <ArrowLeft size={18} strokeWidth={1.6} />
         </button>
-        <h1 key={page} className="auth-title-swap">{TITLES[page]}</h1>
+        {/* 原型 27–29：绑定/更换/注销标题在正文 24px，顶栏只留返回 */}
+        {titlePage === "bind" || titlePage === "change" || titlePage === "delete" ? (
+          <span className="auth-head-spacer" aria-hidden="true" />
+        ) : (
+          <h1 key={titlePage} className="auth-title-swap">{TITLES[titlePage]}</h1>
+        )}
         <span className="auth-head-spacer" aria-hidden="true" />
       </header>
       <div className="nav-stack">
         {under ? (
-          <div className={underClass} aria-hidden="true">
+          <div className={underClass} aria-hidden={phase !== "pop"}>
             <div className="nav-pane-body">{renderPage(under)}</div>
           </div>
         ) : null}
-        <div className={frontClass}>
+        <div className={frontClass} aria-hidden={phase === "pop"}>
           <div className="nav-pane-body">{renderPage(page)}</div>
         </div>
-        {outgoing ? (
-          <div className="nav-pane is-front is-pop-out" aria-hidden="true">
-            <div className="nav-pane-body">{renderPage(outgoing)}</div>
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -188,7 +190,10 @@ function RootPage({ push }: { push: (page: Page) => void }) {
   const memoryOn = useMemory((s) => s.enabled);
   const planLabel = usage?.planLabel || "";
   const expires = usage?.planExpiresAt
-    ? new Date(usage.planExpiresAt * 1000).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour12: false })
+    ? (() => {
+      const d = new Date(usage.planExpiresAt * 1000);
+      return `${d.getMonth() + 1}月${d.getDate()}日`;
+    })()
     : "";
   const status = !account
     ? "登录后即可提问"
@@ -215,29 +220,29 @@ function RootPage({ push }: { push: (page: Page) => void }) {
       <button type="button" className="mset-card mset-row" onClick={noticePlansSoon}>
         <ShoppingCart size={16} strokeWidth={1.6} aria-hidden="true" />
         <span>购买套餐</span>
-        <em>即将开放</em>
+        <em className="mset-soon">即将开放</em>
       </button>
       <div className="mset-card mset-group">
         <button type="button" className="mset-row" onClick={() => push("memory")}>
-          <Brain size={16} strokeWidth={1.6} aria-hidden="true" />
+          <Brain size={20} strokeWidth={1.6} aria-hidden="true" />
           <span>记忆</span>
           <em>{memoryOn ? "已开启" : "已关闭"}</em>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
         <button type="button" className="mset-row" onClick={() => push("look")}>
-          <Palette size={16} strokeWidth={1.6} aria-hidden="true" />
+          <Palette size={20} strokeWidth={1.6} aria-hidden="true" />
           <span>外观</span>
           <em>{themeLabel}</em>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
         <button type="button" className="mset-row" onClick={() => push("canvas")}>
-          <Map size={16} strokeWidth={1.6} aria-hidden="true" />
+          <Map size={20} strokeWidth={1.6} aria-hidden="true" />
           <span>画布与来源</span>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
       </div>
       <button type="button" className="mset-card mset-row" onClick={() => push("update")}>
-        <RefreshCw size={16} strokeWidth={1.6} aria-hidden="true" />
+        <RefreshCw size={20} strokeWidth={1.6} aria-hidden="true" />
         <span>检查更新</span>
         <em>{APP_VERSION}</em>
         <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
@@ -252,17 +257,28 @@ function AccountPage({ push }: { push: (page: Page) => void }) {
   return (
     <div className="mset-account-page">
       <AccountSection hideLogout onPlans={noticePlansSoon} />
-      <button type="button" className="mset-row" onClick={() => push(phone ? "change" : "bind")}>
-        <span>手机号</span>
-        <em>{phone ? maskPhone(phone) : "去绑定"}</em>
-        <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
+      {/* 原型 11：手机号白卡双行 + 右侧朱砂「去绑定/更换」，不是列表箭头行 */}
+      <button type="button" className="mset-phone-card" onClick={() => push(phone ? "change" : "bind")}>
+        <span className="mset-phone-copy">
+          <span className="mset-phone-label">手机号</span>
+          <span className="mset-phone-meta">{phone ? maskPhone(phone) : "未绑定"}</span>
+        </span>
+        <em className="mset-phone-act">{phone ? "更换" : "去绑定"}</em>
       </button>
-      <button type="button" className="mset-row" disabled={!phone} onClick={() => phone && push("delete")}>
-        <span>注销账号</span>
-        <em>{phone ? "" : "需先绑定手机号"}</em>
-        <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
-      </button>
-      <button type="button" className="mset-logout" onClick={() => { void logout(); }}>退出登录</button>
+      <div className="mset-account-foot">
+        <button
+          type="button"
+          className="mset-delete-outline"
+          disabled={!phone}
+          onClick={() => phone && push("delete")}
+        >
+          注销账号
+        </button>
+        <button type="button" className="mset-logout-card" onClick={() => { void logout(); }}>
+          <LogOut size={16} strokeWidth={1.6} aria-hidden="true" />
+          退出登录
+        </button>
+      </div>
     </div>
   );
 }
@@ -323,13 +339,18 @@ function Choice<T extends string>({
 function UpdatePage() {
   const [busy, setBusy] = useState(true);
   const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const theme = useSettings((s) => s.theme);
+  const darkMark = theme === "dark"
+    || (theme === "system" && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
 
   const run = async () => {
     if (busy) return;
     setBusy(true);
-    setInfo(null);
     try {
-      setInfo(await checkAppUpdate());
+      const next = await checkAppUpdate();
+      setInfo(next);
+      setCheckedAt(Date.now());
     } finally {
       setBusy(false);
     }
@@ -339,7 +360,9 @@ function UpdatePage() {
     const ctrl = new AbortController();
     void checkAppUpdate(ctrl.signal)
       .then((next) => {
-        if (!ctrl.signal.aborted) setInfo(next);
+        if (ctrl.signal.aborted) return;
+        setInfo(next);
+        setCheckedAt(Date.now());
       })
       .catch((e) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
@@ -351,24 +374,53 @@ function UpdatePage() {
     return () => ctrl.abort();
   }, []);
 
+  const statusTitle = busy && !info
+    ? "正在检查…"
+    : info?.status === "latest"
+      ? "已是最新版本。"
+      : info?.status === "available"
+        ? `发现新版本 ${info.latest}。`
+        : info?.status === "error"
+          ? info.message
+          : "";
+
   return (
-    <div className="mset-note">
-      <p>当前版本 {APP_VERSION}</p>
-      {busy && !info ? <p>正在检查…</p> : null}
-      {info?.status === "latest" ? <p>已是最新版本。</p> : null}
-      {info?.status === "available" ? (
-        <>
-          <p>发现新版本 {info.latest}。</p>
-          <button type="button" className="btn auth-submit" onClick={() => openExternal(info.url)}>
+    <div className="mset-update">
+      <div className="mset-update-brand">
+        <img
+          className="mset-update-mark"
+          src={darkMark ? "./favicon.png" : "./favicon-light.png"}
+          alt=""
+          width={64}
+          height={64}
+          draggable={false}
+        />
+        <h2>阑珊处</h2>
+        <p>当前版本 {APP_VERSION}</p>
+      </div>
+      <div className="mset-update-card">
+        {statusTitle ? <p className={`mset-update-status${info?.status === "error" ? " is-error" : ""}`}>{statusTitle}</p> : null}
+        {info?.status === "latest" || info?.status === "available" ? (
+          <ul className="mset-update-notes">
+            <li>转场对齐 FadeFromRight</li>
+            <li>购买套餐仅提示、不进二级</li>
+            <li>导出预览 / 历史左滑删除 / 浅色朱砂按钮</li>
+          </ul>
+        ) : null}
+        {info?.status === "available" ? (
+          <button type="button" className="btn btn-primary auth-submit mset-update-btn" onClick={() => openExternal(info.url)}>
             {info.packageKind === "apk" ? "下载安装包" : info.packageKind === "ipa" ? "下载 IPA" : "查看更新"}
           </button>
-          {info.packageKind === "ipa" ? <p>下载后用签名工具安装；无法像 Android 那样直接覆盖。</p> : null}
-        </>
-      ) : null}
-      {info?.status === "error" ? <p>{info.message}</p> : null}
-      <button type="button" className="btn" disabled={busy} onClick={() => void run()}>
-        {busy ? "检查中…" : "重新检查"}
-      </button>
+        ) : (
+          <button type="button" className="btn btn-primary auth-submit mset-update-btn" disabled={busy} onClick={() => void run()}>
+            {busy ? "检查中…" : "重新检查"}
+          </button>
+        )}
+        {info?.status === "available" && info.packageKind === "ipa" ? (
+          <p className="mset-form-note">下载后用签名工具安装；无法像 Android 那样直接覆盖。</p>
+        ) : null}
+      </div>
+      {checkedAt ? <p className="mset-update-time">刚刚检查</p> : null}
     </div>
   );
 }
@@ -424,7 +476,8 @@ function BindPage({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <form className="auth-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+    <form className="auth-form mset-form-brand" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <h2 className="mset-form-title">绑定手机号</h2>
       <p className="auth-lead">绑定后可以用验证码登录，也可以自助找回密码</p>
       <label className="auth-well">
         <input aria-label="手机号" inputMode="numeric" autoComplete="tel" maxLength={11} placeholder="11 位手机号" value={phone} onChange={(e) => setPhone(digits(e.target.value))} />
@@ -482,7 +535,8 @@ function ChangePage({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <form className="auth-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+    <form className="auth-form mset-form-brand" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <h2 className="mset-form-title">更换手机号</h2>
       <p className="auth-lead">先验证当前手机号，再验证新号码。两枚验证码都要通过。</p>
       <label className="auth-well">
         <input aria-label="当前手机号" value={maskPhone(current) || current} readOnly />
@@ -540,8 +594,9 @@ function DeletePage({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <form className="auth-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <p className="auth-lead">验证码发送到当前绑定的手机号。注销后这个账号不能再登录。这台设备上的知识地图还在。</p>
+    <form className="auth-form mset-form-brand" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <h2 className="mset-form-title">注销账号</h2>
+      <p className="auth-lead">验证码发到当前绑定的手机号。注销后这个账号不能再登录。这台设备上的知识地图还在。</p>
       <label className="auth-well">
         <input aria-label="当前手机号" value={maskPhone(phone) || phone} readOnly />
       </label>

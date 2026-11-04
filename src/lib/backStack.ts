@@ -61,7 +61,7 @@ function leaveToBackground() {
   }
 }
 
-const SHEET_SEL = ".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing), .leave-sheet:not(.is-closing), .cite-sheet";
+const SHEET_SEL = ".path-pop:not(.is-closing), .mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing), .leave-sheet:not(.is-closing), .cite-sheet";
 
 export function dismissOne(): boolean {
   if (needsPhoneBind(useSettings.getState().account)) return true;
@@ -155,7 +155,7 @@ function topSwipeTarget(): HTMLElement | null {
   if (viewer) return viewer;
 
   const sheet = document.querySelector<HTMLElement>(
-    ".cite-sheet, .mobile-sheet:not(.is-closing) .mobile-sheet-panel, .ctx-sheet:not(.is-closing) .ctx-sheet-panel, .command-sheet:not(.is-closing) .ctx-sheet-panel, .leave-sheet:not(.is-closing) .ctx-sheet-panel, .ctx-pick:not(.is-closing), .ctx-menu:not(.is-closing), .prefs-pop:not(.is-closing), .topbar-overflow:not(.is-closing)",
+    ".path-pop:not(.is-closing), .cite-sheet, .mobile-sheet:not(.is-closing) .mobile-sheet-panel, .ctx-sheet:not(.is-closing) .ctx-sheet-panel, .command-sheet:not(.is-closing) .ctx-sheet-panel, .leave-sheet:not(.is-closing) .ctx-sheet-panel, .ctx-pick:not(.is-closing), .ctx-menu:not(.is-closing), .prefs-pop:not(.is-closing), .topbar-overflow:not(.is-closing)",
   );
   if (sheet) return sheet;
 

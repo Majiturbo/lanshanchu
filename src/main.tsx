@@ -93,9 +93,13 @@ const applyFavicon = (dark: boolean) => {
   document.head.appendChild(link);
 };
 const applyTheme = (t: Theme) => {
-  if (t === "system") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = t;
+  const root = document.documentElement;
+  if (t === "system") delete root.dataset.theme;
+  else root.dataset.theme = t;
   const dark = isDarkTheme(t);
+  // 与 index.html 首屏脚本一致：切主题时同步 colorScheme，避免内联旧值压住令牌
+  root.style.colorScheme = dark ? "dark" : "light";
+  root.style.backgroundColor = dark ? "#141726" : "#f3efe9";
   applyFavicon(dark);
   const bars = (window as unknown as { LanshanBars?: { setDark: (dark: boolean) => void } }).LanshanBars;
   bars?.setDark(dark);

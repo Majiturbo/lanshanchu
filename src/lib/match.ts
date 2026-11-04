@@ -108,19 +108,26 @@ export function sentenceBefore(text: string, index: number): string {
   return parts[parts.length - 1].replace(/\[\d{1,2}\]/g, "").trim();
 }
 
-/** 一个节点里引用了第 n 条来源的所有句子（结论、要点、详解），去重后按出现顺序 */
-export function quotesFor(node: { summary: string; points: { text: string; cites: number[] }[]; detail: string }, n: number): string[] {
-  const out: string[] = [];
-  const add = (q: string) => {
+/** 一个节点里引用了第 n 条来源的所有句子（结论、要点、详解），去重后按出现顺序；label 给阅读页跳转条用 */
+export function quoteEntriesFor(
+  node: { summary: string; points: { text: string; cites: number[] }[]; detail: string },
+  n: number,
+): { text: string; label: string }[] {
+  const out: { text: string; label: string }[] = [];
+  const add = (q: string, label: string) => {
     const t = q.replace(/[#*]/g, "").replace(/^[-•\d.、\s]+/, "").trim();
-    if (t && !out.includes(t)) out.push(t);
+    if (t && !out.some((x) => x.text === t)) out.push({ text: t, label });
   };
   const marker = `[${n}]`;
-  const each = (text: string) => {
-    for (let i = text.indexOf(marker); i >= 0; i = text.indexOf(marker, i + 1)) add(sentenceBefore(text, i));
+  const each = (text: string, label: string) => {
+    for (let i = text.indexOf(marker); i >= 0; i = text.indexOf(marker, i + 1)) add(sentenceBefore(text, i), label);
   };
-  each(node.summary);
-  for (const p of node.points) if (p.cites.includes(n)) add(p.text);
-  for (const line of node.detail.split("\n")) each(line);
+  each(node.summary, "结论");
+  node.points.forEach((p, i) => { if (p.cites.includes(n)) add(p.text, `要点 ${i + 1}`); });
+  for (const line of node.detail.split("\n")) each(line, "详解");
   return out;
+}
+
+export function quotesFor(node: { summary: string; points: { text: string; cites: number[] }[]; detail: string }, n: number): string[] {
+  return quoteEntriesFor(node, n).map((x) => x.text);
 }

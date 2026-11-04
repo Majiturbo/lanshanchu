@@ -32,7 +32,6 @@ export type StackPhase = "idle" | "push" | "pop";
 export function useStackNav<T extends string>(initial: T[]) {
   const [stack, setStack] = useState<T[]>(initial);
   const [phase, setPhase] = useState<StackPhase>("idle");
-  const [outgoing, setOutgoing] = useState<T | null>(null);
   const stackRef = useRef(stack);
   stackRef.current = stack;
   const busy = useRef(false);
@@ -40,43 +39,41 @@ export function useStackNav<T extends string>(initial: T[]) {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const finish = useCallback(() => {
+  const push = useCallback((page: T) => {
+    if (busy.current) return;
+    busy.current = true;
+    setPhase("push");
+    setStack((s) => [...s, page]);
     clearTimeout(timer.current);
     const wait = reduceMotion() ? 1 : NAV_MS;
     timer.current = window.setTimeout(() => {
       busy.current = false;
       setPhase("idle");
-      setOutgoing(null);
     }, wait);
   }, []);
 
-  const push = useCallback((page: T) => {
-    if (busy.current) return;
-    busy.current = true;
-    setOutgoing(null);
-    setPhase("push");
-    setStack((s) => [...s, page]);
-    finish();
-  }, [finish]);
-
+  /** 按钮/系统返回：先播成对推出，动画结束再切栈。
+   * 若立刻 slice，front 会复用成一级并被打上 is-pop-reveal，一级页会再往右挪一下。 */
   const pop = useCallback((): boolean => {
     if (busy.current) return stackRef.current.length > 1;
     if (stackRef.current.length <= 1) return false;
     busy.current = true;
-    const top = stackRef.current[stackRef.current.length - 1]!;
-    setOutgoing(top);
     setPhase("pop");
-    setStack((s) => s.slice(0, -1));
-    finish();
+    clearTimeout(timer.current);
+    const wait = reduceMotion() ? 1 : NAV_MS;
+    timer.current = window.setTimeout(() => {
+      setStack((s) => s.slice(0, -1));
+      setPhase("idle");
+      busy.current = false;
+    }, wait);
     return true;
-  }, [finish]);
+  }, []);
 
   /** 侧滑已把顶层拖出屏幕：瞬时卸层，不播 is-pop-out，否则会闪回两页 */
   const popSwipe = useCallback((): boolean => {
     if (stackRef.current.length <= 1) return false;
     clearTimeout(timer.current);
     busy.current = false;
-    setOutgoing(null);
     setPhase("idle");
     setStack((s) => s.slice(0, -1));
     return true;
@@ -85,10 +82,9 @@ export function useStackNav<T extends string>(initial: T[]) {
   const replace = useCallback((next: T[]) => {
     clearTimeout(timer.current);
     busy.current = false;
-    setOutgoing(null);
     setPhase("idle");
     setStack(next);
   }, []);
 
-  return { stack, stackRef, phase, outgoing, push, pop, popSwipe, replace };
+  return { stack, stackRef, phase, push, pop, popSwipe, replace };
 }

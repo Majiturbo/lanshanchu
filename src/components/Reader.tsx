@@ -6,7 +6,7 @@ import { readPage } from "../api/client.ts";
 import { fullTextIssue, type Source } from "../core/protocol.ts";
 import { openExternal } from "../lib/external.ts";
 import { relativeTime, short } from "../lib/format.ts";
-import { findPassage, markSpan, quotesFor, splitSentences } from "../lib/match.ts";
+import { findPassage, markSpan, quoteEntriesFor, splitSentences } from "../lib/match.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import type { GNode } from "../store/types.ts";
 import { MetaParts, SourceIcon } from "./common.tsx";
@@ -55,7 +55,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
     return () => removeEventListener("keydown", onKey, true);
   }, []);
 
-  const view = useMemo(() => (s ? layoutText(s, quotesFor(node, n)) : null), [s, node.summary, node.points, node.detail, n]);
+  const view = useMemo(() => (s ? layoutText(s, quoteEntriesFor(node, n)) : null), [s, node.summary, node.points, node.detail, n]);
   if (!s || !view) return null;
 
   const jump = (qi: number) => {
@@ -85,16 +85,18 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
         </span>
       </div>
       <div className="drawer-body reader-body" ref={body}>
-        <div className="reader-source"><SourceIcon source={s} /><MetaParts items={[s.site, relativeTime(s.date)]} /></div>
+        {/* 原型 05：先标题再来源；跳转条独占行、右侧标结论/要点 */}
         <h2 className="reader-title">{s.title}</h2>
+        <div className="reader-source"><SourceIcon source={s} /><MetaParts items={[s.site, relativeTime(s.date)]} /></div>
 
         {view.quotes.length > 0 && (
           <section className="reader-quotes">
-            <p className="section-title">引用了 {view.quotes.length} 处</p>
+            <p className="section-title">{IS_MOBILE_APP ? `这个节点引用了它 ${view.quotes.length} 处` : `引用了 ${view.quotes.length} 处`}</p>
             <div className="reader-chips">
               {view.quotes.map((q, i) => (
                 <button key={i} type="button" className={`reader-chip${active === i ? " is-on" : ""}${q.hits.length ? "" : " is-miss"}`} disabled={!q.hits.length} onClick={() => jump(i)}>
-                  {short(q.text, 22)}
+                  <span className="reader-chip-text">{IS_MOBILE_APP ? short(q.text, 28) : short(q.text, 22)}</span>
+                  {IS_MOBILE_APP ? <span className="reader-chip-label">{q.label}</span> : null}
                 </button>
               ))}
             </div>
@@ -104,7 +106,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
         <div className="reader-status">
           {load.state === "loading" && <><LoaderCircle className="spin" size={13} strokeWidth={1.8} />正在读取网页全文，先显示搜索摘要</>}
           {load.state === "error" && <>没能读取全文（{load.reason}），下面是搜索摘要{s.url && <button type="button" className="reader-link" onClick={() => openExternal(s.url)}>在浏览器中打开</button>}</>}
-          {load.state === "done" && (s.text ? "网页正文" : "搜索摘要")}
+          {load.state === "done" && !IS_MOBILE_APP && (s.text ? "网页正文" : "搜索摘要")}
         </div>
 
         <article className="reader-text">
@@ -133,7 +135,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
 }
 
 /** 按段落排版原文，并算出每处引用对应的句子；句子编号与 findPassage 的切句一致 */
-function layoutText(s: Source, quotes: string[]) {
+function layoutText(s: Source, quotes: { text: string; label: string }[]) {
   const text = s.text ?? s.snippet;
   const paragraphs: { i: number; text: string }[][] = [];
   let i = 0;
@@ -142,7 +144,7 @@ function layoutText(s: Source, quotes: string[]) {
     if (!sentences.length) continue;
     paragraphs.push(sentences.map((t) => ({ i: i++, text: t })));
   }
-  const found = quotes.map((q) => ({ text: q, hits: findPassage(text, q).hits }));
+  const found = quotes.map((q) => ({ text: q.text, label: q.label, hits: findPassage(text, q.text).hits }));
   const owner = new Map<number, number[]>();
   found.forEach((q, qi) => q.hits.forEach((h) => owner.set(h, [...(owner.get(h) ?? []), qi])));
   return { paragraphs, quotes: found, owner };

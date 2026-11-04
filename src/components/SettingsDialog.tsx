@@ -267,6 +267,8 @@ export function AccountSection({ inputRef, hideLogout, onPlans }: { inputRef?: R
           </span>
           {expires ? <span className="account-expire">{expires}</span> : null}
         </div>
+        {/* 原型 11：状态紧跟名字，再是「用量」 */}
+        <div className="account-usage">{status}</div>
         {!usageReady && !view ? (
           <div className="account-usage">正在读取用量</div>
         ) : view && planLabel ? (
@@ -297,7 +299,6 @@ export function AccountSection({ inputRef, hideLogout, onPlans }: { inputRef?: R
             {resetError ? <div className="account-usage is-error" role="alert">{resetError}</div> : null}
           </div>
         ) : null}
-        <div className="account-usage">{status}</div>
         {hideLogout ? null : (
           <div className="field-actions">
             <button type="button" className="btn btn-sm" onClick={() => { void logout(); }}>退出</button>

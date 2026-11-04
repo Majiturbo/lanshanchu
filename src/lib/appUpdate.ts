@@ -1,7 +1,7 @@
 import { IS_ANDROID_APP, IS_IOS_APP, IS_MOBILE_APP } from "../core/device.ts";
 import { httpFetch } from "../core/http.ts";
 
-export const APP_VERSION = "1.1.4";
+export const APP_VERSION = "1.1.5";
 
 const RELEASES_LATEST = "https://api.github.com/repos/Majiturbo/lanshanchu/releases/latest";
 

@@ -60,7 +60,8 @@
   --overlay-text: rgba(255, 255, 255, 0.7);   /* white-a9 */
   --overlay-hover: rgba(255, 255, 255, 0.15); /* white-a3 */
   --overlay-chip: rgba(0, 0, 0, 0.6);         /* black-a8 */
-  --scrim: color-mix(in srgb, var(--bg) 60%, transparent);
+  /* 遮罩用黑半透明（原型 06/09/17/18 ≈55%），不用暖白混出「发灰」 */
+  --scrim: rgba(0, 0, 0, 0.55);
   --scroll-thumb: var(--gray-a5);
   --scroll-thumb-hover: var(--gray-a8);
 
@@ -84,8 +85,8 @@
   --visual-bg: #e6f4fe; /* blue-3 */
   /* 引用高亮：荧光笔式的黄色（强调色是灰，用它做高亮几乎看不出来，用户反馈）；
      --mark 是被引用的句子，--mark-strong 是阅读视图里当前选中的那句 */
-  --mark: #ffe3016b;        /* yellow-a4 */
-  --mark-strong: #ffd5008f; /* yellow-a5 */
+  --mark: #ffe30199;        /* yellow 更醒目，短命中也看得见 */
+  --mark-strong: #ffd500b3;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px -10px rgba(0, 0, 0, 0.16);
@@ -110,10 +111,11 @@
   --auth-submit-bg: var(--seal);
   --auth-submit-fg: #fcfcfd;
   /* 当前路径浮层（原型 17） */
-  --path-pop-bg: var(--surface);
-  --path-pop-line: var(--line);
+  /* 路径浮层 / 设置卡 / 底栏 sheet 浅色同提问框白底（原型 10/17/18） */
+  --path-pop-bg: var(--ask-fill);
+  --path-pop-line: color-mix(in srgb, var(--ink) 8%, transparent);
   --path-pop-rail: var(--line-strong);
-  --path-pop-current: var(--surface-sunken);
+  --path-pop-current: color-mix(in srgb, var(--ink) 5%, transparent);
 
   /* 全站一套无衬线。-apple-system 只在苹果系统生效，即苹方；其他系统依次找 HarmonyOS Sans、MiSans（字重全），
      再是另装的苹方、微软雅黑。苹方必须排在 HarmonyOS 之后：有的 Windows 也装了苹方（实测），会抢在前面。不加载网络字体 */
@@ -193,8 +195,8 @@
     --viz-4: #6e56cf;
     --viz-5: #d6409f;
     --visual-bg: #111927; /* blue-2 */
-    --mark: #fdcb225c;        /* yellow-a7（深色） */
-    --mark-strong: #fdca327b; /* yellow-a8（深色） */
+    --mark: #fdcb228f;        /* yellow 深色加一点不透明度 */
+    --mark-strong: #fdca32b0;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
     --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 56px -16px rgba(0, 0, 0, 0.7);
@@ -249,8 +251,8 @@
   --viz-4: #6e56cf;
   --viz-5: #d6409f;
   --visual-bg: #111927;
-  --mark: #fdcb225c;
-  --mark-strong: #fdca327b;
+  --mark: #fdcb228f;
+  --mark-strong: #fdca32b0;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
   --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 56px -16px rgba(0, 0, 0, 0.7);

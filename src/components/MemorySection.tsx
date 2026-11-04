@@ -17,7 +17,7 @@ export function MemorySection() {
   }, [text, enabled]);
 
   return (
-    <section className="settings-section">
+    <section className="settings-section memory-section">
       <h3>记忆</h3>
       <div className="field">
         <span className="field-label" id={id}>个人记忆</span>
@@ -30,16 +30,19 @@ export function MemorySection() {
         </div>
       </div>
       {enabled && (
-        <textarea
-          ref={box}
-          className="memory-text"
-          aria-label="记忆内容"
-          placeholder="还没有记忆。开启后继续提问，攒够几次会自动整理到这里；也可直接手写。"
-          maxLength={MEMORY_MAX}
-          spellCheck={false}
-          value={text}
-          onChange={(e) => memoryActions.setText(e.target.value)}
-        />
+        <>
+          <textarea
+            ref={box}
+            className="memory-text"
+            aria-label="记忆内容"
+            placeholder="还没有记忆。开启后继续提问，攒够几次会自动整理到这里；也可直接手写。"
+            maxLength={MEMORY_MAX}
+            spellCheck={false}
+            value={text}
+            onChange={(e) => memoryActions.setText(e.target.value)}
+          />
+          <p className="memory-hint">这段话会交给模型，改了即存</p>
+        </>
       )}
     </section>
   );

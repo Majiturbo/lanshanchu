@@ -293,7 +293,7 @@ function LoginFlow() {
                 type={visible ? "text" : "password"}
                 autoComplete={pane === "password" ? "current-password" : "new-password"}
                 maxLength={128}
-                placeholder={pane === "password" ? "密码" : "设置密码，至少 10 位"}
+                placeholder={pane === "password" ? "密码" : "设置密码（10 位以上）"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />

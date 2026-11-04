@@ -1,5 +1,5 @@
-import { AlignLeft, ArrowLeft, Check, ChevronDown, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, MessageSquarePlus, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlignLeft, ArrowLeft, Check, ChevronDown, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Canvas, useCrumbs } from "../canvas/Canvas.tsx";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
@@ -28,6 +28,10 @@ function Topbar() {
   const reading = useGraph((s) => s.reading);
   const [sheet, setSheet] = useState<MobileSheet>(null);
   const sheetP = usePresence(!!sheet);
+  /** 关闭动画期间 sheet 已是 null，必须记住刚关的是哪一种，否则 path 关时会错挂画布⋯菜单 */
+  const shownSheet = useRef<Exclude<MobileSheet, null>>("menu");
+  if (sheet) shownSheet.current = sheet;
+  const sheetKind = sheet ?? (sheetP.closing ? shownSheet.current : null);
 
   useEffect(() => {
     if (!sheet) return;
@@ -87,7 +91,7 @@ function Topbar() {
           >
             <Ellipsis size={16} strokeWidth={1.6} />
           </button>
-          {sheetP.mounted && sheet === "path" && createPortal(
+          {sheetP.mounted && sheetKind === "path" && createPortal(
             <div className={`path-pop${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label="当前路径">
               <div className="path-pop-scrim" onClick={() => setSheet(null)} />
               <div className="path-pop-panel">
@@ -109,12 +113,12 @@ function Topbar() {
             </div>,
             document.body,
           )}
-          {sheetP.mounted && sheet !== "path" && createPortal(
-            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheet === "prefs" ? "回答偏好" : "画布菜单"}>
+          {sheetP.mounted && sheetKind && sheetKind !== "path" && createPortal(
+            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheetKind === "prefs" ? "回答偏好" : "画布菜单"}>
               <div className="mobile-sheet-scrim" onClick={() => setSheet(null)} />
               <div className="mobile-sheet-panel">
                 <div className="mobile-sheet-handle" aria-hidden="true" />
-                {sheet === "prefs" ? (
+                {sheetKind === "prefs" ? (
                   <>
                     <p className="mobile-sheet-title">回答偏好</p>
                     <div className="mobile-sheet-prefs">
@@ -139,14 +143,7 @@ function Topbar() {
                       <HistoryIcon size={16} strokeWidth={1.6} aria-hidden="true" />
                       历史记录
                     </button>
-                    <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); dispatchEvent(new CustomEvent("lanshan:new-question")); }}>
-                      <MessageSquarePlus size={16} strokeWidth={1.6} aria-hidden="true" />
-                      新建问题
-                    </button>
-                    <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); fit(); }}>
-                      <Maximize size={16} strokeWidth={1.6} aria-hidden="true" />
-                      适应画布
-                    </button>
+                    {/* 原型 03/18 仅四项 + 取消；适应画布走双击空白（16），不塞进菜单 */}
                     <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
                   </>
                 )}

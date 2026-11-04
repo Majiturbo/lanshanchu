@@ -199,8 +199,12 @@ html.is-mobile-app .crumbs .crumb {
 }
 .mset-account { align-items: center; }
 .mset-account-copy { flex: 1; min-width: 0; }
-.mset-account-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.mset-account-name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-lg); }
 .mset-account-status { display: block; margin-top: 2px; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 400; }
+.mset-account-name .plan-mark {
+  display: block; flex-shrink: 0; width: 1em; height: 1em; margin: 0;
+  object-fit: contain; user-select: none; pointer-events: none;
+}
 .mset-row em { margin-left: auto; font-style: normal; color: var(--ink-3); font-size: var(--fs-sm); }
 .mset-row .lucide, .mset-account .lucide { color: var(--ink-3); flex: none; }
 .mset-group { margin-top: 8px; }

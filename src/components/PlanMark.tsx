@@ -28,8 +28,8 @@ export function PlanMark({
     <img
       className={`plan-mark${className ? ` ${className}` : ""}`}
       src={mark.src}
-      width={size ?? 64}
-      height={size ?? 64}
+      width={size ?? 16}
+      height={size ?? 16}
       alt=""
       draggable={false}
       aria-hidden="true"

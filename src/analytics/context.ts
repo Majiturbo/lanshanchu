@@ -4,7 +4,7 @@ import type { CommonProps } from "./events.ts";
 import { getAnonId, getSessionId } from "./identity.ts";
 
 /** 与 package.json / tauri.conf 对齐；埋点只作分维，不要求每次发版改这里 */
-const APP_VERSION = "0.1.2";
+const APP_VERSION = "0.1.3";
 
 function detectOs(): CommonProps["os"] {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";

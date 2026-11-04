@@ -53,6 +53,8 @@ export function dismissOne(): boolean {
     return true;
   }
   if (useSettings.getState().gate) {
+    // 未登录的登录页不能关掉
+    if (useSettings.getState().gate === "login" && !useSettings.getState().session) return true;
     settingsActions.closeGate();
     return true;
   }

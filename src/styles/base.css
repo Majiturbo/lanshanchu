@@ -378,6 +378,27 @@ html.is-mobile-app,
 html.is-mobile-app body {
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 触控上 :hover 会粘住，图标留下一块底色；只在真·鼠标悬停时才铺底 */
+html.is-mobile-app .icon-btn:hover,
+html.is-mobile-app .btn:hover:not(:disabled),
+html.is-mobile-app .toggle:hover {
+  background: transparent;
+}
+html.is-mobile-app .icon-btn:active {
+  background: var(--surface-active);
+}
+html.is-mobile-app .icon-btn:focus,
+html.is-mobile-app .icon-btn:focus-visible {
+  outline: none;
+  background: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  html.is-mobile-app .icon-btn:hover {
+    background: var(--surface-hover);
+    color: var(--ink);
+  }
 }
 /* iOS 会对小于 16px 的输入框自动放大页面；移动 App 里提问框保持可读且不触发缩放 */
 html.is-mobile-app .ask textarea,

@@ -1,5 +1,6 @@
 package com.lanshanchu.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -31,6 +32,7 @@ class MainActivity : TauriActivity() {
     val root = window.decorView as? ViewGroup ?: return
     val web = findWebView(root) ?: return
     web.addJavascriptInterface(BarBridge(), "LanshanBars")
+    web.addJavascriptInterface(ShareBridge(), "LanshanShare")
     web.evaluateJavascript(
       "(function(){var t=document.documentElement.dataset.theme;if(t==='light')return 'light';if(t==='dark')return 'dark';return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';})()",
     ) { raw ->
@@ -53,6 +55,20 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun setDark(dark: Boolean) {
       runOnUiThread { applySystemBarIcons(darkPage = dark) }
+    }
+  }
+
+  private inner class ShareBridge {
+    @JavascriptInterface
+    fun shareText(title: String, text: String) {
+      runOnUiThread {
+        val send = Intent(Intent.ACTION_SEND).apply {
+          type = "text/plain"
+          putExtra(Intent.EXTRA_SUBJECT, title)
+          putExtra(Intent.EXTRA_TEXT, text)
+        }
+        startActivity(Intent.createChooser(send, title))
+      }
     }
   }
 }

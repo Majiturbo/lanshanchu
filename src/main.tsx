@@ -21,7 +21,7 @@ import { startBackStack } from "./lib/backStack.ts";
 import { startKeyboardInset } from "./lib/keyboardInset.ts";
 import { startMemory } from "./memory/run.ts";
 import { useGraph } from "./store/graph.ts";
-import { useSettings, type Theme } from "./settings/store.ts";
+import { settingsActions, useSettings, type Theme } from "./settings/store.ts";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/panels.css";
@@ -38,8 +38,19 @@ startMemory(() => useGraph.getState().map?.id ?? null);
 startKeyboardInset();
 startBackStack();
 trackAppOpened();
-useSettings.persist.onFinishHydration(() => { void refreshAccount(); });
-if (useSettings.persist.hasHydrated()) void refreshAccount();
+
+function openMobileLoginIfNeeded() {
+  if (!IS_MOBILE_APP) return;
+  const s = useSettings.getState();
+  if (!s.session && !s.gate) settingsActions.open("login");
+}
+
+useSettings.persist.onFinishHydration(() => {
+  void refreshAccount().finally(openMobileLoginIfNeeded);
+});
+if (useSettings.persist.hasHydrated()) {
+  void refreshAccount().finally(openMobileLoginIfNeeded);
+}
 
 function App() {
   const screen = useGraph((s) => s.screen);

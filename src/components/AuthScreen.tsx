@@ -26,12 +26,23 @@ export function AuthScreen() {
 
 function Screen({ kind, closing }: { kind: "login" | "quota"; closing: boolean }) {
   const account = useSettings((s) => s.account);
+  const session = useSettings((s) => s.session);
+  // 未登录时登录页不能 Esc / 返回关掉，必须先登录
+  const lockLogin = kind === "login" && !session;
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") settingsActions.closeGate(); };
-    addEventListener("keydown", onKey);
-    return () => removeEventListener("keydown", onKey);
-  }, []);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (lockLogin) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      settingsActions.closeGate();
+    };
+    addEventListener("keydown", onKey, true);
+    return () => removeEventListener("keydown", onKey, true);
+  }, [lockLogin]);
 
   useEffect(() => {
     if (kind === "login" && account?.id) settingsActions.closeGate();
@@ -108,6 +119,7 @@ function LoginFlow() {
     return () => window.clearTimeout(timer);
   }, [left]);
 
+  const session = useSettings((s) => s.session);
   const back = () => {
     setError("");
     if (pane === "register" || pane === "reset") {
@@ -115,6 +127,7 @@ function LoginFlow() {
       setCode("");
       return;
     }
+    if (!session) return;
     settingsActions.closeGate();
   };
 
@@ -196,12 +209,18 @@ function LoginFlow() {
       : "登录后即可提问";
   const purpose: SmsPurpose = pane === "register" ? "register" : pane === "reset" ? "reset" : "login";
 
+  const showBack = pane === "register" || pane === "reset" || !!session;
+
   return (
     <>
       <header className="auth-head">
-        <button type="button" className="icon-btn" aria-label="返回" onClick={back}>
-          <ArrowLeft size={18} strokeWidth={1.6} />
-        </button>
+        {showBack ? (
+          <button type="button" className="icon-btn" aria-label="返回" onClick={back}>
+            <ArrowLeft size={18} strokeWidth={1.6} />
+          </button>
+        ) : (
+          <span className="auth-head-spacer" aria-hidden="true" />
+        )}
         <span className="auth-head-spacer" aria-hidden="true" />
       </header>
       <div className="auth-body">

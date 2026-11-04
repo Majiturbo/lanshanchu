@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronRight, LoaderCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMemory } from "../memory/store.ts";
 import { bindSettingsBack } from "../lib/backStack.ts";
 import {
@@ -17,7 +17,7 @@ import { PlanMark } from "./PlanMark.tsx";
 import { usePresence } from "./presence.ts";
 import { settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
 
-const APP_VERSION = "0.1.2";
+const APP_VERSION = "0.1.3";
 const PHONE = /^1\d{10}$/;
 
 type Page = "root" | "account" | "memory" | "look" | "canvas" | "update" | "plans" | "bind" | "change" | "delete";
@@ -71,7 +71,13 @@ function MobileSettings({ closing }: { closing: boolean }) {
     return ["root", target];
   });
   const page = stack[stack.length - 1] ?? "root";
+  const stackRef = useRef(stack);
+  stackRef.current = stack;
   const accountId = useSettings((s) => s.account?.id ?? "");
+
+  useEffect(() => {
+    dispatchEvent(new CustomEvent("lanshan:trap-back"));
+  }, [stack.length]);
 
   useEffect(() => {
     const onPage = (e: Event) => {
@@ -94,30 +100,30 @@ function MobileSettings({ closing }: { closing: boolean }) {
   }, [accountId]);
 
   useEffect(() => {
+    // 必须用 ref 判断深度：Android 返回来自原生回调，setState updater 可能延后，不能靠副作用里改标志
     return bindSettingsBack(() => {
-      let popped = false;
-      setStack((current) => {
-        if (current.length <= 1) return current;
-        popped = true;
-        return current.slice(0, -1);
-      });
-      return popped;
+      if (stackRef.current.length <= 1) return false;
+      setStack((current) => (current.length <= 1 ? current : current.slice(0, -1)));
+      return true;
     });
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      setStack((current) => (current.length > 1 ? current.slice(0, -1) : current));
-      if (stack.length <= 1) settingsActions.close();
+      if (stackRef.current.length > 1) {
+        setStack((current) => current.slice(0, -1));
+        return;
+      }
+      settingsActions.close();
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [stack.length]);
+  }, []);
 
   const push = (next: Page) => setStack((current) => [...current, next]);
   const back = () => {
-    if (stack.length > 1) setStack((current) => current.slice(0, -1));
+    if (stackRef.current.length > 1) setStack((current) => current.slice(0, -1));
     else settingsActions.close();
   };
 

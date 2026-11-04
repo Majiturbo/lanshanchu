@@ -4,9 +4,10 @@ import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { history, useHistory } from "../history/store.ts";
 import { ago, groupOf, matches, type Group, type MapMeta } from "../history/snapshot.ts";
 import { useGraph, useParked } from "../store/graph.ts";
-import { usePresence } from "./presence.ts";
 import { MetaParts } from "./common.tsx";
 import { DialogCloseIcon, DialogDone, scrimClose } from "./DialogChrome.tsx";
+import { NAV_MS, useNavCover } from "./navMotion.ts";
+import { usePresence } from "./presence.ts";
 import { ScrollThumb } from "./ScrollThumb.tsx";
 
 /** 首页「最近」一屏大约显示的行数（超过时「全部历史」旁显示总数）与最多列出的条数，再多的去历史面板找 */
@@ -153,7 +154,8 @@ const GROUPS: Group[] = ["今天", "昨天", "近 7 天", "更早"];
 
 export function HistoryPanel() {
   const open = useHistory((s) => s.open);
-  const p = usePresence(open);
+  const p = usePresence(open, IS_MOBILE_APP ? NAV_MS : 220);
+  useNavCover(IS_MOBILE_APP && p.mounted, p.closing);
   return p.mounted ? <Panel closing={p.closing} /> : null;
 }
 

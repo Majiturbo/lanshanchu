@@ -9,14 +9,13 @@
     <!-- 首屏前写好明暗与底色，避免启动页 / WebView 白底再跳到深色 -->
     <script>
       (function () {
-        var theme = "dark";
+        var theme = "system";
         try {
           var raw = localStorage.getItem("lanshan-settings");
           if (raw) {
             var parsed = JSON.parse(raw);
             var saved = parsed && parsed.state && parsed.state.theme;
             if (saved === "light" || saved === "dark" || saved === "system") theme = saved;
-            else theme = "system";
           }
         } catch (_) {}
         var root = document.documentElement;

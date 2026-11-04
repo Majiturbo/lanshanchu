@@ -10,6 +10,7 @@ import { copyText, saveMarkdown } from "../lib/save.ts";
 import type { GNode } from "../store/types.ts";
 import { Markdown, SourceItem } from "./common.tsx";
 import { DialogCloseIcon, MAC_DIALOG, scrimClose } from "./DialogChrome.tsx";
+import { NAV_MS, useNavCover } from "./navMotion.ts";
 import { usePresence } from "./presence.ts";
 import { ThinkingStream } from "./ThinkingStream.tsx";
 
@@ -37,7 +38,8 @@ interface Result { text: string; thinking: string; sources: Source[]; status: "l
 
 export function SummarySheet() {
   const open = useGraph((s) => s.summaryOpen);
-  const p = usePresence(open);
+  const p = usePresence(open, IS_MOBILE_APP ? NAV_MS : 220);
+  useNavCover(IS_MOBILE_APP && p.mounted, p.closing);
   return p.mounted ? <Sheet closing={p.closing} /> : null;
 }
 

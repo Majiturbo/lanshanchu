@@ -1,4 +1,4 @@
-import { exit, onBackButtonPress } from "@tauri-apps/api/app";
+import { onBackButtonPress } from "@tauri-apps/api/app";
 import { IS_MOBILE_APP } from "../core/device.ts";
 import { history as mapHistory, useHistory } from "../history/store.ts";
 import { needsPhoneBind } from "../components/PhoneBindGate.tsx";
@@ -24,6 +24,21 @@ const isAndroid =
   tauriPlatform === "android"
   || (tauriPlatform !== "ios" && /Android/i.test(navigator.userAgent));
 
+type AppBridge = { moveToBack: () => void };
+
+/** 根页再返回：Android 回后台；不要 exit(0) 杀进程（用户体感是闪退） */
+function leaveToBackground() {
+  const bridge = (window as unknown as { LanshanApp?: AppBridge }).LanshanApp;
+  if (isAndroid && bridge?.moveToBack) {
+    try {
+      bridge.moveToBack();
+      return;
+    } catch {
+      /* 桥未就绪时吞掉，留在 App 内 */
+    }
+  }
+}
+
 /** 关闭一层浮层 / 详情 / 页面；有东西可关时返回 true（系统返回应留在 App 内） */
 export function dismissOne(): boolean {
   if (needsPhoneBind(useSettings.getState().account)) {
@@ -35,7 +50,7 @@ export function dismissOne(): boolean {
     viewer.click();
     return true;
   }
-  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing)")) {
+  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing), .leave-sheet:not(.is-closing)")) {
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-menu"));
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-overflow"));
     return true;
@@ -99,7 +114,7 @@ function needTrap(): boolean {
     || g.drawerId || g.reading || g.summaryOpen || g.leaving || g.screen !== "home"
     || settings.open || settings.gate
     || useHistory.getState().open || useCite.getState().open
-    || document.querySelector(".mobile-sheet, .ctx-sheet, .ctx-pick, .command-sheet, .leave-sheet, .viewer")
+    || document.querySelector(".mobile-sheet, .ctx-sheet, .ctx-pick, .command-sheet, .leave-sheet, .viewer, .auth-screen")
   );
 }
 
@@ -113,7 +128,13 @@ function startHistorySentinel(): () => void {
     if (window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
   };
   const onPop = () => {
-    if (dismissOne()) queueMicrotask(pushIfNeeded);
+    if (dismissOne()) {
+      queueMicrotask(pushIfNeeded);
+      return;
+    }
+    // 已在根页：把被划走的 history 补回来，绝不离开单页 WebView（否则像闪退/白屏）
+    window.history.pushState({ lanshan: 0 }, "");
+    leaveToBackground();
   };
   pushIfNeeded();
   addEventListener("popstate", onPop);
@@ -144,10 +165,16 @@ export function startBackStack(): () => void {
   let cancelled = false;
   let unreg: (() => void) | undefined;
   let stopFallback: (() => void) | undefined;
+  let lastDismissAt = 0;
 
   void onBackButtonPress(() => {
-    if (dismissOne()) return;
-    void exit(0);
+    if (dismissOne()) {
+      lastDismissAt = Date.now();
+      return;
+    }
+    // 刚关掉一层后的连按不立刻回后台，避免「关页+退出」粘在一起像闪退
+    if (Date.now() - lastDismissAt < 450) return;
+    leaveToBackground();
   }).then((listener) => {
     if (cancelled) {
       void listener.unregister();

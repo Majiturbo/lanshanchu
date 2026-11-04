@@ -113,14 +113,14 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
     <div className="prefs" ref={ref}>
       <button
         type="button"
-        className="toggle"
+        className={`toggle${compact ? " is-compact" : ""}`}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={summary(prefs)}
         onClick={() => setOpen((o) => !o)}
       >
         <SlidersHorizontal size={15} strokeWidth={1.6} aria-hidden="true" />
-        {!compact && <span>{summary(prefs)}</span>}
+        {!compact && <span className="toggle-label">{summary(prefs)}</span>}
       </button>
       {mounted && (
         <div ref={pop} className={`prefs-pop${closing ? " is-closing" : ""}`} role="dialog" aria-label="回答偏好">

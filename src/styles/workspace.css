@@ -147,25 +147,122 @@ html.is-mobile-app .crumbs .crumb {
 }
 .mobile-switch.is-on .lucide { color: var(--accent); }
 
+/* 全屏页：从右侧推入，左侧带暖色侧影；底层首页/画布由 data-nav-cover 做轻视差 */
 .auth-screen {
   position: fixed; inset: 0; z-index: 45;
   display: flex; flex-direction: column;
   background: var(--bg);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px));
-  animation: enter var(--t-mid) var(--ease) both;
+  box-shadow: -12px 0 40px color-mix(in srgb, var(--ink) 14%, transparent);
+  animation: nav-cover-in var(--t-nav) var(--ease-nav) both;
+  will-change: transform;
 }
-.auth-screen.is-closing { animation: leave var(--t-fast) var(--ease-in) both; pointer-events: none; }
+.auth-screen.is-closing {
+  animation: nav-cover-out var(--t-nav) var(--ease-in) both;
+  pointer-events: none;
+}
+html.is-mobile-app :is(.home, .workspace) {
+  transition: transform var(--t-nav) var(--ease-nav);
+}
+html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
+  transform: translate3d(-10%, 0, 0);
+  pointer-events: none;
+}
 .auth-head {
+  position: relative; z-index: 2;
   display: flex; align-items: center; gap: 8px;
-  height: var(--topbar-h); padding: 0 8px;
+  flex: none; height: var(--topbar-h); padding: 0 8px;
+  background: var(--bg);
 }
-.auth-head h1 { flex: 1; margin: 0; text-align: center; font-size: var(--fs-lg); font-weight: 600; }
+.auth-head h1 {
+  flex: 1; margin: 0; text-align: center;
+  font-size: var(--fs-lg); font-weight: 600;
+}
+.auth-head h1.auth-title-swap {
+  animation: nav-title-in calc(var(--t-nav) * 0.85) var(--ease-nav) both;
+}
 .auth-head-spacer { width: 40px; }
 .auth-body {
   flex: 1; overflow-y: auto;
   display: flex; flex-direction: column;
   padding: 8px 20px 24px; max-width: 480px; width: 100%; margin: 0 auto;
+}
+
+/* 设置等多级：双层叠栈，推入时下层左移、上层侧影滑入；返回时成对反转 */
+.nav-stack {
+  position: relative;
+  flex: 1; min-height: 0;
+  overflow: hidden;
+}
+.nav-pane {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+.nav-pane-body {
+  flex: 1; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column;
+  padding: 8px 20px 24px; max-width: 480px; width: 100%; margin: 0 auto;
+}
+.nav-pane.is-under {
+  transform: translate3d(-22%, 0, 0);
+  pointer-events: none;
+}
+.nav-pane.is-front {
+  z-index: 1;
+  box-shadow: -10px 0 28px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.nav-pane.is-alone { box-shadow: none; }
+.nav-pane.is-push-under { animation: nav-under-push var(--t-nav) var(--ease-nav) both; }
+.nav-pane.is-push-in { animation: nav-front-push var(--t-nav) var(--ease-nav) both; }
+.nav-pane.is-pop-reveal { animation: nav-under-pop var(--t-nav) var(--ease-nav) both; }
+.nav-pane.is-pop-out {
+  z-index: 2;
+  animation: nav-front-pop var(--t-nav) var(--ease-in) both;
+  pointer-events: none;
+}
+
+@keyframes nav-cover-in {
+  from { transform: translate3d(100%, 0, 0); }
+  to { transform: none; }
+}
+@keyframes nav-cover-out {
+  from { transform: none; }
+  to { transform: translate3d(100%, 0, 0); }
+}
+@keyframes nav-front-push {
+  from { transform: translate3d(100%, 0, 0); }
+  to { transform: none; }
+}
+@keyframes nav-front-pop {
+  from { transform: none; }
+  to { transform: translate3d(100%, 0, 0); }
+}
+@keyframes nav-under-push {
+  from { transform: none; }
+  to { transform: translate3d(-22%, 0, 0); }
+}
+@keyframes nav-under-pop {
+  from { transform: translate3d(-22%, 0, 0); }
+  to { transform: none; }
+}
+@keyframes nav-title-in {
+  from { opacity: 0; transform: translate3d(10px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-screen { animation: fade var(--t-mid) var(--ease) both; box-shadow: none; }
+  .auth-screen.is-closing { animation: fade-out var(--t-fast) var(--ease-in) both; }
+  html.is-mobile-app[data-nav-cover] :is(.home, .workspace) { transform: none; }
+  .nav-pane.is-under { transform: none; }
+  .nav-pane.is-push-under,
+  .nav-pane.is-push-in,
+  .nav-pane.is-pop-reveal,
+  .nav-pane.is-pop-out,
+  .auth-head h1.auth-title-swap { animation: fade var(--t-fast) both; }
 }
 .auth-brand h1 { margin: 12px 0 0; font-size: var(--fs-xl); font-weight: 600; }
 .auth-brand p { margin: 6px 0 0; font-size: var(--fs-md); color: var(--ink-2); }

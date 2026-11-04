@@ -52,7 +52,7 @@ export interface Settings {
   drawerRatio: number;
   /** 离开还在回答的地图时：每次询问、终止，或在后台继续 */
   onLeave: "ask" | "stop" | "background";
-  /** 明暗：深色（新用户默认）、浅色或跟随系统；写到 html 的 data-theme，令牌在 styles/tokens.css */
+  /** 明暗：跟随系统（新用户默认）、浅色或深色；写到 html 的 data-theme，令牌在 styles/tokens.css */
   theme: Theme;
   /** 首页孔明灯；关闭后提问框上方不再放灯 */
   petals: boolean;
@@ -103,7 +103,7 @@ export const useSettings = create<SettingsState>()(
     (): SettingsState => ({
       session: "", account: null, canAsk: false, usage: null, model: DEFAULT_MAIN_MODEL,
       autoCollapse: false, autoDetail: false, openSource: defaultOpenSource(), drawerRatio: DRAWER_RATIO,
-      onLeave: "background", theme: "dark", petals: true, prefs: DEFAULT_PREFS, open: false, gate: null,
+      onLeave: "background", theme: "system", petals: true, prefs: DEFAULT_PREFS, open: false, gate: null,
     }),
     {
       name: "lanshan-settings",
@@ -146,8 +146,8 @@ export const useSettings = create<SettingsState>()(
           : defaultOpenSource();
         const drawerRatio = typeof p.drawerRatio === "number" && p.drawerRatio >= 0 && p.drawerRatio <= 1 ? p.drawerRatio : DRAWER_RATIO;
         const onLeave = p.onLeave === "stop" || p.onLeave === "ask" ? p.onLeave : "background";
-        // 新用户默认深色；存过设置的保持原样，存档里没有明暗（加这个选项之前存的）说明一直跟随系统
-        const theme = THEMES.some(([t]) => t === p.theme) ? p.theme! : persisted ? "system" : current.theme;
+        // 新用户默认跟随系统；存过明暗的保持原样，存档里没有明暗的也按跟随系统
+        const theme = THEMES.some(([t]) => t === p.theme) ? p.theme! : "system";
         const petals = p.petals !== false;
         const session = typeof p.session === "string" ? p.session : "";
         const canAsk = p.canAsk === true;

@@ -152,6 +152,13 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 .toggle:hover { background: var(--surface-hover); }
 .toggle[aria-pressed="true"], .toggle[aria-expanded="true"] { color: var(--ink); background: var(--surface-sunken); }
 .toggle[aria-pressed="true"] .lucide { color: var(--accent); }
+/* 只有图标时选中态不铺底，靠图标色区分开/关 */
+.toggle.is-compact { width: 30px; padding: 0; justify-content: center; gap: 0; }
+.toggle.is-compact[aria-pressed="true"],
+.toggle.is-compact[aria-expanded="true"] { background: transparent; }
+.toggle.is-compact[aria-pressed="true"] .lucide,
+.toggle.is-compact[aria-expanded="true"] .lucide { color: var(--accent); }
+.toggle.is-compact:not([aria-pressed="true"]):not([aria-expanded="true"]) .lucide { color: var(--ink-4); }
 
 /* 回答偏好：输入框旁的按钮与下拉弹层 */
 .prefs { position: relative; }
@@ -380,24 +387,53 @@ html.is-mobile-app body {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
-/* 触控上 :hover 会粘住，图标留下一块底色；只在真·鼠标悬停时才铺底 */
-html.is-mobile-app .icon-btn:hover,
-html.is-mobile-app .btn:hover:not(:disabled),
-html.is-mobile-app .toggle:hover {
+/* 触控上 :hover 会粘住、:active 也会留灰底。凡是「点一下铺一层底」的控件，移动端一律不铺；
+   列表行、面包屑、来源、延伸问题等同理。真·鼠标才恢复悬停底。 */
+html.is-mobile-app :is(
+  .icon-btn, .toggle, .btn, .wc, .crumb, .zoom-value, .slot-send,
+  .followup, .reader-back, .hist-del, .preset, .ctx-item,
+  .source:is(a, button), .research-queries li, a.dropped-row,
+  .mset-account, .mset-row, .mobile-sheet-item, .phone-bind-leave
+):is(:hover, :focus, :focus-visible) {
   background: transparent;
-}
-html.is-mobile-app .icon-btn:active {
-  background: var(--surface-active);
-}
-html.is-mobile-app .icon-btn:focus,
-html.is-mobile-app .icon-btn:focus-visible {
   outline: none;
+}
+html.is-mobile-app :is(.icon-btn, .toggle, .btn, .wc, .slot-send):active {
   background: transparent;
+}
+html.is-mobile-app .recent .hist-row:hover,
+html.is-mobile-app .history .hist-row:hover,
+html.is-mobile-app .hist-row.is-active {
+  background: transparent;
+}
+/* 纯图标开关：选中也不铺底，开/关只靠图标色 */
+html.is-mobile-app .toggle.is-compact[aria-pressed="true"],
+html.is-mobile-app .toggle.is-compact[aria-expanded="true"] {
+  background: transparent;
+  color: var(--ink);
+}
+html.is-mobile-app .toggle.is-compact[aria-pressed="true"] .lucide,
+html.is-mobile-app .toggle.is-compact[aria-expanded="true"] .lucide {
+  color: var(--accent);
+}
+html.is-mobile-app .toggle.is-compact:not([aria-pressed="true"]):not([aria-expanded="true"]) .lucide {
+  color: var(--ink-4);
 }
 @media (hover: hover) and (pointer: fine) {
   html.is-mobile-app .icon-btn:hover {
     background: var(--surface-hover);
     color: var(--ink);
+  }
+  html.is-mobile-app .toggle:not(.is-compact):hover {
+    background: var(--surface-hover);
+  }
+  html.is-mobile-app .crumb:hover,
+  html.is-mobile-app .followup:hover,
+  html.is-mobile-app .reader-back:hover,
+  html.is-mobile-app .source:is(a, button):hover,
+  html.is-mobile-app .recent .hist-row:hover,
+  html.is-mobile-app .history .hist-row:hover {
+    background: var(--surface-hover);
   }
 }
 /* iOS 会对小于 16px 的输入框自动放大页面；移动 App 里提问框保持可读且不触发缩放 */

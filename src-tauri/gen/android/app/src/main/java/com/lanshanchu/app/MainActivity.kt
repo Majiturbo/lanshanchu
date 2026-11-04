@@ -33,6 +33,7 @@ class MainActivity : TauriActivity() {
     val web = findWebView(root) ?: return
     web.addJavascriptInterface(BarBridge(), "LanshanBars")
     web.addJavascriptInterface(ShareBridge(), "LanshanShare")
+    web.addJavascriptInterface(AppBridge(), "LanshanApp")
     web.evaluateJavascript(
       "(function(){var t=document.documentElement.dataset.theme;if(t==='light')return 'light';if(t==='dark')return 'dark';return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';})()",
     ) { raw ->
@@ -69,6 +70,14 @@ class MainActivity : TauriActivity() {
         }
         startActivity(Intent.createChooser(send, title))
       }
+    }
+  }
+
+  /** 首页再按返回：回到桌面后台，不 exit 杀进程（否则像闪退） */
+  private inner class AppBridge {
+    @JavascriptInterface
+    fun moveToBack() {
+      runOnUiThread { moveTaskToBack(true) }
     }
   }
 }

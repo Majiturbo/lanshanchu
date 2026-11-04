@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronRight, LoaderCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMemory } from "../memory/store.ts";
 import { bindSettingsBack } from "../lib/backStack.ts";
 import {
@@ -13,6 +13,7 @@ import {
 import { ProviderError } from "../core/providers/types.ts";
 import { AccountSection } from "./SettingsDialog.tsx";
 import { MemorySection } from "./MemorySection.tsx";
+import { NAV_MS, useNavCover, useStackNav } from "./navMotion.ts";
 import { PlanMark } from "./PlanMark.tsx";
 import { usePresence } from "./presence.ts";
 import { settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
@@ -58,21 +59,22 @@ export function openMobileSettingsPage(page?: Page) {
 
 export function MobileSettingsHost() {
   const open = useSettings((s) => s.open);
-  const p = usePresence(open);
+  const p = usePresence(open, NAV_MS);
+  useNavCover(p.mounted, p.closing);
   if (!p.mounted) return null;
   return <MobileSettings closing={p.closing} />;
 }
 
 function MobileSettings({ closing }: { closing: boolean }) {
-  const [stack, setStack] = useState<Page[]>(() => {
+  const initial: Page[] = (() => {
     if (!pendingPage) return ["root"];
     const target = pendingPage;
     pendingPage = null;
     return ["root", target];
-  });
+  })();
+  const { stack, stackRef, phase, outgoing, push, pop, replace } = useStackNav<Page>(initial);
   const page = stack[stack.length - 1] ?? "root";
-  const stackRef = useRef(stack);
-  stackRef.current = stack;
+  const under = stack.length >= 2 ? stack[stack.length - 2]! : null;
   const accountId = useSettings((s) => s.account?.id ?? "");
 
   useEffect(() => {
@@ -84,48 +86,65 @@ function MobileSettings({ closing }: { closing: boolean }) {
       const target = (e as CustomEvent<Page>).detail;
       if (!target) return;
       pendingPage = null;
-      setStack(["root", target]);
+      replace(["root", target]);
     };
     addEventListener("lanshan:settings-page", onPage);
     return () => removeEventListener("lanshan:settings-page", onPage);
-  }, []);
+  }, [replace]);
 
   useEffect(() => {
     if (accountId) return;
-    setStack((current) => {
-      const top = current[current.length - 1];
-      if (top === "account" || top === "bind" || top === "change" || top === "delete" || top === "plans") return ["root"];
-      return current;
-    });
-  }, [accountId]);
+    const top = stackRef.current[stackRef.current.length - 1];
+    if (top === "account" || top === "bind" || top === "change" || top === "delete" || top === "plans") {
+      replace(["root"]);
+    }
+  }, [accountId, replace, stackRef]);
 
   useEffect(() => {
     // 必须用 ref 判断深度：Android 返回来自原生回调，setState updater 可能延后，不能靠副作用里改标志
-    return bindSettingsBack(() => {
-      if (stackRef.current.length <= 1) return false;
-      setStack((current) => (current.length <= 1 ? current : current.slice(0, -1)));
-      return true;
-    });
-  }, []);
+    return bindSettingsBack(() => pop());
+  }, [pop]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (stackRef.current.length > 1) {
-        setStack((current) => current.slice(0, -1));
-        return;
-      }
+      if (pop()) return;
       settingsActions.close();
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, []);
+  }, [pop]);
 
-  const push = (next: Page) => setStack((current) => [...current, next]);
   const back = () => {
-    if (stackRef.current.length > 1) setStack((current) => current.slice(0, -1));
-    else settingsActions.close();
+    if (!pop()) settingsActions.close();
   };
+
+  const renderPage = (id: Page): ReactNode => {
+    if (id === "root") return <RootPage push={push} />;
+    if (id === "account") return <AccountPage push={push} />;
+    if (id === "memory") return <MemorySection />;
+    if (id === "look") return <LookPage />;
+    if (id === "canvas") return <CanvasPage />;
+    if (id === "update") return <UpdatePage />;
+    if (id === "plans") return <PlansPage />;
+    if (id === "bind") return <BindPage onDone={back} />;
+    if (id === "change") return <ChangePage onDone={back} />;
+    if (id === "delete") return <DeletePage onDone={() => { settingsActions.close(); }} />;
+    return null;
+  };
+
+  const underClass = [
+    "nav-pane",
+    "is-under",
+    phase === "push" ? "is-push-under" : "",
+  ].filter(Boolean).join(" ");
+  const frontClass = [
+    "nav-pane",
+    "is-front",
+    under || outgoing ? "" : "is-alone",
+    phase === "push" ? "is-push-in" : "",
+    phase === "pop" ? "is-pop-reveal" : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <div className={`auth-screen mset${closing ? " is-closing" : ""}`}>
@@ -133,20 +152,23 @@ function MobileSettings({ closing }: { closing: boolean }) {
         <button type="button" className="icon-btn" aria-label="返回" onClick={back}>
           <ArrowLeft size={18} strokeWidth={1.6} />
         </button>
-        <h1>{TITLES[page]}</h1>
+        <h1 key={page} className="auth-title-swap">{TITLES[page]}</h1>
         <span className="auth-head-spacer" aria-hidden="true" />
       </header>
-      <div className="auth-body">
-        {page === "root" ? <RootPage push={push} /> : null}
-        {page === "account" ? <AccountPage push={push} /> : null}
-        {page === "memory" ? <MemorySection /> : null}
-        {page === "look" ? <LookPage /> : null}
-        {page === "canvas" ? <CanvasPage /> : null}
-        {page === "update" ? <UpdatePage /> : null}
-        {page === "plans" ? <PlansPage /> : null}
-        {page === "bind" ? <BindPage onDone={back} /> : null}
-        {page === "change" ? <ChangePage onDone={back} /> : null}
-        {page === "delete" ? <DeletePage onDone={() => { settingsActions.close(); }} /> : null}
+      <div className="nav-stack">
+        {under ? (
+          <div className={underClass} aria-hidden="true">
+            <div className="nav-pane-body">{renderPage(under)}</div>
+          </div>
+        ) : null}
+        <div className={frontClass}>
+          <div className="nav-pane-body">{renderPage(page)}</div>
+        </div>
+        {outgoing ? (
+          <div className="nav-pane is-front is-pop-out" aria-hidden="true">
+            <div className="nav-pane-body">{renderPage(outgoing)}</div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

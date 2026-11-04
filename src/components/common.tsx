@@ -188,13 +188,13 @@ export function SearchToggle({ compact = false }: { compact?: boolean }) {
   return (
     <button
       type="button"
-      className={`toggle${on ? " is-on" : ""}`}
+      className={`toggle${compact ? " is-compact" : ""}${on ? " is-on" : ""}`}
       aria-pressed={on}
       aria-label={on ? "联网搜索：开" : "联网搜索：关"}
       onClick={actions.toggleSearch}
     >
       <Globe size={15} strokeWidth={1.6} aria-hidden="true" />
-      {!compact && <span>联网搜索</span>}
+      {!compact && <span className="toggle-label">联网搜索</span>}
     </button>
   );
 }

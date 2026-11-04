@@ -134,18 +134,11 @@
 .recent .scroll-thumb { right: -12px; }
 .recent-head { padding-left: 8px; padding-right: 8px; }
 
-/* 移动 App 同样只留图标（宽屏平板也走这套，不靠 720 断点） */
-html.is-mobile-app .ask-tools .toggle-label {
-  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+/* 移动 App：提问框工具命中区加大，但不铺选中/按下底色 */
+html.is-mobile-app .ask-tools .toggle.is-compact,
+html.is-mobile-app .ask-tools .icon-btn {
+  width: 36px; height: 36px; min-width: 44px; min-height: 44px;
 }
-html.is-mobile-app .ask-tools .toggle {
-  width: 36px; padding: 0; justify-content: center; gap: 0;
-}
-html.is-mobile-app .ask-tools .toggle[aria-pressed="true"] {
-  color: var(--ink); background: var(--accent-soft);
-}
-html.is-mobile-app .ask-tools .toggle[aria-pressed="true"] .lucide { color: var(--accent); }
-html.is-mobile-app .ask-tools .toggle:not([aria-pressed="true"]) .lucide { color: var(--ink-4); }
 
 /* 移动端：字标+提问作为一组垂直居中并略偏上；有「最近」时落在偏上位置，列表在下 */
 @media (max-width: 720px) {
@@ -208,19 +201,10 @@ html.is-mobile-app .ask-tools .toggle:not([aria-pressed="true"]) .lucide { color
     border-radius: var(--r-lg);
   }
   .ask-bar { margin: 8px 0 0 -6px; }
-  /* 窄屏 / 移动：工具栏只留图标，文案留给 aria-label；底栏菜单另用整行文字 */
-  .ask-tools .toggle-label {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  .ask-tools .toggle.is-compact,
+  .ask-tools .icon-btn {
+    width: 36px; height: 36px;
   }
-  .ask-tools .toggle {
-    width: 36px; padding: 0; justify-content: center; gap: 0;
-  }
-  /* 联网开/关只靠对比色，不开字 */
-  .ask-tools .toggle[aria-pressed="true"] {
-    color: var(--ink); background: var(--accent-soft);
-  }
-  .ask-tools .toggle[aria-pressed="true"] .lucide { color: var(--accent); }
-  .ask-tools .toggle:not([aria-pressed="true"]) .lucide { color: var(--ink-4); }
   .home-status { margin: 12px 4px 0; }
   .recent {
     flex: 1 1 0;

@@ -2,24 +2,25 @@
    颜色全部取自 Radix Colors（文件下半部分的色阶），按它的分阶用法映射成下面的语义令牌：
    1–2 背景，3–5 控件底色（常态 / 悬停 / 按下），6–8 线条（分隔 / 控件边框 / 悬停与焦点），
    9–10 实色（9 常态、10 悬停），11–12 文字（11 次要、12 主要）。组件里只用语义令牌，不直接写色值或色阶。
-   明暗：新用户默认深色；选了浅色 / 深色时 html 带 data-theme，跟随系统时不带。色阶的深色块写两遍（系统深色且没选浅色一份、选了深色一份），两份必须一致 */
+   明暗：新用户默认跟随系统；选了浅色 / 深色时 html 带 data-theme，跟随系统时不带。色阶的深色块写两遍（系统深色且没选浅色一份、选了深色一份），两份必须一致 */
 :root {
   color-scheme: light;
 
   /* 页面与容器：浅色画布取浅色 favicon 的暖奶白（#f3efe9）；纸纹另作半透明叠层，不写进底色；
-     卡片用 1。悬停压在画布上的控件同色温。深色卡片与输入框用 3；墨色深色大底与面板用 indigo-2 */
+     卡片用近白纸色。浅色禁止用 Radix 冷灰（如 gray-3 #f0f0f3）做沉底/悬停——压在暖白上会跳，
+     控件底改走同色温暖灰（与 Figma 浅色稿一致）。深色卡片与输入框用 3；墨色深色大底与面板用 indigo-2 */
   --bg: #f3efe9;
   /* 点阵：正常比例下要看得见方位，对比落在颜色上；缩远变淡由 --dot-opacity 管 */
   --bg-dot: #d4c9bc;
   /* 点阵世界坐标间距；画在 .world::before，随画布 transform 平移缩放 */
   --dot-gap: 28px;
-  --surface: var(--gray-1);
-  --surface-sunken: var(--gray-3);
-  --surface-hover: var(--gray-3);
-  --surface-active: var(--gray-4);
-  /* 直接压在画布底色上的控件（顶栏按钮、首页标题栏、首页「最近」列表）：同暖奶白各深一阶 */
-  --bg-hover: #e9e2d9;
+  --surface: #faf7f2;
+  /* 直接压在画布底色上的控件：同暖奶白各深一阶（Figma 浅色稿：#ebe4da / #ddd4c9） */
+  --bg-hover: #ebe4da;
   --bg-active: #ddd4c9;
+  --surface-sunken: var(--bg-hover);
+  --surface-hover: var(--bg-hover);
+  --surface-active: var(--bg-active);
   /* 浅色朱砂印：提问框与回答卡片边框点缀；深色不用 */
   --seal: #c45142;
   --seal-strong: #b33d32;
@@ -122,6 +123,9 @@
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --t-fast: 150ms;  /* 悬停、按下、退场 */
   --t-mid: 250ms;   /* 出现、展开、面板、对话框 */
+  /* 全屏栈推入/推出：略长于面板，收尾用长减速，避免 PPT 式匀速硬切 */
+  --t-nav: 320ms;
+  --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
   /* 生成中的内容（状态切换、思考流、正文浮现）和卡片伸缩：用户要求从容、丝滑，比界面动效慢得多，单独一组 */
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1); /* 起步快、收尾很长 */
   --t-swap-in: 1000ms;   /* 状态文字：新的一句浮上来 */

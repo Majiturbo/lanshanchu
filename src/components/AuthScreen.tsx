@@ -13,13 +13,15 @@ import { ProviderError } from "../core/providers/types.ts";
 import { track } from "../analytics/index.ts";
 import { loginFrom, settingsActions, useSettings } from "../settings/store.ts";
 import { openMobileSettingsPage } from "./MobileSettings.tsx";
+import { NAV_MS, useNavCover } from "./navMotion.ts";
 import { AccountSection } from "./SettingsDialog.tsx";
 import { usePresence } from "./presence.ts";
 
 /** 移动端独立全屏登录 / 额度页 */
 export function AuthScreen() {
   const gate = useSettings((s) => s.gate);
-  const p = usePresence(!!gate);
+  const p = usePresence(!!gate, NAV_MS);
+  useNavCover(p.mounted, p.closing);
   if (!IS_MOBILE_APP || !p.mounted || !gate) return null;
   return <Screen kind={gate} closing={p.closing} />;
 }

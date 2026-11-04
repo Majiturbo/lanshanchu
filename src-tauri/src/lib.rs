@@ -141,19 +141,9 @@ pub fn run() {
                     .build()?;
                 }
             }
-            // 启动即关掉 WK 原生后退手势（并延迟再关一次，避免 WebView 后挂上时又被默认打开）。
-            // 单页里开它会在任意页右滑露出白底/重复快照；上层返回改由前端左缘 + dismissOne。
+            // 启动时先关掉 WK 后退手势；有上层时由前端 ios_set_nav_gestures(true) 再打开。
+            // 根页必须保持关闭，否则会右滑出白底/第二张主页（用户截图）。
             set_ios_nav_gestures(app.handle(), false);
-            #[cfg(target_os = "ios")]
-            {
-                let handle = app.handle().clone();
-                std::thread::spawn(move || {
-                    for ms in [200u64, 800, 2000] {
-                        std::thread::sleep(std::time::Duration::from_millis(ms));
-                        set_ios_nav_gestures(&handle, false);
-                    }
-                });
-            }
             Ok(())
         })
         .run(tauri::generate_context!())

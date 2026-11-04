@@ -9,11 +9,13 @@ import { actions, useGraph } from "../store/graph.ts";
 import { swapScreen } from "./transition.ts";
 
 /**
- * iOS 返回（针对本 App 的正确做法）：
- * - **关掉** WKWebView.allowsBackForwardNavigationGestures。
- *   单页里开它会在首页也能右滑，露出白底或另一张主页快照（用户截图）。
- * - 有上层时用左缘滑动调用 dismissOne，一次只关一层（对齐 UINavigationController 语义）。
- * - history 只做防误离页的单层哨兵，升降沿才改，禁止订阅里狂 push。
+ * iOS 侧滑按业界 SPA 常见做法（Capacitor / WKWebView）：
+ * 1. 打开 allowsBackForwardNavigationGestures，跟手快照由系统画
+ * 2. 每一层可返回界面 push 一条 history；根页只用 replace
+ * 3. 根页（depth=0）必须关掉手势——否则会右滑出白底或第二张主页
+ * 4. scrollRestoration=manual，避免快照被滚动恢复打成空白
+ * 5. 只在层数升降沿改 history，禁止每次 store 更新都 push（脏栈→卡顿/白屏）
+ * 参考：https://jishuzhan.net/article/2010957812160577537
  */
 
 let settingsPop: (() => boolean) | null = null;
@@ -119,6 +121,7 @@ export function dismissOne(): boolean {
   return false;
 }
 
+/** 根页之上的层数：一层对应一条可侧滑的 history */
 function layerDepth(): number {
   const g = useGraph.getState();
   const settings = useSettings.getState();
@@ -136,37 +139,61 @@ function layerDepth(): number {
   return n;
 }
 
-/** 强制关掉 WK 原生前进/后退手势（首页绝不能再滑出白底/第二张主页） */
-function disableWebKitNavGestures() {
+function setNavGestures(enabled: boolean) {
   if (!IS_IOS_APP) return;
-  void invoke("ios_set_nav_gestures", { enabled: false }).catch(() => {});
+  void invoke("ios_set_nav_gestures", { enabled }).catch(() => {});
 }
 
 /**
- * 轻量哨兵：最多根上多一条。用内存 armed，避免 state 丢失时每帧 push。
+ * iOS：系统侧滑 + 每层一条 history。
+ * depth=0 时关掉手势，彻底杜绝「主页滑主页 / 白屏」。
  */
-function startHistorySentinel(): () => void {
+function startIosHistoryStack(): () => void {
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-  // 清掉脏栈：只保留当前这一条
+  // 丢掉脏栈，只留根
   window.history.replaceState({ lanshan: 0 }, "");
-  disableWebKitNavGestures();
+  setNavGestures(false);
 
-  let armed = false;
-  let ignoring = false;
+  let depth = 0;
+  let ignorePop = 0;
+  let syncing = false;
+  let gesturesOn = false;
+
+  const applyGestures = (on: boolean) => {
+    if (gesturesOn === on) return;
+    gesturesOn = on;
+    setNavGestures(on);
+  };
 
   const sync = () => {
-    const need = layerDepth() > 0;
-    if (need === armed) return;
-    if (need) {
-      armed = true;
-      if (window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
+    if (syncing) return;
+    const want = layerDepth();
+    if (want === depth) {
+      applyGestures(want > 0);
       return;
     }
-    armed = false;
-    if (window.history.state?.lanshan === 1) {
-      ignoring = true;
-      window.history.replaceState({ lanshan: 0 }, "");
-      ignoring = false;
+    syncing = true;
+    try {
+      if (want > depth) {
+        // 进入更深：每层 push，系统侧滑预览才能看到真实上一页而不是白屏
+        while (depth < want) {
+          depth++;
+          window.history.pushState({ lanshan: depth }, "");
+        }
+      } else {
+        // 按钮关掉上层：用 back/go 与侧滑共用同一条栈
+        const steps = depth - want;
+        depth = want;
+        ignorePop += steps;
+        if (steps === 1) window.history.back();
+        else window.history.go(-steps);
+      }
+      applyGestures(want > 0);
+    } finally {
+      queueMicrotask(() => {
+        syncing = false;
+        if (ignorePop < 0) ignorePop = 0;
+      });
     }
   };
 
@@ -175,15 +202,27 @@ function startHistorySentinel(): () => void {
   };
 
   const onPop = () => {
-    if (ignoring) return;
-    if (dismissOne()) {
-      queueMicrotask(sync);
+    if (ignorePop > 0) {
+      ignorePop--;
       return;
     }
-    ignoring = true;
+    // 系统侧滑已弹出一层
+    if (depth > 0) depth--;
+    applyGestures(depth > 0);
+    if (dismissOne()) {
+      queueMicrotask(() => {
+        const want = layerDepth();
+        // 只收敛计数，不再 push/back，避免和手势打架
+        if (want !== depth) depth = want;
+        applyGestures(depth > 0);
+      });
+      return;
+    }
+    // 已在根：补根条目并保持手势关闭
+    ignorePop++;
     window.history.pushState({ lanshan: 0 }, "");
-    ignoring = false;
-    armed = false;
+    depth = 0;
+    applyGestures(false);
     leaveToBackground();
   };
 
@@ -200,97 +239,63 @@ function startHistorySentinel(): () => void {
     removeEventListener("popstate", onPop);
     removeEventListener("lanshan:trap-back", onTrap);
     unsubs.forEach((u) => u());
+    setNavGestures(false);
   };
 }
 
-/**
- * 左缘滑动 = dismissOne，且仅当有上层。
- * 首页 depth=0 时直接忽略，不会出现滑主页/白屏。
- */
-function startEdgeSwipeBack(): () => void {
-  const EDGE = 22;
-  const MIN_DX = 60;
-  const MAX_DY = 36;
-  let start: { x: number; y: number; t: number } | null = null;
-  let tracking = false;
-  let lastAt = 0;
-
-  const onStart = (e: TouchEvent) => {
-    tracking = false;
-    if (e.touches.length !== 1) {
-      start = null;
+/** Android 失败回退：不启 WK 手势，只做单层哨兵 */
+function startHistorySentinel(): () => void {
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  window.history.replaceState({ lanshan: 0 }, "");
+  let armed = false;
+  let ignoring = false;
+  const sync = () => {
+    const need = layerDepth() > 0;
+    if (need === armed) return;
+    if (need) {
+      armed = true;
+      if (window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
       return;
     }
-    // 没有可关的层：不接手势（根页）
-    if (layerDepth() <= 0) {
-      start = null;
+    armed = false;
+    if (window.history.state?.lanshan === 1) {
+      ignoring = true;
+      window.history.replaceState({ lanshan: 0 }, "");
+      ignoring = false;
+    }
+  };
+  const onPop = () => {
+    if (ignoring) return;
+    if (dismissOne()) {
+      queueMicrotask(sync);
       return;
     }
-    const t = e.touches[0];
-    if (t.clientX > EDGE) {
-      start = null;
-      return;
-    }
-    start = { x: t.clientX, y: t.clientY, t: Date.now() };
+    ignoring = true;
+    window.history.pushState({ lanshan: 0 }, "");
+    ignoring = false;
+    armed = false;
+    leaveToBackground();
   };
-  const onMove = (e: TouchEvent) => {
-    if (!start || e.touches.length !== 1) return;
-    const t = e.touches[0];
-    const dx = t.clientX - start.x;
-    const dy = Math.abs(t.clientY - start.y);
-    if (!tracking) {
-      if (dx < 10) return;
-      if (dy >= dx) {
-        start = null;
-        return;
-      }
-      tracking = true;
-    }
-    if (tracking && dx > 10) e.preventDefault();
-  };
-  const onEnd = (e: TouchEvent) => {
-    if (!start) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - start.x;
-    const dy = Math.abs(t.clientY - start.y);
-    const ok = tracking && dx >= MIN_DX && dy <= MAX_DY && Date.now() - start.t <= 700;
-    start = null;
-    tracking = false;
-    if (!ok) return;
-    if (layerDepth() <= 0) return;
-    const now = Date.now();
-    if (now - lastAt < 400) return;
-    if (dismissOne()) lastAt = now;
-  };
-  const onCancel = () => {
-    start = null;
-    tracking = false;
-  };
-
-  addEventListener("touchstart", onStart, { passive: true, capture: true });
-  addEventListener("touchmove", onMove, { passive: false, capture: true });
-  addEventListener("touchend", onEnd, { passive: true, capture: true });
-  addEventListener("touchcancel", onCancel, { passive: true, capture: true });
+  sync();
+  addEventListener("popstate", onPop);
+  addEventListener("lanshan:trap-back", () => queueMicrotask(sync));
+  const unsubs = [
+    useGraph.subscribe(sync),
+    useSettings.subscribe(sync),
+    useHistory.subscribe(sync),
+    useCite.subscribe(sync),
+  ];
   return () => {
-    removeEventListener("touchstart", onStart, true);
-    removeEventListener("touchmove", onMove, true);
-    removeEventListener("touchend", onEnd, true);
-    removeEventListener("touchcancel", onCancel, true);
+    removeEventListener("popstate", onPop);
+    unsubs.forEach((u) => u());
   };
 }
 
 export function startBackStack(): () => void {
   if (!IS_MOBILE_APP) return () => {};
 
-  if (IS_IOS_APP || !isAndroid) {
-    const stopSentinel = startHistorySentinel();
-    const stopEdge = startEdgeSwipeBack();
-    return () => {
-      stopEdge();
-      stopSentinel();
-      disableWebKitNavGestures();
-    };
-  }
+  if (IS_IOS_APP) return startIosHistoryStack();
+  if (!isAndroid) return startHistorySentinel();
 
   let cancelled = false;
   let unreg: (() => void) | undefined;

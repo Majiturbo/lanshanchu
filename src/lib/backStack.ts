@@ -35,7 +35,7 @@ export function dismissOne(): boolean {
     viewer.click();
     return true;
   }
-  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick")) {
+  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing)")) {
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-menu"));
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-overflow"));
     return true;
@@ -97,7 +97,7 @@ function needTrap(): boolean {
     || g.drawerId || g.reading || g.summaryOpen || g.leaving || g.screen !== "home"
     || settings.open || settings.gate
     || useHistory.getState().open || useCite.getState().open
-    || document.querySelector(".mobile-sheet, .ctx-sheet, .viewer")
+    || document.querySelector(".mobile-sheet, .ctx-sheet, .ctx-pick, .command-sheet, .viewer")
   );
 }
 

@@ -1,10 +1,13 @@
-import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, MessageSquarePlus, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
+import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, FileDown, History as HistoryIcon, Maximize, MessageSquarePlus, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Canvas, useCrumbs } from "../canvas/Canvas.tsx";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
+import { rootOf } from "../history/snapshot.ts";
 import { history, useHistory } from "../history/store.ts";
+import { fileName, nodesMd, treeOrder } from "../lib/export.ts";
 import { short } from "../lib/format.ts";
+import { saveMarkdown } from "../lib/save.ts";
 import { screenTransition, swapScreen } from "../lib/transition.ts";
 import { drawerCss, settingsActions, useSettings } from "../settings/store.ts";
 import { actions, fit, isReady, useGraph, zoomAt } from "../store/graph.ts";
@@ -134,6 +137,22 @@ function Topbar() {
                     <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); fit(); }}>
                       <Maximize size={16} strokeWidth={1.6} aria-hidden="true" />
                       适应画布
+                    </button>
+                    <button
+                      type="button"
+                      className="mobile-sheet-item"
+                      disabled={!hasAnswers}
+                      onClick={() => {
+                        setSheet(null);
+                        const nodes = useGraph.getState().nodes;
+                        const all = treeOrder(nodes);
+                        if (!all.length) return;
+                        const title = rootOf(nodes)?.q ?? "阑珊处";
+                        void saveMarkdown(fileName(title), nodesMd(all, title), "map");
+                      }}
+                    >
+                      <FileDown size={16} strokeWidth={1.6} aria-hidden="true" />
+                      导出
                     </button>
                     <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
                   </>

@@ -10,6 +10,16 @@
   transition: left var(--t-mid) var(--ease), top var(--t-mid) var(--ease);
 }
 .command.is-closing { animation: leave var(--t-fast) var(--ease-in) both; pointer-events: none; }
+.command-sheet {
+  position: fixed; inset: 0; z-index: 45;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.command-sheet.is-closing { pointer-events: none; }
+.command-sheet.is-closing .ctx-sheet-panel { animation: leave var(--t-fast) var(--ease-in) both; }
+.command-sheet-panel .command-count { padding: 0 8px 4px; }
+.command-sheet-panel .command-input { padding: 4px 8px 8px; }
+.command-sheet-panel .command-presets { padding: 0 4px; }
+.command-sheet-panel .preset { min-height: 48px; padding: 12px 10px; font-size: var(--fs-lg); }
 .command-count { padding: 12px 14px 0; font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--accent); }
 .command-input { display: flex; align-items: center; gap: 8px; padding: 8px 14px 8px; }
 .command-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: var(--fs-lg); }

@@ -11,16 +11,27 @@ import { isPackName, PACK_FORMAT, PACK_VERSION, requestKey, type Pack, type Pack
 const root = fileURLToPath(new URL(".", import.meta.url));
 const PACK_DIR = resolve(root, loadEnv("development", root, "LANSHAN_").LANSHAN_PACK_DIR || ".packs");
 
-// 同时服务于浏览器开发（示例模式）与 Tauri 桌面应用（tauri dev 会连接这个端口）
+/** 移动端真机开发时 Tauri CLI 写入；桌面 / 浏览器开发保持 localhost */
+const host = process.env.TAURI_DEV_HOST;
+
+// 同时服务于浏览器开发（示例模式）与 Tauri 桌面 / 移动应用
 export default defineConfig({
   plugins: [react(), devNet()],
+  // 相对路径：Tauri 生产包用自定义协议加载，绝对 /assets/... 在 iOS/Android 会白屏
+  base: "./",
   clearScreen: false,
+  envPrefix: ["VITE_", "TAURI_ENV_*"],
   server: {
     port: 17531,
     strictPort: true,
+    host: host || false,
+    hmr: host ? { protocol: "ws", host, port: 17532 } : undefined,
     watch: { ignored: ["**/src-tauri/**"] },
   },
-  build: { target: "es2022" },
+  build: {
+    // Windows WebView2 与 macOS/移动 WKWebView 分档；移动端勿用过高 ES 目标
+    target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari15",
+  },
 });
 
 /**

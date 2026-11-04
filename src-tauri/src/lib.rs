@@ -44,7 +44,9 @@ mod debug_log {
     }
 }
 
-/// 导出 Markdown：用户在对话框里取消时返回 false。async 命令跑在后台线程，阻塞式对话框不会卡住主线程
+/// 导出 Markdown：用户在对话框里取消时返回 false。async 命令跑在后台线程，阻塞式对话框不会卡住主线程。
+/// 仅桌面注册；移动端走前端系统分享。
+#[cfg(not(mobile))]
 #[tauri::command]
 async fn save_markdown(app: tauri::AppHandle, name: String, content: String) -> Result<bool, String> {
     use tauri_plugin_dialog::DialogExt;
@@ -66,16 +68,26 @@ async fn save_markdown(app: tauri::AppHandle, name: String, content: String) -> 
 pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_opener::init());
 
-    #[cfg(debug_assertions)]
+    // 系统「另存为」只在桌面；移动端导出走分享 / 下载，不挂 dialog 插件
+    #[cfg(not(mobile))]
+    let builder = builder.plugin(tauri_plugin_dialog::init());
+
+    #[cfg(all(debug_assertions, not(mobile)))]
     let builder = {
         debug_log::rotate();
         builder.invoke_handler(tauri::generate_handler![save_markdown, debug_log::debug_log])
     };
-    #[cfg(not(debug_assertions))]
+    #[cfg(all(debug_assertions, mobile))]
+    let builder = {
+        debug_log::rotate();
+        builder.invoke_handler(tauri::generate_handler![debug_log::debug_log])
+    };
+    #[cfg(all(not(debug_assertions), not(mobile)))]
     let builder = builder.invoke_handler(tauri::generate_handler![save_markdown]);
+    #[cfg(all(not(debug_assertions), mobile))]
+    let builder = builder.invoke_handler(tauri::generate_handler![]);
 
     builder
         .run(tauri::generate_context!())

@@ -108,8 +108,8 @@ function MobileSettings({ closing }: { closing: boolean }) {
 
   useEffect(() => {
     // 必须用 ref 判断深度：Android 返回来自原生回调，setState updater 可能延后，不能靠副作用里改标志
-    return bindSettingsBack(() => pop());
-  }, [pop]);
+    return bindSettingsBack(() => pop(), () => stackRef.current.length);
+  }, [pop, stackRef]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

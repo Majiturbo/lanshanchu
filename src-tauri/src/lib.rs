@@ -64,6 +64,42 @@ async fn save_markdown(app: tauri::AppHandle, name: String, content: String) -> 
     Ok(true)
 }
 
+/// iOS：开关 WKWebView 前进/后退手势。单页 App 必须默认关掉，否则首页右滑会露出白底或第二张主页快照。
+#[cfg(target_os = "ios")]
+#[tauri::command]
+fn ios_set_nav_gestures(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use tauri::Manager;
+    let win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "no main window".to_string())?;
+    win.with_webview(move |platform| unsafe {
+        let view: *mut AnyObject = platform.inner().cast();
+        if !view.is_null() {
+            let _: () = msg_send![&*view, setAllowsBackForwardNavigationGestures: enabled];
+        }
+    })
+    .map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "ios"))]
+#[tauri::command]
+fn ios_set_nav_gestures(_enabled: bool) -> Result<(), String> {
+    Ok(())
+}
+
+fn set_ios_nav_gestures(app: &tauri::AppHandle, enabled: bool) {
+    #[cfg(target_os = "ios")]
+    {
+        let _ = ios_set_nav_gestures(app.clone(), enabled);
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (app, enabled);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -77,17 +113,17 @@ pub fn run() {
     #[cfg(all(debug_assertions, not(mobile)))]
     let builder = {
         debug_log::rotate();
-        builder.invoke_handler(tauri::generate_handler![save_markdown, debug_log::debug_log])
+        builder.invoke_handler(tauri::generate_handler![save_markdown, debug_log::debug_log, ios_set_nav_gestures])
     };
     #[cfg(all(debug_assertions, mobile))]
     let builder = {
         debug_log::rotate();
-        builder.invoke_handler(tauri::generate_handler![debug_log::debug_log])
+        builder.invoke_handler(tauri::generate_handler![debug_log::debug_log, ios_set_nav_gestures])
     };
     #[cfg(all(not(debug_assertions), not(mobile)))]
-    let builder = builder.invoke_handler(tauri::generate_handler![save_markdown]);
+    let builder = builder.invoke_handler(tauri::generate_handler![save_markdown, ios_set_nav_gestures]);
     #[cfg(all(not(debug_assertions), mobile))]
-    let builder = builder.invoke_handler(tauri::generate_handler![]);
+    let builder = builder.invoke_handler(tauri::generate_handler![ios_set_nav_gestures]);
 
     builder
         .setup(|app| {
@@ -105,22 +141,19 @@ pub fn run() {
                     .build()?;
                 }
             }
-            // iOS：打开 WKWebView 左右滑前进/后退。前端 history 哨兵会把侧滑转成 dismissOne。
+            // 启动即关掉 WK 原生后退手势（并延迟再关一次，避免 WebView 后挂上时又被默认打开）。
+            // 单页里开它会在任意页右滑露出白底/重复快照；上层返回改由前端左缘 + dismissOne。
+            set_ios_nav_gestures(app.handle(), false);
             #[cfg(target_os = "ios")]
             {
-                use objc2::msg_send;
-                use objc2::runtime::AnyObject;
-                use tauri::Manager;
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.with_webview(|platform| unsafe {
-                        let view: *mut AnyObject = platform.inner().cast();
-                        if !view.is_null() {
-                            let _: () = msg_send![&*view, setAllowsBackForwardNavigationGestures: true];
-                        }
-                    });
-                }
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    for ms in [200u64, 800, 2000] {
+                        std::thread::sleep(std::time::Duration::from_millis(ms));
+                        set_ios_nav_gestures(&handle, false);
+                    }
+                });
             }
-            let _ = app;
             Ok(())
         })
         .run(tauri::generate_context!())

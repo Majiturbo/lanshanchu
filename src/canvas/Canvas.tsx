@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
+import { IS_ANDROID_APP, IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { actions, chain, fit, isReady, setView, useGraph, zoomAt, ZOOM_MAX, ZOOM_MIN } from "../store/graph.ts";
 import { edgePath, type Box } from "./layout.ts";
 import { usePresence } from "../components/presence.ts";
@@ -10,8 +10,8 @@ import "../styles/canvas.css";
 const DRAG_THRESHOLD = 4;
 /** 触屏长按打开动作表；移动超过阈值或第二指落下则取消 */
 const LONG_PRESS_MS = 480;
-/** 视角停止变化多久后撤掉合成图层、按最终比例重绘 */
-const SETTLE_MS = 180;
+/** 视角停止变化多久后撤掉合成图层、按最终比例重绘；Android WebView 撤层更易闪一下，多留一会儿 */
+const SETTLE_MS = IS_ANDROID_APP ? 420 : 180;
 /** 与 canvas.css 里 .world.glide 的时长一致：自动移动视角期间一直保持合成图层 */
 const GLIDE_MS = 600;
 /** 点阵在 .world::before，跟镜头同一套 transform；这里只在缩得太远时关掉，避免雪花屏 */
@@ -132,8 +132,9 @@ export function Canvas() {
   const pinch = useRef<{ dist: number; mid: { x: number; y: number }; view: { x: number; y: number; s: number } } | null>(null);
   /** 平移/捏合中直接改 DOM transform，结束时再写入 store，避免每帧 React 重渲导致卡顿 */
   const liveView = useRef({ x: view.x, y: view.y, s: view.s });
-  liveView.current = { x: view.x, y: view.y, s: view.s };
   const gesturing = useRef(false);
+  // 手势中若被流式输出等重渲，不能把 liveView 冲回 store 旧值，否则 transform 来回跳像闪屏
+  if (!gesturing.current) liveView.current = { x: view.x, y: view.y, s: view.s };
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [mode, setMode] = useState<"" | "is-panning" | "is-marquee" | "is-dragging">("");
   const worldRef = useRef<HTMLDivElement>(null);
@@ -143,7 +144,8 @@ export function Canvas() {
     const el = worldRef.current;
     if (!el) return;
     el.classList.add("is-moving");
-    el.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.s})`;
+    // translate3d 促一层；Android 上比 2D translate 更少在缩放中途整层重绘闪白
+    el.style.transform = `translate3d(${v.x}px, ${v.y}px, 0) scale(${v.s})`;
   };
   const commitWorld = () => {
     if (!gesturing.current) return;
@@ -229,7 +231,10 @@ export function Canvas() {
     const el = worldRef.current;
     if (!el) return;
     el.classList.add("is-moving");
-    const t = setTimeout(() => el.classList.remove("is-moving"), view.glide ? GLIDE_MS : SETTLE_MS);
+    const t = setTimeout(() => {
+      // 已进入下一轮捏合/平移时不要撤层，否则 Android 会闪一下
+      if (!gesturing.current) el.classList.remove("is-moving");
+    }, view.glide ? GLIDE_MS : SETTLE_MS);
     return () => clearTimeout(t);
   }, [view.x, view.y, view.s, view.glide]);
 
@@ -269,10 +274,12 @@ export function Canvas() {
         // 第二根手指落下：放弃单指拖动与长按，改为捏合
         clearLongPress();
         drag.current = null;
-        setMode("");
         setMarquee(null);
+        // 与平移共用 is-panning：捏合时关掉节点 transform 过渡，避免跟世界缩放打架闪一下
+        setMode("is-panning");
         const { view: v } = useGraph.getState();
-        pinch.current = { ...touchMid(), view: { x: v.x, y: v.y, s: v.s } };
+        const base = gesturing.current ? liveView.current : { x: v.x, y: v.y, s: v.s };
+        pinch.current = { ...touchMid(), view: base };
         stageRef.current!.setPointerCapture(e.pointerId);
         return;
       }
@@ -435,7 +442,13 @@ export function Canvas() {
         <div
           ref={worldRef}
           className={`world${view.glide ? " glide" : ""}`}
-          style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}
+          style={{
+            // 手势中以 liveView 为准，避免重渲用 store 旧视角盖掉 paintWorld
+            transform: (() => {
+              const v = gesturing.current ? liveView.current : view;
+              return `translate3d(${v.x}px, ${v.y}px, 0) scale(${v.s})`;
+            })(),
+          }}
         >
           <Edges />
           {/* 输入框排在节点前面（层级在下）：透明时仍接收悬停，但不会压住别的卡片 */}

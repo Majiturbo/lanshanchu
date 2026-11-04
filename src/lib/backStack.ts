@@ -1,5 +1,6 @@
+import { invoke } from "@tauri-apps/api/core";
 import { onBackButtonPress } from "@tauri-apps/api/app";
-import { IS_MOBILE_APP } from "../core/device.ts";
+import { IS_IOS_APP, IS_MOBILE_APP } from "../core/device.ts";
 import { history as mapHistory, useHistory } from "../history/store.ts";
 import { needsPhoneBind } from "../components/PhoneBindGate.tsx";
 import { settingsActions, useSettings } from "../settings/store.ts";
@@ -7,12 +8,24 @@ import { closeCite, useCite } from "../store/cite.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import { swapScreen } from "./transition.ts";
 
-let settingsPop: (() => boolean) | null = null;
+/**
+ * iOS 返回（针对本 App 的正确做法）：
+ * - **关掉** WKWebView.allowsBackForwardNavigationGestures。
+ *   单页里开它会在首页也能右滑，露出白底或另一张主页快照（用户截图）。
+ * - 有上层时用左缘滑动调用 dismissOne，一次只关一层（对齐 UINavigationController 语义）。
+ * - history 只做防误离页的单层哨兵，升降沿才改，禁止订阅里狂 push。
+ */
 
-/** 设置二级页先退一层；没有更深的页面时返回 false，由调用方关闭设置 */
-export function bindSettingsBack(fn: () => boolean) {
+let settingsPop: (() => boolean) | null = null;
+let settingsDepth: (() => number) | null = null;
+
+export function bindSettingsBack(fn: () => boolean, depth?: () => number) {
   settingsPop = fn;
-  return () => { if (settingsPop === fn) settingsPop = null; };
+  settingsDepth = depth ?? null;
+  return () => {
+    if (settingsPop === fn) settingsPop = null;
+    if (settingsDepth === depth) settingsDepth = null;
+  };
 }
 
 function popSettingsPage() {
@@ -26,7 +39,6 @@ const isAndroid =
 
 type AppBridge = { moveToBack: () => void };
 
-/** 根页再返回：Android 回后台；不要 exit(0) 杀进程（用户体感是闪退） */
 function leaveToBackground() {
   if (!isAndroid) return;
   const bridge = (window as unknown as { LanshanApp?: AppBridge }).LanshanApp;
@@ -35,7 +47,6 @@ function leaveToBackground() {
   } catch {
     /* 桥未就绪 */
   }
-  // 再派一次自定义事件，给原生兜底监听（JSBridge 偶发未挂上时仍能回桌面）
   try {
     document.dispatchEvent(new CustomEvent("lanshan:move-to-back"));
   } catch {
@@ -43,18 +54,17 @@ function leaveToBackground() {
   }
 }
 
-/** 关闭一层浮层 / 详情 / 页面；有东西可关时返回 true（系统返回应留在 App 内） */
+const SHEET_SEL = ".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing), .leave-sheet:not(.is-closing), .cite-sheet";
+
 export function dismissOne(): boolean {
-  if (needsPhoneBind(useSettings.getState().account)) {
-    // 强制绑定不能关掉，系统返回留在弹窗里
-    return true;
-  }
+  if (needsPhoneBind(useSettings.getState().account)) return true;
   const viewer = document.querySelector<HTMLElement>(".viewer:not(.is-closing) .viewer-close");
   if (viewer) {
     viewer.click();
     return true;
   }
-  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick, .command-sheet:not(.is-closing), .leave-sheet:not(.is-closing)")) {
+  if (document.querySelector(SHEET_SEL)) {
+    if (useCite.getState().open) closeCite();
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-menu"));
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-overflow"));
     return true;
@@ -72,7 +82,6 @@ export function dismissOne(): boolean {
     return true;
   }
   if (useSettings.getState().gate) {
-    // 未登录的登录页不能关掉
     if (useSettings.getState().gate === "login" && !useSettings.getState().session) return true;
     settingsActions.closeGate();
     return true;
@@ -110,44 +119,82 @@ export function dismissOne(): boolean {
   return false;
 }
 
-function needTrap(): boolean {
+function layerDepth(): number {
   const g = useGraph.getState();
   const settings = useSettings.getState();
-  return !!(
-    needsPhoneBind(settings.account)
-    || g.drawerId || g.reading || g.summaryOpen || g.leaving || g.screen !== "home"
-    || settings.open || settings.gate
-    || useHistory.getState().open || useCite.getState().open
-    || document.querySelector(".mobile-sheet, .ctx-sheet, .ctx-pick, .command-sheet, .leave-sheet, .viewer, .auth-screen")
-  );
+  let n = 0;
+  if (needsPhoneBind(settings.account) || settings.gate) n += 1;
+  if (g.screen !== "home") n += 1;
+  if (useHistory.getState().open) n += 1;
+  if (settings.open) n += Math.max(1, settingsDepth?.() ?? 1);
+  if (g.summaryOpen) n += 1;
+  if (g.leaving) n += 1;
+  if (g.drawerId) n += 1;
+  if (g.reading) n += 1;
+  if (useCite.getState().open) n += 1;
+  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-pick, .command-sheet:not(.is-closing), .leave-sheet:not(.is-closing), .viewer:not(.is-closing)")) n += 1;
+  return n;
 }
 
-/** history 哨兵：iOS 侧滑、或 Android 原生返回注册失败时用；监听 trap-back 以便底栏菜单等本地态入栈 */
+/** 强制关掉 WK 原生前进/后退手势（首页绝不能再滑出白底/第二张主页） */
+function disableWebKitNavGestures() {
+  if (!IS_IOS_APP) return;
+  void invoke("ios_set_nav_gestures", { enabled: false }).catch(() => {});
+}
+
+/**
+ * 轻量哨兵：最多根上多一条。用内存 armed，避免 state 丢失时每帧 push。
+ */
 function startHistorySentinel(): () => void {
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  // 清掉脏栈：只保留当前这一条
   window.history.replaceState({ lanshan: 0 }, "");
-  const pushIfNeeded = () => {
-    if (needTrap() && window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
-  };
-  const onTrap = () => {
-    if (window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
-  };
-  const onPop = () => {
-    if (dismissOne()) {
-      queueMicrotask(pushIfNeeded);
+  disableWebKitNavGestures();
+
+  let armed = false;
+  let ignoring = false;
+
+  const sync = () => {
+    const need = layerDepth() > 0;
+    if (need === armed) return;
+    if (need) {
+      armed = true;
+      if (window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
       return;
     }
-    // 已在根页：把被划走的 history 补回来，绝不离开单页 WebView（否则像闪退/白屏）
+    armed = false;
+    if (window.history.state?.lanshan === 1) {
+      ignoring = true;
+      window.history.replaceState({ lanshan: 0 }, "");
+      ignoring = false;
+    }
+  };
+
+  const onTrap = () => {
+    queueMicrotask(sync);
+  };
+
+  const onPop = () => {
+    if (ignoring) return;
+    if (dismissOne()) {
+      queueMicrotask(sync);
+      return;
+    }
+    ignoring = true;
     window.history.pushState({ lanshan: 0 }, "");
+    ignoring = false;
+    armed = false;
     leaveToBackground();
   };
-  pushIfNeeded();
+
+  sync();
   addEventListener("popstate", onPop);
   addEventListener("lanshan:trap-back", onTrap);
   const unsubs = [
-    useGraph.subscribe(pushIfNeeded),
-    useSettings.subscribe(pushIfNeeded),
-    useHistory.subscribe(pushIfNeeded),
-    useCite.subscribe(pushIfNeeded),
+    useGraph.subscribe(sync),
+    useSettings.subscribe(sync),
+    useHistory.subscribe(sync),
+    useCite.subscribe(sync),
   ];
   return () => {
     removeEventListener("popstate", onPop);
@@ -157,14 +204,93 @@ function startHistorySentinel(): () => void {
 }
 
 /**
- * 移动 App 返回栈。
- * Android：`onBackButtonPress` 接管（单页 history 管不到详情层）；注册失败才退回 history。
- * 其它（含 iOS）：history 哨兵 + trap-back。
+ * 左缘滑动 = dismissOne，且仅当有上层。
+ * 首页 depth=0 时直接忽略，不会出现滑主页/白屏。
  */
+function startEdgeSwipeBack(): () => void {
+  const EDGE = 22;
+  const MIN_DX = 60;
+  const MAX_DY = 36;
+  let start: { x: number; y: number; t: number } | null = null;
+  let tracking = false;
+  let lastAt = 0;
+
+  const onStart = (e: TouchEvent) => {
+    tracking = false;
+    if (e.touches.length !== 1) {
+      start = null;
+      return;
+    }
+    // 没有可关的层：不接手势（根页）
+    if (layerDepth() <= 0) {
+      start = null;
+      return;
+    }
+    const t = e.touches[0];
+    if (t.clientX > EDGE) {
+      start = null;
+      return;
+    }
+    start = { x: t.clientX, y: t.clientY, t: Date.now() };
+  };
+  const onMove = (e: TouchEvent) => {
+    if (!start || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = Math.abs(t.clientY - start.y);
+    if (!tracking) {
+      if (dx < 10) return;
+      if (dy >= dx) {
+        start = null;
+        return;
+      }
+      tracking = true;
+    }
+    if (tracking && dx > 10) e.preventDefault();
+  };
+  const onEnd = (e: TouchEvent) => {
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = Math.abs(t.clientY - start.y);
+    const ok = tracking && dx >= MIN_DX && dy <= MAX_DY && Date.now() - start.t <= 700;
+    start = null;
+    tracking = false;
+    if (!ok) return;
+    if (layerDepth() <= 0) return;
+    const now = Date.now();
+    if (now - lastAt < 400) return;
+    if (dismissOne()) lastAt = now;
+  };
+  const onCancel = () => {
+    start = null;
+    tracking = false;
+  };
+
+  addEventListener("touchstart", onStart, { passive: true, capture: true });
+  addEventListener("touchmove", onMove, { passive: false, capture: true });
+  addEventListener("touchend", onEnd, { passive: true, capture: true });
+  addEventListener("touchcancel", onCancel, { passive: true, capture: true });
+  return () => {
+    removeEventListener("touchstart", onStart, true);
+    removeEventListener("touchmove", onMove, true);
+    removeEventListener("touchend", onEnd, true);
+    removeEventListener("touchcancel", onCancel, true);
+  };
+}
+
 export function startBackStack(): () => void {
   if (!IS_MOBILE_APP) return () => {};
 
-  if (!isAndroid) return startHistorySentinel();
+  if (IS_IOS_APP || !isAndroid) {
+    const stopSentinel = startHistorySentinel();
+    const stopEdge = startEdgeSwipeBack();
+    return () => {
+      stopEdge();
+      stopSentinel();
+      disableWebKitNavGestures();
+    };
+  }
 
   let cancelled = false;
   let unreg: (() => void) | undefined;
@@ -176,7 +302,6 @@ export function startBackStack(): () => void {
       lastDismissAt = Date.now();
       return;
     }
-    // 刚关掉一层后的连按不立刻回后台，避免「关页+退出」粘在一起像闪退
     if (Date.now() - lastDismissAt < 450) return;
     leaveToBackground();
   }).then((listener) => {

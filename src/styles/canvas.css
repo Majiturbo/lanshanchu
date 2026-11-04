@@ -62,6 +62,11 @@ html.is-mobile-app:has(
 .world.glide { transition: transform 600ms var(--ease); }
 /* 只在平移缩放过程中提升为合成图层（Canvas.tsx 的 is-moving）：过程中流畅，停下后撤掉、按最终比例重绘保证清晰 */
 .world.is-moving { will-change: transform; }
+/* 捏合/平移时关掉子层过渡，Android 上否则会跟世界 scale 叠出闪屏 */
+.world.is-moving .node,
+.world.is-moving .end-mark,
+.stage.is-panning .node,
+.stage.is-panning .end-mark { transition: none; }
 /* 大画布 + viewBox 与世界坐标对齐。1×1 + overflow:visible 在父级有 transform 时会被裁成看不见 */
 .edges {
   position: absolute; left: -5000px; top: -5000px;

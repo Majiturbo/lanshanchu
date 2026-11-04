@@ -493,7 +493,7 @@ html.is-touch .hist-del { display: none; }
   .summary-foot { padding-left: 20px; }
 }
 
-/* ---------- 引用气泡（桌面 / 移动都贴角标；移动端不要底栏 sheet） ---------- */
+/* ---------- 引用气泡：桌面贴角标；移动端底栏 sheet（原型） ---------- */
 .cite-pop {
   position: fixed; z-index: 70;
   display: flex; flex-direction: column; max-height: min(440px, calc(100dvh - 24px));
@@ -501,15 +501,31 @@ html.is-touch .hist-del { display: none; }
   box-shadow: var(--shadow-3);
   animation: enter var(--t-fast) var(--ease) both;
 }
-html.is-mobile-app .cite-pop {
-  max-height: min(440px, calc(100dvh - 24px - env(safe-area-inset-bottom, 0px)));
+.cite-sheet {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: flex-end; justify-content: center;
+  touch-action: manipulation;
 }
-html.is-mobile-app .cite-pop-actions { flex-wrap: wrap; justify-content: flex-end; }
+.cite-sheet-scrim {
+  position: absolute; inset: 0; border: 0; padding: 0; margin: 0;
+  background: var(--scrim); cursor: pointer; touch-action: none;
+}
+.cite-pop.is-sheet {
+  position: relative; z-index: 1;
+  left: auto; top: auto; right: auto; bottom: auto;
+  width: min(480px, 100%);
+  /* 高度跟内容走，不要 top+bottom 拉满；只垫一次 Home 条 */
+  max-height: min(70dvh, 560px);
+  border-radius: 18px 18px 0 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  animation: enter var(--t-mid) var(--ease) both;
+}
 .cite-pop-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 0 14px; }
 .cite-pop-n { font: 500 var(--fs-sm)/16px var(--font-mono); color: var(--accent); }
 .cite-pop-meta { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cite-pop-close { width: 26px; height: 26px; color: var(--ink-3); }
 .cite-pop-title { margin: 6px 14px 0; font-size: var(--fs-md); font-weight: 600; line-height: 1.5; color: var(--ink); }
+.cite-pop.is-sheet .cite-pop-title { font-size: var(--fs-lg); line-height: 1.4; }
 .cite-pop-body {
   margin: 10px 0 0; padding: 0 14px 4px; overflow-y: auto;
   font: 400 var(--fs-md)/1.8 var(--font-ui); letter-spacing: var(--read-track); color: var(--ink-3);
@@ -518,11 +534,24 @@ html.is-mobile-app .cite-pop-actions { flex-wrap: wrap; justify-content: flex-en
 .cite-pop-gap { color: var(--ink-4); }
 .cite-pop-empty { color: var(--ink-4); }
 .cite-pop-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px 12px; margin-top: 4px; }
+.cite-pop-foot.is-sheet {
+  flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 12px 14px 0; margin-top: 8px;
+}
 .cite-pop-note { font-size: var(--fs-sm); color: var(--ink-4); }
 .cite-pop-actions { display: inline-flex; align-items: center; gap: 12px; flex: none; margin-left: auto; }
 .cite-pop-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--ink-3); }
 .cite-pop-act.is-primary { color: var(--accent); }
 .cite-pop-act:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* 移动原型：并排双按钮，主按钮朱砂实底 */
+.cite-pop-btns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.cite-pop-btns .btn {
+  width: 100%; min-height: 44px; height: auto; justify-content: center;
+  padding: 10px 12px; border-radius: var(--r-md); font-size: var(--fs-md);
+}
+.cite-pop-btns .btn:only-child { grid-column: 1 / -1; }
 
 /* ---------- 侧边栏：拖动调宽度 ---------- */
 .drawer-resize { position: absolute; z-index: 2; top: 0; bottom: 0; left: -4px; width: 8px; cursor: col-resize; }

@@ -386,6 +386,8 @@ html.is-mobile-app body {
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  /* 默认禁止双击/捏合整页缩放；只有 .stage（知识地图）是 touch-action: none，由画布自己捏合 */
+  touch-action: manipulation;
 }
 /* 触控上 :hover 会粘住、:active 也会留灰底。凡是「点一下铺一层底」的控件，移动端一律不铺；
    列表行、面包屑、来源、延伸问题等同理。真·鼠标才恢复悬停底。

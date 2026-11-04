@@ -33,6 +33,14 @@ if (IN_APP && !import.meta.env.DEV) {
   });
 }
 
+// 移动 App：拦截 iOS 遗留的 gesture 整页缩放；知识地图捏合走 Pointer 事件，不依赖这些
+if (IS_MOBILE_APP) {
+  const blockPageZoom = (e: Event) => e.preventDefault();
+  for (const type of ["gesturestart", "gesturechange", "gestureend"] as const) {
+    document.addEventListener(type, blockPageZoom, { passive: false });
+  }
+}
+
 startAutosave();
 startMemory(() => useGraph.getState().map?.id ?? null);
 startKeyboardInset();

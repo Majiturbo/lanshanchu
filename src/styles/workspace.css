@@ -98,8 +98,9 @@ html.is-mobile-app .crumbs .crumb {
 .mobile-sheet {
   position: fixed; inset: 0; z-index: 50;
   display: flex; align-items: flex-end; justify-content: center;
+  touch-action: manipulation;
 }
-.mobile-sheet-scrim { position: absolute; inset: 0; background: var(--scrim); }
+.mobile-sheet-scrim { position: absolute; inset: 0; background: var(--scrim); touch-action: none; }
 .mobile-sheet-panel {
   position: relative; z-index: 1; width: min(480px, 100%);
   padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));

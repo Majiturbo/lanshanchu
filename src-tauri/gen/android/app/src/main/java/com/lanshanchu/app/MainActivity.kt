@@ -31,6 +31,10 @@ class MainActivity : TauriActivity() {
   private fun hookWebView() {
     val root = window.decorView as? ViewGroup ?: return
     val web = findWebView(root) ?: return
+    // 关掉系统 WebView 整页缩放；地图捏合由前端 stage 手势处理
+    web.settings.setSupportZoom(false)
+    web.settings.builtInZoomControls = false
+    web.settings.displayZoomControls = false
     web.addJavascriptInterface(BarBridge(), "LanshanBars")
     web.addJavascriptInterface(ShareBridge(), "LanshanShare")
     web.addJavascriptInterface(AppBridge(), "LanshanApp")

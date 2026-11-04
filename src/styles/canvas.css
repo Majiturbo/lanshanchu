@@ -10,6 +10,22 @@
   overscroll-behavior: none;
 }
 .workspace.has-drawer .stage { right: var(--drawer-w); }
+/* 遮罩 / 底栏菜单 / 对话框开着时，地图不能再平移捏合或点选（顶栏、弹层照常） */
+html.is-mobile-app:has(
+  .mobile-sheet:not(.is-closing),
+  .ctx-sheet:not(.is-closing),
+  .ctx-pick:not(.is-closing),
+  .ctx-ask,
+  .command-sheet:not(.is-closing),
+  .leave-sheet:not(.is-closing),
+  .dialog-layer:not(.is-closing),
+  .viewer:not(.is-closing),
+  .auth-screen:not(.is-closing),
+  .phone-bind-gate:not(.is-closing),
+  .mset:not(.is-closing)
+) .stage {
+  pointer-events: none;
+}
 /* 浅色纸纹钉在视口上；点阵在 .world::before，跟节点同一套 transform，平移缩放一起走 */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .stage {

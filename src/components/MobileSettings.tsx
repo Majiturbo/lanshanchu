@@ -17,7 +17,7 @@ import { PlanMark } from "./PlanMark.tsx";
 import { usePresence } from "./presence.ts";
 import { settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
 
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "0.1.2";
 const PHONE = /^1\d{10}$/;
 
 type Page = "root" | "account" | "memory" | "look" | "canvas" | "update" | "plans" | "bind" | "change" | "delete";

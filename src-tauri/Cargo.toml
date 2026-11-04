@@ -1,6 +1,6 @@
 [package]
 name = "lanshanchu"
-version = "0.1.1"
+version = "0.1.2"
 description = "阑珊处：一张会生长的知识地图"
 edition = "2021"
 

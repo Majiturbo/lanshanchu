@@ -1,4 +1,4 @@
-import { ArrowRight, History as HistoryIcon, LoaderCircle, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, History as HistoryIcon, LoaderCircle, Search, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { history, useHistory } from "../history/store.ts";
@@ -190,6 +190,55 @@ function Panel({ closing }: { closing: boolean }) {
   };
 
   let k = -1;
+  const body = (
+    <>
+      <div className="history-search">
+        <Search size={15} strokeWidth={1.6} />
+        <input ref={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索问题" aria-label="搜索历史记录" />
+        {query && (
+          <button type="button" className="icon-btn" aria-label="清空搜索" onClick={() => { setQuery(""); input.current?.focus(); }}>
+            <X size={14} strokeWidth={1.6} />
+          </button>
+        )}
+      </div>
+      <div className="dialog-body history-body" ref={list}>
+        {!items.length ? (
+          <p className="history-empty">还没有历史记录</p>
+        ) : !flat.length ? (
+          <p className="history-empty">没有找到包含「{query.trim()}」的记录</p>
+        ) : groups.map(({ g, rows }) => (
+          <section key={g} className="history-group">
+            <h3 className="section-title">{g}</h3>
+            <ol className="hist-list">
+              {rows.map((m) => {
+                const i = ++k;
+                return <Row key={m.id} m={m} query={query} current={m.id === currentId} active={i === cursor} onHover={() => setCursor(i)} />;
+              })}
+            </ol>
+          </section>
+        ))}
+      </div>
+    </>
+  );
+
+  if (IS_MOBILE_APP) {
+    return (
+      <div className={`auth-screen hist-screen${closing ? " is-closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="history-title" onKeyDown={onKey}>
+        <header className="auth-head">
+          <button type="button" className="icon-btn" aria-label="返回" onClick={history.closePanel}>
+            <ArrowLeft size={18} strokeWidth={1.6} />
+          </button>
+          <h1 id="history-title">历史记录</h1>
+          <span className="auth-head-spacer" aria-hidden="true" />
+        </header>
+        <div className="auth-body hist-screen-body">
+          {items.length ? <p className="hist-screen-count">{items.length} 张地图</p> : null}
+          {body}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`dialog-layer${closing ? " is-closing" : ""}`} onKeyDown={onKey}>
       <div className="dialog-scrim" {...scrimClose(history.closePanel)} />
@@ -199,32 +248,7 @@ function Panel({ closing }: { closing: boolean }) {
           <span className="history-count">{items.length ? `${items.length} 张地图` : ""}</span>
           <DialogCloseIcon onClose={history.closePanel} label="关闭历史记录" />
         </header>
-        <div className="history-search">
-          <Search size={15} strokeWidth={1.6} />
-          <input ref={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索问题" aria-label="搜索历史记录" />
-          {query && (
-            <button type="button" className="icon-btn" aria-label="清空搜索" onClick={() => { setQuery(""); input.current?.focus(); }}>
-              <X size={14} strokeWidth={1.6} />
-            </button>
-          )}
-        </div>
-        <div className="dialog-body history-body" ref={list}>
-          {!items.length ? (
-            <p className="history-empty">还没有历史记录</p>
-          ) : !flat.length ? (
-            <p className="history-empty">没有找到包含「{query.trim()}」的记录</p>
-          ) : groups.map(({ g, rows }) => (
-            <section key={g} className="history-group">
-              <h3 className="section-title">{g}</h3>
-              <ol className="hist-list">
-                {rows.map((m) => {
-                  const i = ++k;
-                  return <Row key={m.id} m={m} query={query} current={m.id === currentId} active={i === cursor} onHover={() => setCursor(i)} />;
-                })}
-              </ol>
-            </section>
-          ))}
-        </div>
+        {body}
         <DialogDone onClose={history.closePanel} />
       </div>
     </div>

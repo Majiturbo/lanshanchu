@@ -603,6 +603,22 @@ html.is-mobile-app .reader-nav .icon-btn { width: 36px; height: 36px; }
 .ctx-pick-empty {
   margin: 8px; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-3);
 }
+.leave-sheet {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.leave-sheet.is-closing { pointer-events: none; }
+.leave-sheet.is-closing .ctx-sheet-panel { animation: leave var(--t-fast) var(--ease-in) both; }
+.leave-sheet-panel h2 {
+  margin: 0 8px 16px; font-size: var(--fs-lg); font-weight: 600; color: var(--ink);
+}
+.leave-sheet-panel .leave-remember {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 8px 16px; font-size: var(--fs-md); color: var(--ink-2);
+}
+.leave-sheet-btn {
+  width: 100%; min-height: 48px; justify-content: center; margin-bottom: 8px;
+}
 
 /* ---------- 设置里的记忆：一段可直接编辑的文本 ---------- */
 .memory-text {

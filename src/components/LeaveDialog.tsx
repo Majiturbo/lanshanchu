@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IS_MOBILE_APP } from "../core/device.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import { DialogCloseIcon, MAC_DIALOG, scrimClose } from "./DialogChrome.tsx";
 import { usePresence } from "./presence.ts";
@@ -18,11 +19,34 @@ function Dialog({ count, closing }: { count: number; closing: boolean }) {
   const cancel = () => actions.resolveLeave(null);
 
   useEffect(() => {
-    primary.current?.focus();
+    if (!IS_MOBILE_APP) primary.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") cancel(); };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, []);
+
+  if (IS_MOBILE_APP) {
+    return (
+      <div className={`leave-sheet${closing ? " is-closing" : ""}`} role="alertdialog" aria-modal="true" aria-labelledby="leave-title">
+        <div className="ctx-sheet-scrim" onClick={cancel} />
+        <div className="ctx-sheet-panel leave-sheet-panel">
+          <div className="ctx-sheet-handle" aria-hidden="true" />
+          <h2 id="leave-title">还有 {count} 个问题正在回答</h2>
+          <label className="leave-remember">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            <span>记住我的选择</span>
+          </label>
+          <button ref={primary} type="button" className="btn btn-primary leave-sheet-btn" onClick={() => actions.resolveLeave("background", remember)}>
+            后台继续回答
+          </button>
+          <button type="button" className="btn btn-danger leave-sheet-btn" onClick={() => actions.resolveLeave("stop", remember)}>
+            全部终止
+          </button>
+          <button type="button" className="ctx-item ctx-cancel" onClick={cancel}>取消</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`dialog-layer${closing ? " is-closing" : ""}`}>

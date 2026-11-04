@@ -97,7 +97,7 @@ function needTrap(): boolean {
     || g.drawerId || g.reading || g.summaryOpen || g.leaving || g.screen !== "home"
     || settings.open || settings.gate
     || useHistory.getState().open || useCite.getState().open
-    || document.querySelector(".mobile-sheet, .ctx-sheet, .ctx-pick, .command-sheet, .viewer")
+    || document.querySelector(".mobile-sheet, .ctx-sheet, .ctx-pick, .command-sheet, .leave-sheet, .viewer")
   );
 }
 

@@ -141,8 +141,8 @@ pub fn run() {
                     .build()?;
                 }
             }
-            // 启动时先关掉 WK 后退手势；有上层时由前端 ios_set_nav_gestures(true) 再打开。
-            // 根页必须保持关闭，否则会右滑出白底/第二张主页（用户截图）。
+            // SPA 侧滑由前端自管（Ionic 式边缘手势）；WK 前进后退手势永久关闭。
+            // 打开它侧滑露出的是 history 快照，单页里经常是空白，深浅色都会露底。
             set_ios_nav_gestures(app.handle(), false);
             Ok(())
         })

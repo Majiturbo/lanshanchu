@@ -121,6 +121,8 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 /* 浅色主按钮走朱砂实底（原型）；深色走墨色。破坏性操作用危险色字 */
 .btn.btn-primary { background: var(--solid); border-color: var(--solid); color: var(--on-solid-btn); }
 .btn.btn-primary:hover:not(:disabled) { background: var(--solid-hover); border-color: var(--solid-hover); opacity: 1; }
+/* 实心主按钮按下必须仍是实底（HIG：filled 要有 press state，不能变透明） */
+.btn.btn-primary:active:not(:disabled) { background: var(--solid-hover); border-color: var(--solid-hover); color: var(--on-solid-btn); }
 .btn.btn-danger { color: var(--danger); }
 .btn.btn-danger:hover:not(:disabled) { border-color: var(--danger-line); background: var(--danger-soft); }
 
@@ -393,19 +395,30 @@ html.is-touch .card-actions .icon-btn {
   height: 44px;
 }
 html.is-touch .attach-del { opacity: 1; }
+/* SPA 壳：锁死 document 橡胶带滚动（Capacitor scrollEnabled:false 同思路）；
+   真正滚动只发生在 .auth-body / .nav-pane-body / .drawer-body 等内层。 */
 html.is-mobile-app,
 html.is-mobile-app body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   /* 默认禁止双击/捏合整页缩放；只有 .stage（知识地图）是 touch-action: none，由画布自己捏合 */
   touch-action: manipulation;
 }
-/* 触控上 :hover 会粘住、:active 也会留灰底。凡是「点一下铺一层底」的控件，移动端一律不铺；
-   列表行、面包屑、来源、延伸问题等同理。真·鼠标才恢复悬停底。
-   选中 / 按下态（preset、非 compact 开关）必须保留底色，不能被这条清掉。 */
+html.is-mobile-app #root {
+  height: 100%;
+  overflow: hidden;
+}
+/* 触控上 :hover 会粘住。只清「图标/幽灵」控件的粘住灰底；不要动 .btn——
+   实心主按钮与描边按钮清成 transparent 会变成点一下底色消失（登录按钮即此）。
+   真·鼠标才恢复图标悬停底。选中态必须保留底色。 */
 html.is-mobile-app :is(
-  .icon-btn, .toggle, .btn, .wc, .crumb, .zoom-value, .slot-send,
+  .icon-btn, .toggle, .wc, .crumb, .zoom-value, .slot-send,
   .followup, .reader-back, .hist-del, .preset, .ctx-item,
   .source:is(a, button), .research-queries li, a.dropped-row,
   .mset-account, .mset-row, .mobile-sheet-item, .phone-bind-leave
@@ -413,8 +426,25 @@ html.is-mobile-app :is(
   background: transparent;
   outline: none;
 }
-html.is-mobile-app :is(.icon-btn, .toggle, .btn, .wc, .slot-send):active {
+html.is-mobile-app :is(.icon-btn, .toggle, .wc, .slot-send):active {
   background: transparent;
+}
+/* 粗指针：取消 .btn 的 :hover 变色，避免点完粘在 hover；按下只用 :active */
+html.is-mobile-app .btn:hover:not(:disabled):not(:active) {
+  background: var(--surface);
+}
+html.is-mobile-app .btn.btn-primary:hover:not(:disabled):not(:active) {
+  background: var(--solid);
+  border-color: var(--solid);
+  color: var(--on-solid-btn);
+}
+html.is-mobile-app .btn:active:not(:disabled) {
+  background: var(--surface-active);
+}
+html.is-mobile-app .btn.btn-primary:active:not(:disabled) {
+  background: var(--solid-hover);
+  border-color: var(--solid-hover);
+  color: var(--on-solid-btn);
 }
 html.is-mobile-app .recent .hist-row:hover,
 html.is-mobile-app .history .hist-row:hover,

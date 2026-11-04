@@ -279,6 +279,7 @@ function LoginFlow() {
             {pane === "register" ? "注册并登录" : pane === "reset" ? "重置并登录" : "登录"}
           </button>
         </form>
+        <div className="auth-spacer" aria-hidden="true" />
         <div className="auth-foot">
           {pane === "register" ? (
             <span>已有账号？<button type="button" onClick={() => { setPane("password"); setError(""); }}>登录</button></span>

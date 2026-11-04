@@ -222,6 +222,8 @@ function startIosEdgeSwipe(): () => void {
     el.style.transform = savedTransform;
     el.style.transition = savedTransition;
     el.style.animation = savedAnim;
+    el.style.opacity = "";
+    el.style.pointerEvents = "";
     el.style.willChange = "";
   };
 
@@ -230,6 +232,22 @@ function startIosEdgeSwipe(): () => void {
     el.style.transition = "none";
     el.style.willChange = "transform";
     el.style.transform = `translate3d(${x}px,0,0)`;
+  };
+
+  /** 侧滑已把顶层拖走：禁止再播 is-closing / is-pop-out，否则会闪回整页再退一次 */
+  const beginSwipeDismiss = (el: HTMLElement) => {
+    const root = document.documentElement;
+    root.dataset.swipeDismiss = "";
+    el.style.transition = "none";
+    el.style.animation = "none";
+    el.style.transform = `translate3d(${width || window.innerWidth || 1}px,0,0)`;
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
+    el.style.willChange = "";
+    dismissOne();
+    window.setTimeout(() => {
+      delete root.dataset.swipeDismiss;
+    }, 400);
   };
 
   const onStart = (e: TouchEvent) => {
@@ -302,32 +320,29 @@ function startIosEdgeSwipe(): () => void {
     const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
-      el.removeEventListener("transitionend", onEnd);
+      el.removeEventListener("transitionend", onTransEnd);
       fn();
     };
-    const onEnd = () => settle(() => {
-      clearInline(el);
-      if (shouldComplete) dismissOne();
+    const onTransEnd = () => settle(() => {
+      if (shouldComplete) beginSwipeDismiss(el);
+      else clearInline(el);
     });
 
     if (shouldComplete) {
       const missing = Math.max(0.01, 1 - step);
-      const dur = clamp(missing * w / Math.max(0.15, Math.abs(velocity)), 120, 420);
+      const dur = clamp(missing * w / Math.max(0.15, Math.abs(velocity)), 120, 360);
       el.style.animation = "none";
       el.style.transition = `transform ${dur}ms ease-out`;
       el.style.transform = `translate3d(${w}px,0,0)`;
-      el.addEventListener("transitionend", onEnd);
-      window.setTimeout(() => settle(() => {
-        clearInline(el);
-        dismissOne();
-      }), dur + 80);
+      el.addEventListener("transitionend", onTransEnd);
+      window.setTimeout(() => settle(() => beginSwipeDismiss(el)), dur + 48);
     } else {
-      const dur = clamp(step * w / Math.max(0.15, Math.abs(velocity)), 100, 320);
+      const dur = clamp(step * w / Math.max(0.15, Math.abs(velocity)), 100, 280);
       el.style.animation = "none";
       el.style.transition = `transform ${dur}ms ease-out`;
       el.style.transform = savedTransform || "translate3d(0,0,0)";
-      el.addEventListener("transitionend", onEnd);
-      window.setTimeout(() => settle(() => clearInline(el)), dur + 80);
+      el.addEventListener("transitionend", onTransEnd);
+      window.setTimeout(() => settle(() => clearInline(el)), dur + 48);
     }
   };
 

@@ -180,6 +180,27 @@ html.is-mobile-app .crumbs .crumb {
   animation: nav-cover-out var(--t-nav) var(--ease-in) both;
   pointer-events: none;
 }
+/* 边缘侧滑已把顶层拖走：关掉二次退场，避免「闪回两页再关一次」 */
+html[data-swipe-dismiss] .auth-screen.is-closing,
+html[data-swipe-dismiss] .phone-bind-gate.is-closing {
+  animation: none !important;
+  opacity: 0 !important;
+  transform: translate3d(100%, 0, 0) !important;
+}
+html[data-swipe-dismiss] .nav-pane.is-pop-out {
+  animation: none !important;
+  opacity: 0 !important;
+  transform: translate3d(100%, 0, 0) !important;
+}
+html[data-swipe-dismiss] .nav-pane.is-pop-reveal {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+html[data-swipe-dismiss] :is(.home, .workspace) {
+  filter: none !important;
+  opacity: 1 !important;
+}
 html.is-mobile-app :is(.home, .workspace) {
   transition: filter var(--t-nav) var(--ease-nav), opacity var(--t-nav) var(--ease-nav);
 }
@@ -203,10 +224,16 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 }
 .auth-head-spacer { width: 40px; }
 .auth-body {
-  flex: 1; overflow-y: auto;
+  flex: 1; min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
   display: flex; flex-direction: column;
   padding: 8px 20px 24px; max-width: 480px; width: 100%; margin: 0 auto;
+  -webkit-overflow-scrolling: touch;
 }
+/* 用可收缩垫片顶脚，勿用 margin-top:auto——后者会把 scrollHeight 撑满视口，键盘一开就出现「整页能滑」的假溢出 */
+.auth-spacer { flex: 1 1 auto; min-height: 0; pointer-events: none; }
 
 /* 设置等多级：双层叠栈，推入时下层左移、上层侧影滑入；返回时成对反转 */
 .nav-stack {
@@ -293,8 +320,20 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 .auth-well {
   display: flex; align-items: center; gap: 8px;
   min-height: 48px; padding: 0 16px;
-  border: var(--hair) solid var(--line); border-radius: 999px;
-  background: var(--surface);
+  /* 浅色用沉底暖灰，避免 surface 贴着 bg 像「没底」；深色见下方抬一层 */
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  background: var(--surface-sunken);
+}
+/* 墨色深色 surface===bg，再用 surface 等于没框；抬到 indigo-3，边用更实的线 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .auth-well {
+    background: var(--surface-hover);
+    border-color: var(--line-hover);
+  }
+}
+:root[data-theme="dark"] .auth-well {
+  background: var(--surface-hover);
+  border-color: var(--line-hover);
 }
 .auth-well:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
 .auth-well input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: none; font-size: var(--fs-lg); }
@@ -308,7 +347,7 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 .auth-links button { padding: 4px 0; font-size: var(--fs-md); color: var(--ink-2); }
 .auth-submit { width: 100%; height: 48px; border-radius: 999px; justify-content: center; }
 .auth-sent { margin: 0; font-size: var(--fs-sm); color: var(--ink-3); }
-.auth-foot { margin-top: auto; padding: 24px 0 8px; text-align: center; color: var(--ink-3); }
+.auth-foot { flex: none; margin-top: 0; padding: 24px 0 8px; text-align: center; color: var(--ink-3); }
 .auth-foot button { margin-left: 4px; color: var(--ink); font-weight: 600; }
 .mset-account, .mset-row {
   display: flex; align-items: center; gap: 8px;

@@ -64,7 +64,7 @@ async fn save_markdown(app: tauri::AppHandle, name: String, content: String) -> 
     Ok(true)
 }
 
-/// iOS：开关 WKWebView 前进/后退手势。单页 App 必须默认关掉，否则首页右滑会露出白底或第二张主页快照。
+/// iOS：开关 WKWebView 前进/后退手势。SPA 侧滑自管，必须保持关闭。
 #[cfg(target_os = "ios")]
 #[tauri::command]
 fn ios_set_nav_gestures(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
@@ -99,6 +99,38 @@ fn set_ios_nav_gestures(app: &tauri::AppHandle, enabled: bool) {
         let _ = (app, enabled);
     }
 }
+
+/// Capacitor / 成熟 SPA 壳惯例：关掉 WK 外层 UIScrollView 滚动与橡胶带，
+/// 键盘避让与列表滚动交给页内 overflow 容器，避免登录页整页上下晃。
+#[cfg(target_os = "ios")]
+fn configure_ios_spa_scroll(app: &tauri::AppHandle) {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use tauri::Manager;
+    let Some(win) = app.get_webview_window("main") else {
+        return;
+    };
+    let _ = win.with_webview(|platform| unsafe {
+        let view: *mut AnyObject = platform.inner().cast();
+        if view.is_null() {
+            return;
+        }
+        let _: () = msg_send![&*view, setAllowsBackForwardNavigationGestures: false];
+        let scroll: *mut AnyObject = msg_send![&*view, scrollView];
+        if scroll.is_null() {
+            return;
+        }
+        let _: () = msg_send![&*scroll, setScrollEnabled: false];
+        let _: () = msg_send![&*scroll, setBounces: false];
+        let _: () = msg_send![&*scroll, setAlwaysBounceVertical: false];
+        let _: () = msg_send![&*scroll, setAlwaysBounceHorizontal: false];
+        // UIScrollViewContentInsetAdjustmentNever = 2
+        let _: () = msg_send![&*scroll, setContentInsetAdjustmentBehavior: 2_i64];
+    });
+}
+
+#[cfg(not(target_os = "ios"))]
+fn configure_ios_spa_scroll(_app: &tauri::AppHandle) {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -141,9 +173,9 @@ pub fn run() {
                     .build()?;
                 }
             }
-            // SPA 侧滑由前端自管（Ionic 式边缘手势）；WK 前进后退手势永久关闭。
-            // 打开它侧滑露出的是 history 快照，单页里经常是空白，深浅色都会露底。
+            // SPA：关掉 WK 前进后退手势 + 外层 scrollView 滚动/橡胶带（Capacitor 同款）。
             set_ios_nav_gestures(app.handle(), false);
+            configure_ios_spa_scroll(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())

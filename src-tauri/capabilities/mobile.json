@@ -6,6 +6,7 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:app:allow-exit",
     "opener:allow-open-url",
     "opener:allow-default-urls",
     {

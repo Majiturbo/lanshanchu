@@ -9,13 +9,12 @@ import { actions, useGraph } from "../store/graph.ts";
 import { swapScreen } from "./transition.ts";
 
 /**
- * iOS 侧滑按业界 SPA 常见做法（Capacitor / WKWebView）：
- * 1. 打开 allowsBackForwardNavigationGestures，跟手快照由系统画
- * 2. 每一层可返回界面 push 一条 history；根页只用 replace
- * 3. 根页（depth=0）必须关掉手势——否则会右滑出白底或第二张主页
- * 4. scrollRestoration=manual，避免快照被滚动恢复打成空白
- * 5. 只在层数升降沿改 history，禁止每次 store 更新都 push（脏栈→卡顿/白屏）
- * 参考：https://jishuzhan.net/article/2010957812160577537
+ * iOS 侧滑按业界 SPA 常见做法（Capacitor / WKWebView），不靠改窗口底色遮白屏：
+ * 1. 有上层才开 allowsBackForwardNavigationGestures；根页关掉——没有上一页时侧滑必然露空白
+ * 2. 每一层 push 一条，侧滑预览的是真实上一页 DOM 快照；根页只用 replace，绝不在根再 push
+ * 3. scrollRestoration=manual，避免快照被滚动恢复打空
+ * 4. 层数升降沿才改 history，禁止订阅里狂 push（脏栈→卡顿、主页滑主页）
+ * 参考：Capacitor + React iOS 侧滑惯例（系统手势 + push/replace 分工）
  */
 
 let settingsPop: (() => boolean) | null = null;
@@ -218,13 +217,20 @@ function startIosHistoryStack(): () => void {
       });
       return;
     }
-    // 已在根：补根条目并保持手势关闭
-    ignorePop++;
-    window.history.pushState({ lanshan: 0 }, "");
+    // 已在根：绝不能再 push（会叠出第二张主页快照）；replace 稳住并关手势
     depth = 0;
     applyGestures(false);
+    ignoringReplace();
     leaveToBackground();
   };
+
+  function ignoringReplace() {
+    ignorePop++;
+    window.history.replaceState({ lanshan: 0 }, "");
+    queueMicrotask(() => {
+      if (ignorePop > 0) ignorePop--;
+    });
+  }
 
   sync();
   addEventListener("popstate", onPop);
@@ -270,8 +276,9 @@ function startHistorySentinel(): () => void {
       queueMicrotask(sync);
       return;
     }
+    // 根页用 replace，勿 push 出第二层空快照
     ignoring = true;
-    window.history.pushState({ lanshan: 0 }, "");
+    window.history.replaceState({ lanshan: 0 }, "");
     ignoring = false;
     armed = false;
     leaveToBackground();

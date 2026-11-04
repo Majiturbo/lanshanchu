@@ -1,5 +1,5 @@
 import { ExternalLink, Globe } from "lucide-react";
-import { createContext, Fragment, useContext, useState, type ReactNode } from "react";
+import { createContext, Fragment, useContext, useRef, useState, type ReactNode } from "react";
 import type { Source } from "../core/protocol.ts";
 import { cardLabel, relativeTime } from "../lib/format.ts";
 import { parseMarkdown } from "../lib/markdown.ts";
@@ -36,14 +36,20 @@ export function SourceStack({ sources, max = 4 }: { sources: Source[]; max?: num
   );
 }
 
-/** 角标：打开引用气泡（来源标题与原文高亮）；quote 是被引用的那句话。
- * 触屏在 pointerdown 就开——画布有 transform，卡片又有 overflow 时，iOS 会吞掉第一次 click。 */
+/** 角标点击与滑动的位移阈值（px）：超过就当作滑卡片，不打开 */
+const CITE_TAP_SLOP = 12;
+
+/** 角标：打开引用气泡。触屏在 pointerup 且几乎没移动才开——
+ * 不在 pointerdown 开（滑卡片易误触）；也不只靠 click（transform+overflow 里 iOS 会吞第一次）。 */
 export function Cites({ cites, sources, quote = "" }: { cites: number[]; sources?: Source[]; quote?: string }) {
   const nodeId = useContext(CiteNode);
+  const gesture = useRef<{ id: number; x: number; y: number; dragged: boolean } | null>(null);
+
   const open = (el: HTMLElement, n: number, s: NonNullable<typeof sources>[number]) => {
     const r = el.getBoundingClientRect();
     openCite({ source: s, n, quote, nodeId, anchor: { left: r.left, top: r.top, right: r.right, bottom: r.bottom } });
   };
+
   return (
     <>
       {cites.map((c) => {
@@ -59,16 +65,31 @@ export function Cites({ cites, sources, quote = "" }: { cites: number[]; sources
             onPointerDown={(e) => {
               e.stopPropagation();
               if (e.button !== 0) return;
+              gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dragged: false };
+              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 捕获失败仍可走 click */ }
+            }}
+            onPointerMove={(e) => {
+              const g = gesture.current;
+              if (!g || g.id !== e.pointerId || g.dragged) return;
+              if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > CITE_TAP_SLOP) g.dragged = true;
+            }}
+            onPointerUp={(e) => {
+              const g = gesture.current;
+              gesture.current = null;
+              if (!g || g.id !== e.pointerId) return;
               if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+              if (g.dragged) return;
               open(e.currentTarget, c, s);
             }}
+            onPointerCancel={() => { gesture.current = null; }}
             onClick={(e) => {
               e.stopPropagation();
-              // 触屏已在 pointerdown 打开；粗指针设备跳过 click，避免和外部关闭打架
-              if (window.matchMedia("(pointer: coarse)").matches) return;
+              // 触屏已在 pointerup 处理；鼠标走 click
               if (e.nativeEvent instanceof PointerEvent) {
                 const t = e.nativeEvent.pointerType;
                 if (t === "touch" || t === "pen") return;
+              } else if (window.matchMedia("(pointer: coarse)").matches) {
+                return;
               }
               open(e.currentTarget, c, s);
             }}

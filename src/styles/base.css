@@ -215,16 +215,17 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 }
 .cite { cursor: pointer; border: 0; transition: background var(--t-fast), color var(--t-fast); }
 button.cite:hover { background: var(--accent-solid); color: var(--on-solid); }
-/* 触屏角标用伪元素扩热区，视觉仍小、更好一次点中 */
+/* 触屏角标略扩热区；不宜过大，否则滑卡片时极易误触 */
 html.is-touch button.cite {
   position: relative;
   padding: 0 5px;
   vertical-align: 0;
+  touch-action: manipulation;
 }
 html.is-touch button.cite::before {
   content: "";
   position: absolute;
-  inset: -10px -8px;
+  inset: -6px -4px;
 }
 
 .points { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
@@ -429,16 +430,20 @@ html.is-mobile-app :is(
 html.is-mobile-app :is(.icon-btn, .toggle, .wc, .slot-send):active {
   background: transparent;
 }
-/* 粗指针：取消 .btn 的 :hover 变色，避免点完粘在 hover；按下只用 :active */
-html.is-mobile-app .btn:hover:not(:disabled):not(:active) {
+/* 触屏：取消次按钮粘住 hover；主按钮任何伪类都保持实底（按下才加深） */
+html.is-mobile-app .btn:not(.btn-primary):hover:not(:disabled):not(:active) {
   background: var(--surface);
 }
-html.is-mobile-app .btn.btn-primary:hover:not(:disabled):not(:active) {
+html.is-mobile-app .btn.btn-primary,
+html.is-mobile-app .btn.btn-primary:hover,
+html.is-mobile-app .btn.btn-primary:focus,
+html.is-mobile-app .btn.btn-primary:focus-visible {
   background: var(--solid);
   border-color: var(--solid);
   color: var(--on-solid-btn);
+  opacity: 1;
 }
-html.is-mobile-app .btn:active:not(:disabled) {
+html.is-mobile-app .btn:not(.btn-primary):active:not(:disabled) {
   background: var(--surface-active);
 }
 html.is-mobile-app .btn.btn-primary:active:not(:disabled) {

@@ -320,23 +320,40 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 .auth-well {
   display: flex; align-items: center; gap: 8px;
   min-height: 48px; padding: 0 16px;
-  /* 浅色用沉底暖灰，避免 surface 贴着 bg 像「没底」；深色见下方抬一层 */
-  border: 1px solid var(--line-strong); border-radius: 999px;
+  border-radius: 999px;
+  /* 浅色：沉底暖灰 + 实线，和页面底明显分开（不能再用贴着 bg 的 surface） */
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
   background: var(--surface-sunken);
 }
-/* 墨色深色 surface===bg，再用 surface 等于没框；抬到 indigo-3，边用更实的线 */
+/* 深色：墨色 surface===bg，必须明显抬一层；边用更实的亮线 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .auth-well {
-    background: var(--surface-hover);
-    border-color: var(--line-hover);
+    background: color-mix(in srgb, #fff 9%, var(--bg));
+    border-color: color-mix(in srgb, #fff 22%, transparent);
   }
 }
 :root[data-theme="dark"] .auth-well {
-  background: var(--surface-hover);
-  border-color: var(--line-hover);
+  background: color-mix(in srgb, #fff 9%, var(--bg));
+  border-color: color-mix(in srgb, #fff 22%, transparent);
 }
-.auth-well:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
-.auth-well input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: none; font-size: var(--fs-lg); }
+.auth-well:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.auth-well input {
+  flex: 1; min-width: 0; height: 44px; border: 0; outline: 0;
+  background: transparent; font-size: var(--fs-lg); color: var(--ink);
+}
+.auth-well input::placeholder { color: var(--ink-4); }
+/* iOS 自动填充会刷掉底色/字色，钉回当前主题 */
+.auth-well input:-webkit-autofill,
+.auth-well input:-webkit-autofill:hover,
+.auth-well input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  box-shadow: 0 0 0 1000px transparent inset;
+  transition: background-color 99999s ease-out;
+}
 .auth-code {
   flex: none; padding-left: 12px;
   border-left: var(--hair) solid var(--line);
@@ -346,6 +363,24 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 .auth-links { display: flex; justify-content: flex-end; }
 .auth-links button { padding: 4px 0; font-size: var(--fs-md); color: var(--ink-2); }
 .auth-submit { width: 100%; height: 48px; border-radius: 999px; justify-content: center; }
+/* 登录主按钮：钉死实底，防止触屏粘住 :hover 把 primary 洗成 surface（深色 surface===bg 就「没了」） */
+html.is-mobile-app .auth-submit.btn.btn-primary,
+html.is-mobile-app .auth-submit.btn.btn-primary:hover,
+html.is-mobile-app .auth-submit.btn.btn-primary:focus,
+html.is-mobile-app .auth-submit.btn.btn-primary:focus-visible {
+  background: var(--solid);
+  border-color: var(--solid);
+  color: var(--on-solid-btn);
+  opacity: 1;
+}
+html.is-mobile-app .auth-submit.btn.btn-primary:active:not(:disabled) {
+  background: var(--solid-hover);
+  border-color: var(--solid-hover);
+  color: var(--on-solid-btn);
+}
+html.is-mobile-app .auth-submit.btn.btn-primary:disabled {
+  opacity: 0.5;
+}
 .auth-sent { margin: 0; font-size: var(--fs-sm); color: var(--ink-3); }
 .auth-foot { flex: none; margin-top: 0; padding: 24px 0 8px; text-align: center; color: var(--ink-3); }
 .auth-foot button { margin-left: 4px; color: var(--ink); font-weight: 600; }

@@ -1,13 +1,16 @@
-import { IS_MOBILE_APP } from "../core/device.ts";
+import { IS_ANDROID_APP, IS_IOS_APP, IS_MOBILE_APP } from "../core/device.ts";
 import { httpFetch } from "../core/http.ts";
 
 export const APP_VERSION = "1.1.0";
 
 const RELEASES_LATEST = "https://api.github.com/repos/Majiturbo/lanshanchu/releases/latest";
 
+/** 安装包类型：Android APK / iOS 旁加载 IPA / 只有发布页 */
+export type UpdatePackageKind = "apk" | "ipa" | "page";
+
 export type UpdateInfo =
   | { status: "latest"; latest: string }
-  | { status: "available"; latest: string; url: string; hasApk: boolean }
+  | { status: "available"; latest: string; url: string; packageKind: UpdatePackageKind }
   | { status: "error"; message: string };
 
 function parseVer(v: string): number[] {
@@ -33,7 +36,15 @@ type GhRelease = {
   assets?: { name?: string; browser_download_url?: string }[];
 };
 
-/** 查 GitHub 最新 Release；手机优先找 APK 资源，没有则打开发布页 */
+function pickAsset(assets: GhRelease["assets"], re: RegExp) {
+  return (assets ?? []).find((a) => re.test(a.name || "") && a.browser_download_url);
+}
+
+/**
+ * 查 GitHub 最新 Release。
+ * Android：优先 APK 直链；iOS 旁加载：优先 IPA 直链（交给签名工具安装，不做应用内静默更新 / App Store）。
+ * 没有对应安装包则打开发布页。
+ */
 export async function checkAppUpdate(signal?: AbortSignal): Promise<UpdateInfo> {
   try {
     const res = await httpFetch(RELEASES_LATEST, {
@@ -47,9 +58,35 @@ export async function checkAppUpdate(signal?: AbortSignal): Promise<UpdateInfo> 
     if (compareVersion(latest, APP_VERSION) <= 0) {
       return { status: "latest", latest };
     }
-    const apk = (data.assets ?? []).find((a) => /\.apk$/i.test(a.name || "") && a.browser_download_url);
-    const url = (IS_MOBILE_APP && apk?.browser_download_url) || data.html_url || "https://github.com/Majiturbo/lanshanchu/releases/latest";
-    return { status: "available", latest, url, hasApk: Boolean(apk?.browser_download_url) };
+
+    const page = data.html_url || "https://github.com/Majiturbo/lanshanchu/releases/latest";
+    if (!IS_MOBILE_APP) {
+      return { status: "available", latest, url: page, packageKind: "page" };
+    }
+
+    if (IS_IOS_APP) {
+      const ipa = pickAsset(data.assets, /\.ipa$/i);
+      return {
+        status: "available",
+        latest,
+        url: ipa?.browser_download_url || page,
+        packageKind: ipa?.browser_download_url ? "ipa" : "page",
+      };
+    }
+
+    if (IS_ANDROID_APP) {
+      const apk = pickAsset(data.assets, /\.apk$/i);
+      return {
+        status: "available",
+        latest,
+        url: apk?.browser_download_url || page,
+        packageKind: apk?.browser_download_url ? "apk" : "page",
+      };
+    }
+
+    const any = pickAsset(data.assets, /\.(apk|ipa)$/i);
+    const kind: UpdatePackageKind = /\.ipa$/i.test(any?.name || "") ? "ipa" : any ? "apk" : "page";
+    return { status: "available", latest, url: any?.browser_download_url || page, packageKind: kind };
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
     return { status: "error", message: "检查失败，请稍后重试" };

@@ -10,6 +10,13 @@ const uaMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 export const IS_MOBILE_APP =
   IN_APP && (tauriPlatform === "ios" || tauriPlatform === "android" || uaMobile);
 
+/** 构建期优先；无构建标记时再看 UA（避免把桌面误判成手机） */
+export const IS_IOS_APP =
+  IN_APP && (tauriPlatform === "ios" || (/iPhone|iPad|iPod/i.test(navigator.userAgent) && tauriPlatform !== "android"));
+
+export const IS_ANDROID_APP =
+  IN_APP && (tauriPlatform === "android" || (/Android/i.test(navigator.userAgent) && tauriPlatform !== "ios"));
+
 /** 需要触控命中区与移动壳层：移动应用，或仅有粗指针的触屏设备 */
 export const IS_TOUCH_UI =
   IS_MOBILE_APP ||

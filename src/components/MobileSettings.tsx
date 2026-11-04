@@ -352,8 +352,9 @@ function UpdatePage() {
         <>
           <p>发现新版本 {info.latest}。</p>
           <button type="button" className="btn auth-submit" onClick={() => openExternal(info.url)}>
-            {info.hasApk ? "下载安装包" : "查看更新"}
+            {info.packageKind === "apk" ? "下载安装包" : info.packageKind === "ipa" ? "下载 IPA" : "查看更新"}
           </button>
+          {info.packageKind === "ipa" ? <p>下载后用签名工具安装；无法像 Android 那样直接覆盖。</p> : null}
         </>
       ) : null}
       {info?.status === "error" ? <p>{info.message}</p> : null}

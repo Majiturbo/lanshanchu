@@ -347,7 +347,7 @@ function UpdatePage() {
     <div className="mset-note">
       <p>当前版本 {APP_VERSION}</p>
       {busy && !info ? <p>正在检查…</p> : null}
-      {info?.status === "latest" ? <p>已是最新版本{info.latest ? `（${info.latest}）` : ""}。</p> : null}
+      {info?.status === "latest" ? <p>已是最新版本。</p> : null}
       {info?.status === "available" ? (
         <>
           <p>发现新版本 {info.latest}。</p>

@@ -12,7 +12,7 @@ import {
 import { ProviderError } from "../core/providers/types.ts";
 import { track } from "../analytics/index.ts";
 import { loginFrom, settingsActions, useSettings } from "../settings/store.ts";
-import { openMobileSettingsPage } from "./MobileSettings.tsx";
+import { noticePlansSoon, openMobileSettingsPage } from "./MobileSettings.tsx";
 import { NAV_MS, useNavCover } from "./navMotion.ts";
 import { AccountSection } from "./SettingsDialog.tsx";
 import { usePresence } from "./presence.ts";
@@ -71,10 +71,7 @@ function QuotaFlow() {
         <p className="auth-lead">当前额度不足，无法继续提问。可查看用量，或稍后再试。购买入口即将开放。</p>
         <AccountSection
           hideLogout
-          onPlans={() => {
-            settingsActions.closeGate();
-            queueMicrotask(() => openMobileSettingsPage("plans"));
-          }}
+          onPlans={noticePlansSoon}
         />
         <button
           type="button"

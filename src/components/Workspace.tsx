@@ -230,7 +230,8 @@ export function Workspace() {
 
   const [intro] = useState(() => {
     const vt = screenTransition();
-    return vt === "hero" ? "enter-hero" : vt ? "enter-vt" : "enter-self";
+    // hero 用形变；其余一律淡入（含无 View Transition 的 WebView），避免闪现
+    return vt === "hero" ? "enter-hero" : "enter-self";
   });
 
   return (

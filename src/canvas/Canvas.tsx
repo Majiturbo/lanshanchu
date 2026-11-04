@@ -130,9 +130,27 @@ export function Canvas() {
   // 触屏：记录所有触点，两指时进入捏合缩放
   const touches = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ dist: number; mid: { x: number; y: number }; view: { x: number; y: number; s: number } } | null>(null);
+  /** 平移/捏合中直接改 DOM transform，结束时再写入 store，避免每帧 React 重渲导致卡顿 */
+  const liveView = useRef({ x: view.x, y: view.y, s: view.s });
+  liveView.current = { x: view.x, y: view.y, s: view.s };
+  const gesturing = useRef(false);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [mode, setMode] = useState<"" | "is-panning" | "is-marquee" | "is-dragging">("");
   const worldRef = useRef<HTMLDivElement>(null);
+  const paintWorld = (v: { x: number; y: number; s: number }) => {
+    liveView.current = v;
+    gesturing.current = true;
+    const el = worldRef.current;
+    if (!el) return;
+    el.classList.add("is-moving");
+    el.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.s})`;
+  };
+  const commitWorld = () => {
+    if (!gesturing.current) return;
+    gesturing.current = false;
+    const v = liveView.current;
+    setView({ x: v.x, y: v.y, s: v.s });
+  };
   const [menu, setMenu] = useState<MenuAt | null>(null);
   const [directAsk, setDirectAsk] = useState<MenuAt | null>(null);
   const lastBlankTap = useRef<{ t: number; x: number; y: number } | null>(null);
@@ -310,7 +328,7 @@ export function Canvas() {
         const s = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, (p.view.s * dist) / p.dist));
         // 起始中点下的画布坐标跟随手指中点移动
         const wx = (p.mid.x - p.view.x) / p.view.s, wy = (p.mid.y - p.view.y) / p.view.s;
-        setView({ s, x: mid.x - wx * s, y: mid.y - wy * s });
+        paintWorld({ s, x: mid.x - wx * s, y: mid.y - wy * s });
         return;
       }
     }
@@ -328,7 +346,7 @@ export function Canvas() {
     const s = useGraph.getState();
     if (d.type === "text") return;
     if (d.type === "pan") {
-      setView({ x: d.ox + dx, y: d.oy + dy });
+      paintWorld({ x: d.ox + dx, y: d.oy + dy, s: liveView.current.s });
     } else if (d.type === "node") {
       actions.moveNodes(d.orig, dx / s.view.s, dy / s.view.s);
       setDrop(dropTargetAt(e.clientX, e.clientY, d.orig));
@@ -351,12 +369,17 @@ export function Canvas() {
       touches.current.delete(e.pointerId);
       if (pinch.current) {
         // 捏合结束后剩下的手指不再触发拖动或点击
-        if (touches.current.size < 2) pinch.current = null;
+        if (touches.current.size < 2) {
+          pinch.current = null;
+          commitWorld();
+        }
         drag.current = null;
         return;
       }
     }
     const d = drag.current;
+    if (d?.type === "pan" && d.moved) commitWorld();
+    else if (gesturing.current) commitWorld();
     drag.current = null;
     setMode("");
     setMarquee(null);

@@ -1,6 +1,7 @@
 .workspace { position: fixed; inset: 0; overflow: hidden; }
 /* 不经过页面切换直接挂载时才自己淡入；经过切换时由 View Transition 负责（见 lib/transition.ts） */
-.workspace.enter-self { animation: fade var(--t-mid) var(--ease) both; }
+.workspace.enter-self { animation: fade var(--t-nav) var(--ease-nav) both; }
+.home.enter-self { animation: fade var(--t-nav) var(--ease-nav) both; }
 
 .topbar {
   position: absolute; z-index: 20; top: 0; left: 0; right: 0;
@@ -135,6 +136,18 @@ html.is-mobile-app .crumbs .crumb {
 .mobile-sheet-prefs { padding: 0 4px 8px; }
 .mobile-sheet-prefs .prefs-row { margin-top: 12px; }
 .mobile-sheet-prefs .prefs-label { font-size: var(--fs-sm); color: var(--ink-3); }
+.export-preview-panel { max-height: min(78vh, 640px); display: flex; flex-direction: column; }
+.export-preview-name {
+  margin: 0 8px 8px; font-size: var(--fs-sm); color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.export-preview-body {
+  flex: 1; min-height: 120px; max-height: 42vh; overflow: auto;
+  margin: 0 0 12px; padding: 12px;
+  border-radius: var(--r-md); background: var(--surface-sunken);
+  font: 400 var(--fs-sm)/1.55 var(--font-mono); color: var(--ink-2);
+  white-space: pre-wrap; word-break: break-word;
+}
 
 .mobile-switch {
   display: inline-flex; align-items: center; gap: 8px;
@@ -148,26 +161,28 @@ html.is-mobile-app .crumbs .crumb {
 }
 .mobile-switch.is-on .lucide { color: var(--accent); }
 
-/* 全屏页：从右侧推入，左侧带暖色侧影；底层首页/画布由 data-nav-cover 做轻视差 */
+/* 全屏页：对齐 Android 现行默认（FadeFromRight）——短距滑入 + 淡入，无侧影光晕；
+   不用整屏横向擦除（反直觉且容易露出底层光边）。底层只压暗，不做大幅视差。 */
 .auth-screen {
   position: fixed; inset: 0; z-index: 45;
   display: flex; flex-direction: column;
   background: var(--bg);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px));
-  box-shadow: -12px 0 40px color-mix(in srgb, var(--ink) 14%, transparent);
+  box-shadow: none;
   animation: nav-cover-in var(--t-nav) var(--ease-nav) both;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 .auth-screen.is-closing {
   animation: nav-cover-out var(--t-nav) var(--ease-in) both;
   pointer-events: none;
 }
 html.is-mobile-app :is(.home, .workspace) {
-  transition: transform var(--t-nav) var(--ease-nav);
+  transition: filter var(--t-nav) var(--ease-nav), opacity var(--t-nav) var(--ease-nav);
 }
 html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
-  transform: translate3d(-10%, 0, 0);
+  filter: brightness(0.72);
+  opacity: 0.92;
   pointer-events: none;
 }
 .auth-head {
@@ -208,12 +223,13 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
   padding: 8px 20px 24px; max-width: 480px; width: 100%; margin: 0 auto;
 }
 .nav-pane.is-under {
-  transform: translate3d(-22%, 0, 0);
+  opacity: 0.55;
+  transform: translate3d(-12px, 0, 0);
   pointer-events: none;
 }
 .nav-pane.is-front {
   z-index: 1;
-  box-shadow: -10px 0 28px color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow: none;
 }
 .nav-pane.is-alone { box-shadow: none; }
 .nav-pane.is-push-under { animation: nav-under-push var(--t-nav) var(--ease-nav) both; }
@@ -226,39 +242,39 @@ html.is-mobile-app[data-nav-cover] :is(.home, .workspace) {
 }
 
 @keyframes nav-cover-in {
-  from { transform: translate3d(100%, 0, 0); }
-  to { transform: none; }
+  from { opacity: 0; transform: translate3d(28px, 0, 0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes nav-cover-out {
-  from { transform: none; }
-  to { transform: translate3d(100%, 0, 0); }
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translate3d(20px, 0, 0); }
 }
 @keyframes nav-front-push {
-  from { transform: translate3d(100%, 0, 0); }
-  to { transform: none; }
+  from { opacity: 0; transform: translate3d(28px, 0, 0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes nav-front-pop {
-  from { transform: none; }
-  to { transform: translate3d(100%, 0, 0); }
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translate3d(20px, 0, 0); }
 }
 @keyframes nav-under-push {
-  from { transform: none; }
-  to { transform: translate3d(-22%, 0, 0); }
+  from { opacity: 1; transform: none; }
+  to { opacity: 0.55; transform: translate3d(-12px, 0, 0); }
 }
 @keyframes nav-under-pop {
-  from { transform: translate3d(-22%, 0, 0); }
-  to { transform: none; }
+  from { opacity: 0.55; transform: translate3d(-12px, 0, 0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes nav-title-in {
-  from { opacity: 0; transform: translate3d(10px, 0, 0); }
+  from { opacity: 0; transform: translate3d(6px, 0, 0); }
   to { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .auth-screen { animation: fade var(--t-mid) var(--ease) both; box-shadow: none; }
   .auth-screen.is-closing { animation: fade-out var(--t-fast) var(--ease-in) both; }
-  html.is-mobile-app[data-nav-cover] :is(.home, .workspace) { transform: none; }
-  .nav-pane.is-under { transform: none; }
+  html.is-mobile-app[data-nav-cover] :is(.home, .workspace) { filter: none; opacity: 1; }
+  .nav-pane.is-under { opacity: 1; transform: none; }
   .nav-pane.is-push-under,
   .nav-pane.is-push-in,
   .nav-pane.is-pop-reveal,

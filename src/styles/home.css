@@ -54,9 +54,12 @@
 .lantern-sky.is-back { z-index: 0; }
 .lantern-sky.is-front { z-index: 2; }
 
-/* 盖住从框顶升起的灯；叠在最近列表之上，回答偏好的下拉弹层才不会被盖住 */
+/* 盖住从框顶升起的灯；叠在最近列表之上。弹层打开时再抬高，避免「最近」列表穿模 */
 .ask {
   position: relative; z-index: 3;
+}
+.ask:has(.prefs-pop) {
+  z-index: 20;
   background: var(--surface);
   border: var(--hair) solid var(--line);
   border-radius: var(--r-lg);

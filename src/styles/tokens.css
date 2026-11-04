@@ -21,15 +21,19 @@
   --surface-sunken: var(--bg-hover);
   --surface-hover: var(--bg-hover);
   --surface-active: var(--bg-active);
-  /* 浅色朱砂印：提问框与回答卡片边框点缀；深色不用 */
+  /* 浅色朱砂印：提问框边、主按钮、发送钮（原型要求；深色主题里主按钮仍走墨色） */
   --seal: #c45142;
   --seal-strong: #b33d32;
   --seal-soft: color-mix(in srgb, var(--seal) 16%, transparent);
-  /* 文字：主要 12、次要 11；10 只用于辅助信息，8 只用于占位符、禁用与装饰 */
-  --ink: var(--gray-12);
-  --ink-2: var(--gray-11);
+  /* 浅色主字：暖墨、比纯黑 / slate-12 浅一档（禁 #000）；次要仍走灰阶 */
+  --ink: #2f2a26;
+  --ink-2: #5c564f;
   --ink-3: var(--gray-10);
   --ink-4: var(--gray-8);
+  /* 浅色实心主按钮底：朱砂；深色块里改回墨色实底 */
+  --solid: var(--seal);
+  --solid-hover: var(--seal-strong);
+  --on-solid-btn: #fffaf7;
   /* 线条：用半透明的灰阶（a 阶），压在任何底色上都偏柔和；能用间距分组的地方不画线 */
   --line: var(--gray-a4);
   --line-strong: var(--gray-a5);
@@ -148,6 +152,11 @@
     --surface-active: #182449;
     --bg-hover: #182449;
     --bg-active: #182449;
+    --ink: var(--gray-12);
+    --ink-2: var(--gray-11);
+    --solid: var(--gray-12);
+    --solid-hover: var(--gray-11);
+    --on-solid-btn: var(--gray-1);
     --scrim: color-mix(in srgb, var(--overlay) 50%, transparent);
     --danger: #ff9592;
     --danger-soft: #ff173f2d;
@@ -177,6 +186,11 @@
   --surface-active: #182449;
   --bg-hover: #182449;
   --bg-active: #182449;
+  --ink: var(--gray-12);
+  --ink-2: var(--gray-11);
+  --solid: var(--gray-12);
+  --solid-hover: var(--gray-11);
+  --on-solid-btn: var(--gray-1);
   --scrim: color-mix(in srgb, var(--overlay) 50%, transparent);
   --danger: #ff9592;
   --danger-soft: #ff173f2d;

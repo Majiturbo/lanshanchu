@@ -9,16 +9,19 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 
 class MainActivity : TauriActivity() {
+  private var hooked = false
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     // 默认深色底用浅色系统图标。应用内切到浅色后，由页面调用 LanshanBars。
     applySystemBarIcons(darkPage = true)
+    window.decorView.post { hookWebView(retries = 12) }
   }
 
   override fun onResume() {
     super.onResume()
-    hookWebView()
+    hookWebView(retries = 6)
   }
 
   private fun applySystemBarIcons(darkPage: Boolean) {
@@ -28,16 +31,36 @@ class MainActivity : TauriActivity() {
     controller.isAppearanceLightNavigationBars = !darkPage
   }
 
-  private fun hookWebView() {
+  private fun hookWebView(retries: Int) {
     val root = window.decorView as? ViewGroup ?: return
-    val web = findWebView(root) ?: return
+    val web = findWebView(root)
+    if (web == null) {
+      if (retries > 0) root.postDelayed({ hookWebView(retries - 1) }, 120)
+      return
+    }
     // 关掉系统 WebView 整页缩放；地图捏合由前端 stage 手势处理
     web.settings.setSupportZoom(false)
     web.settings.builtInZoomControls = false
     web.settings.displayZoomControls = false
-    web.addJavascriptInterface(BarBridge(), "LanshanBars")
-    web.addJavascriptInterface(ShareBridge(), "LanshanShare")
-    web.addJavascriptInterface(AppBridge(), "LanshanApp")
+    if (!hooked) {
+      web.addJavascriptInterface(BarBridge(), "LanshanBars")
+      web.addJavascriptInterface(ShareBridge(), "LanshanShare")
+      web.addJavascriptInterface(AppBridge(), "LanshanApp")
+      hooked = true
+    }
+    // 根页返回桌面：JS 派 lanshan:move-to-back 时原生兜底（桥偶发未挂上）
+    web.evaluateJavascript(
+      """
+      (function(){
+        if (window.__lanshanBackHooked) return;
+        window.__lanshanBackHooked = true;
+        document.addEventListener('lanshan:move-to-back', function(){
+          try { LanshanApp.moveToBack(); } catch (e) {}
+        });
+      })();
+      """.trimIndent(),
+      null,
+    )
     web.evaluateJavascript(
       "(function(){var t=document.documentElement.dataset.theme;if(t==='light')return 'light';if(t==='dark')return 'dark';return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';})()",
     ) { raw ->

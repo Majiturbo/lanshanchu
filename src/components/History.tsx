@@ -31,7 +31,9 @@ function Row({ m, query = "", current, active, onHover, style }: RowProps) {
   const canDelete = !current && !running;
   const swipe = IS_MOBILE_APP || IS_TOUCH_UI;
   const [dx, setDx] = useState(0);
-  const startX = useRef<number | null>(null);
+  const [swiping, setSwiping] = useState(false);
+  /** 左滑露出右侧删除；起点与轴向锁定，避免和纵向滚动抢手势 */
+  const gesture = useRef<{ x: number; y: number; base: number; axis: "h" | "v" | null } | null>(null);
 
   if (!swipe) {
     return (
@@ -54,26 +56,40 @@ function Row({ m, query = "", current, active, onHover, style }: RowProps) {
   const open = dx <= SWIPE_OPEN / 2;
   return (
     <li
-      className={`hist-row hist-swipe-row${active ? " is-active" : ""}${open ? " is-revealed" : ""}`}
+      className={`hist-row hist-swipe-row${active ? " is-active" : ""}${open ? " is-revealed" : ""}${swiping ? " is-swiping" : ""}`}
       style={style}
       onPointerDown={(e) => {
         if (!canDelete || e.pointerType === "mouse") return;
-        startX.current = e.clientX - dx;
+        gesture.current = { x: e.clientX, y: e.clientY, base: dx, axis: null };
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
-        if (startX.current == null) return;
-        const next = Math.min(0, Math.max(SWIPE_OPEN, e.clientX - startX.current));
-        // 横向滑过阈值才动，避免和列表滚动抢手势
-        if (Math.abs(next) < 8 && Math.abs(e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top) > 24) return;
-        setDx(next);
+        const g = gesture.current;
+        if (!g) return;
+        const adx = e.clientX - g.x;
+        const ady = e.clientY - g.y;
+        if (!g.axis) {
+          if (Math.hypot(adx, ady) < 10) return;
+          g.axis = Math.abs(adx) > Math.abs(ady) * 1.15 ? "h" : "v";
+          if (g.axis === "v") {
+            gesture.current = null;
+            setSwiping(false);
+            return;
+          }
+          setSwiping(true);
+        }
+        if (g.axis !== "h") return;
+        e.preventDefault();
+        setDx(Math.min(0, Math.max(SWIPE_OPEN, g.base + adx)));
       }}
       onPointerUp={() => {
-        startX.current = null;
+        gesture.current = null;
+        setSwiping(false);
         setDx((v) => (v < SWIPE_OPEN / 2 ? SWIPE_OPEN : 0));
       }}
       onPointerCancel={() => {
-        startX.current = null;
+        gesture.current = null;
+        setSwiping(false);
         setDx(0);
       }}
     >

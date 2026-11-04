@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { trackAppOpened } from "./analytics/index.ts";
 import { AuthScreen } from "./components/AuthScreen.tsx";
+import { ExportPreview } from "./components/ExportPreview.tsx";
 import { HistoryPanel } from "./components/History.tsx";
 import { Home } from "./components/Home.tsx";
 import { IS_MOBILE_APP } from "./core/device.ts";
@@ -71,6 +72,7 @@ function App() {
       <HistoryPanel />
       {IS_MOBILE_APP ? <MobileSettingsHost /> : <SettingsDialog />}
       <LeaveDialog />
+      {IS_MOBILE_APP ? <ExportPreview /> : null}
       <Toast />
       <Tooltip />
     </>

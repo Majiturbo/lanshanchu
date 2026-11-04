@@ -103,7 +103,11 @@ export function topAngles(state = get(), n = 3) {
 }
 
 export const memoryActions = {
-  setEnabled: (enabled: boolean) => set({ enabled }),
+  setEnabled: (enabled: boolean) => {
+    set({ enabled });
+    // 刚打开时若已攒够信号，马上整理，避免「开了却什么都没发生」
+    if (enabled) void import("./run.ts").then((m) => m.consolidate());
+  },
   toggleMap: (mapId: string, off: boolean) => set((s) => ({ offMaps: off ? [...new Set([...s.offMaps, mapId])] : s.offMaps.filter((m) => m !== mapId) })),
   setText: (text: string) => set({ text: text.slice(0, MEMORY_MAX), updatedAt: Date.now() }),
 };

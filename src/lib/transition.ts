@@ -15,10 +15,21 @@ export const screenTransition = () => running;
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function swapScreen(change: () => void, kind: ScreenTransition = "fade") {
-  if (!document.startViewTransition || reduceMotion()) return change();
+  if (reduceMotion()) return change();
+  // 先记下过渡种类，供新挂载的页面选进场动画（Android WebView 常无 View Transitions）
+  running = kind;
+  if (!document.startViewTransition) {
+    try {
+      change();
+    } finally {
+      requestAnimationFrame(() => {
+        running = null;
+      });
+    }
+    return;
+  }
   const root = document.documentElement;
   root.dataset.vt = kind;
-  running = kind;
   const t = document.startViewTransition(() => flushSync(change));
   // 窗口不可见时浏览器会因超时放弃动画（页面已切换），不算错误
   t.ready.catch(() => {});

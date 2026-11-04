@@ -28,14 +28,18 @@ type AppBridge = { moveToBack: () => void };
 
 /** 根页再返回：Android 回后台；不要 exit(0) 杀进程（用户体感是闪退） */
 function leaveToBackground() {
+  if (!isAndroid) return;
   const bridge = (window as unknown as { LanshanApp?: AppBridge }).LanshanApp;
-  if (isAndroid && bridge?.moveToBack) {
-    try {
-      bridge.moveToBack();
-      return;
-    } catch {
-      /* 桥未就绪时吞掉，留在 App 内 */
-    }
+  try {
+    bridge?.moveToBack?.();
+  } catch {
+    /* 桥未就绪 */
+  }
+  // 再派一次自定义事件，给原生兜底监听（JSBridge 偶发未挂上时仍能回桌面）
+  try {
+    document.dispatchEvent(new CustomEvent("lanshan:move-to-back"));
+  } catch {
+    /* ignore */
   }
 }
 

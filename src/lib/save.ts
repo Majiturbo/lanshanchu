@@ -2,9 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { track } from "../analytics/index.ts";
 import { IS_MOBILE_APP } from "../core/device.ts";
 import { IN_APP } from "../core/http.ts";
+import { askExportPreview } from "./exportPreview.ts";
 import { toast } from "../store/toast.ts";
 
-// 导出与复制 Markdown：桌面经 Rust save_markdown「另存为」；移动端走系统分享，不拿复制冒充导出。
+// 导出与复制 Markdown：桌面经 Rust save_markdown「另存为」；移动端先预览再系统分享，不拿复制冒充导出。
 
 export type ExportScope = "node" | "selection" | "map" | "summary";
 
@@ -53,16 +54,17 @@ async function shareMarkdown(name: string, content: string): Promise<boolean> {
 export async function saveMarkdown(name: string, content: string, scope: ExportScope = "map") {
   try {
     if (IN_APP && IS_MOBILE_APP) {
+      if (!(await askExportPreview(name, content))) return;
       if (await shareMarkdown(name, content)) {
         track("export_done", { scope });
-        toast("已打开系统分享");
+        toast("已打开系统分享，可选微信 / 文件 / 邮箱等保存");
         return;
       }
       // 分享不可用时尝试下载文件；导出绝不退化成「复制」
       try {
         downloadMarkdown(name, content);
         track("export_done", { scope });
-        toast("已导出 Markdown 文件");
+        toast("已开始下载 Markdown，请到「下载」或通知栏查看");
         return;
       } catch {
         toast("无法导出，请重试");

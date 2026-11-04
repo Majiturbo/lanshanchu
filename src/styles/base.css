@@ -118,9 +118,9 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 .btn:hover:not(:disabled) { background: var(--surface-hover); }
 .btn:active:not(:disabled) { background: var(--surface-active); }
 .btn:disabled { opacity: 0.5; }
-/* 对话框里的主操作用墨色实底；有破坏性的操作用危险色字，避免和主操作抢 */
-.btn.btn-primary { background: var(--ink); border-color: var(--ink); color: var(--surface); }
-.btn.btn-primary:hover:not(:disabled) { background: var(--ink); opacity: 0.88; }
+/* 浅色主按钮走朱砂实底（原型）；深色走墨色。破坏性操作用危险色字 */
+.btn.btn-primary { background: var(--solid); border-color: var(--solid); color: var(--on-solid-btn); }
+.btn.btn-primary:hover:not(:disabled) { background: var(--solid-hover); border-color: var(--solid-hover); opacity: 1; }
 .btn.btn-danger { color: var(--danger); }
 .btn.btn-danger:hover:not(:disabled) { border-color: var(--danger-line); background: var(--danger-soft); }
 
@@ -163,7 +163,7 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 /* 回答偏好：输入框旁的按钮与下拉弹层 */
 .prefs { position: relative; }
 .prefs-pop {
-  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0;
+  position: absolute; z-index: 40; top: calc(100% + 6px); left: 0;
   display: grid; gap: 10px; width: max-content; max-width: calc(100vw - 16px); padding: 12px;
   background: var(--surface); border: var(--hair) solid var(--line); border-radius: var(--r-md); box-shadow: var(--shadow-3);
   animation: enter var(--t-mid) var(--ease) both;
@@ -186,9 +186,10 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 .send {
   display: grid; place-items: center;
   width: 32px; height: 32px; border-radius: 50%;
-  background: var(--ink); color: var(--surface);
+  background: var(--solid); color: var(--on-solid-btn);
   transition: background var(--t-fast), color var(--t-fast);
 }
+.send:not(:disabled):hover { background: var(--solid-hover); }
 .send:disabled { background: var(--surface-sunken); color: var(--ink-4); }
 .send-sm { width: 28px; height: 28px; }
 

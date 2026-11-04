@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { quotaReason, track } from "../analytics/index.ts";
 import { CAN_FETCH } from "../core/http.ts";
 import { defaultImageQuestion } from "../lib/image.ts";
-import { morphToCard, swapScreen } from "../lib/transition.ts";
+import { morphToCard, screenTransition, swapScreen } from "../lib/transition.ts";
 import { AttachmentStrip, hasFiles, useAttachments } from "./Attachments.tsx";
 import { refreshUsageIfNeeded } from "../core/platform.ts";
 import { actions } from "../store/graph.ts";
@@ -110,9 +110,11 @@ export function Home() {
       ? (usage?.plan ? "额度已用完" : "尚未开通套餐")
     : null;
 
+  const [intro] = useState(() => (screenTransition() ? " enter-self" : ""));
+
   // 待定时先按空首页排版（更常见），内容仍透明；读出后若有历史再经 swapScreen 挪布局
   return (
-    <main className={`home${empty !== false ? " is-empty" : ""}${empty === null ? " is-pending" : ""}`}>
+    <main className={`home${empty !== false ? " is-empty" : ""}${empty === null ? " is-pending" : ""}${intro}`}>
       <LanternSky active={night && empty !== null && petals} />
       <header className="home-titlebar" {...drag}>
         <div className="home-titlebar-actions">

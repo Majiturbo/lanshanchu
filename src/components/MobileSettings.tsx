@@ -19,10 +19,11 @@ import { NAV_MS, useNavCover, useStackNav } from "./navMotion.ts";
 import { PlanMark } from "./PlanMark.tsx";
 import { usePresence } from "./presence.ts";
 import { settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
+import { toast } from "../store/toast.ts";
 
 const PHONE = /^1\d{10}$/;
 
-type Page = "root" | "account" | "memory" | "look" | "canvas" | "update" | "plans" | "bind" | "change" | "delete";
+type Page = "root" | "account" | "memory" | "look" | "canvas" | "update" | "bind" | "change" | "delete";
 
 const TITLES: Record<Page, string> = {
   root: "设置",
@@ -31,11 +32,15 @@ const TITLES: Record<Page, string> = {
   look: "外观",
   canvas: "画布与来源",
   update: "检查更新",
-  plans: "购买套餐",
   bind: "绑定手机号",
   change: "更换手机号",
   delete: "注销账号",
 };
+
+/** 购买尚未开放：只提示，不进二级页 */
+export function noticePlansSoon() {
+  toast("购买套餐即将开放");
+}
 
 function digits(value: string) {
   return value.replace(/\D/g, "").slice(0, 11);
@@ -96,7 +101,7 @@ function MobileSettings({ closing }: { closing: boolean }) {
   useEffect(() => {
     if (accountId) return;
     const top = stackRef.current[stackRef.current.length - 1];
-    if (top === "account" || top === "bind" || top === "change" || top === "delete" || top === "plans") {
+    if (top === "account" || top === "bind" || top === "change" || top === "delete") {
       replace(["root"]);
     }
   }, [accountId, replace, stackRef]);
@@ -127,7 +132,6 @@ function MobileSettings({ closing }: { closing: boolean }) {
     if (id === "look") return <LookPage />;
     if (id === "canvas") return <CanvasPage />;
     if (id === "update") return <UpdatePage />;
-    if (id === "plans") return <PlansPage />;
     if (id === "bind") return <BindPage onDone={back} />;
     if (id === "change") return <ChangePage onDone={back} />;
     if (id === "delete") return <DeletePage onDone={() => { settingsActions.close(); }} />;
@@ -204,10 +208,9 @@ function RootPage({ push }: { push: (page: Page) => void }) {
         </span>
         <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
       </button>
-      <button type="button" className="mset-row" onClick={() => push("plans")}>
+      <button type="button" className="mset-row" onClick={noticePlansSoon}>
         <span>购买套餐</span>
         <em>即将开放</em>
-        <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
       </button>
       <div className="mset-group">
         <button type="button" className="mset-row" onClick={() => push("memory")}>
@@ -240,7 +243,7 @@ function AccountPage({ push }: { push: (page: Page) => void }) {
   const phone = account?.phone && PHONE.test(account.phone) ? account.phone : "";
   return (
     <div className="mset-account-page">
-      <AccountSection hideLogout onPlans={() => push("plans")} />
+      <AccountSection hideLogout onPlans={noticePlansSoon} />
       <button type="button" className="mset-row" onClick={() => push(phone ? "change" : "bind")}>
         <span>手机号</span>
         <em>{phone ? maskPhone(phone) : "去绑定"}</em>
@@ -357,15 +360,6 @@ function UpdatePage() {
       <button type="button" className="btn" disabled={busy} onClick={() => void run()}>
         {busy ? "检查中…" : "重新检查"}
       </button>
-    </div>
-  );
-}
-
-function PlansPage() {
-  return (
-    <div className="mset-note">
-      <p>购买套餐即将开放。</p>
-      <p>目前请等待额度自动恢复，或联系管理员开通。</p>
     </div>
   );
 }

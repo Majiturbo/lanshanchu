@@ -45,11 +45,27 @@
   background: var(--surface); border-left: var(--hair) solid var(--line);
   transform: translateX(100%); visibility: hidden;
   transition: transform var(--t-mid) var(--ease-in), visibility 0s var(--t-mid);
+  /* 首开时用合成层，减轻掉帧 */
+  contain: layout paint;
 }
 .drawer[aria-hidden="false"] {
   /* translateZ(0) 强制侧栏独立合成层，压在画布节点之上 */
   transform: translateZ(0); visibility: visible;
   transition: transform var(--t-mid) var(--ease);
+}
+/* 移动端详情全宽：画布节点会溢出到抽屉底下，必须裁掉并实底盖住底栏 */
+html.is-mobile-app .workspace.has-drawer .stage {
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.is-mobile-app .drawer {
+  top: 0;
+  padding-top: var(--topbar-h);
+  border-left: 0;
+  /* 盖住底部安全区，避免点阵/卡片从底缝露出 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--bg);
 }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px 0 24px; }
 /* 标题栏一行问题作定位：卡片上已有完整的问题与结论，这里不再重复展开 */
@@ -404,6 +420,10 @@ html.is-mobile-app .drawer-ask { margin-inline: 12px; margin-bottom: calc(12px +
 html.is-touch .hist-del { display: none; }
 .hist-swipe-row {
   position: relative; overflow: hidden;
+  touch-action: pan-y;
+}
+.hist-swipe-row.is-swiping {
+  touch-action: none;
 }
 .hist-swipe-del {
   position: absolute; inset: 0 0 0 auto; width: 72px;
@@ -414,6 +434,10 @@ html.is-touch .hist-del { display: none; }
 .hist-swipe-front {
   position: relative; z-index: 1; background: var(--bg);
   transition: transform var(--t-fast) var(--ease);
+  touch-action: pan-y;
+}
+.hist-swipe-row.is-swiping .hist-swipe-front {
+  transition: none;
 }
 /* 滑动时前景不透明；滑开后藏 meta，避免时间叠在删除上 */
 .recent .hist-swipe-front { background: var(--bg); }

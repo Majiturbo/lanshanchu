@@ -34,7 +34,7 @@ export function MemorySection() {
           ref={box}
           className="memory-text"
           aria-label="记忆内容"
-          placeholder="还没有记忆"
+          placeholder="还没有记忆。开启后继续提问，攒够几次会自动整理到这里；也可直接手写。"
           maxLength={MEMORY_MAX}
           spellCheck={false}
           value={text}

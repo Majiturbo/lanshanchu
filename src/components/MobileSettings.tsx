@@ -11,6 +11,8 @@ import {
   type SmsPurpose,
 } from "../core/platform.ts";
 import { ProviderError } from "../core/providers/types.ts";
+import { APP_VERSION, checkAppUpdate, type UpdateInfo } from "../lib/appUpdate.ts";
+import { openExternal } from "../lib/external.ts";
 import { AccountSection } from "./SettingsDialog.tsx";
 import { MemorySection } from "./MemorySection.tsx";
 import { NAV_MS, useNavCover, useStackNav } from "./navMotion.ts";
@@ -18,7 +20,6 @@ import { PlanMark } from "./PlanMark.tsx";
 import { usePresence } from "./presence.ts";
 import { settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
 
-const APP_VERSION = "0.1.3";
 const PHONE = /^1\d{10}$/;
 
 type Page = "root" | "account" | "memory" | "look" | "canvas" | "update" | "plans" | "bind" | "change" | "delete";
@@ -309,10 +310,53 @@ function Choice<T extends string>({
 }
 
 function UpdatePage() {
+  const [busy, setBusy] = useState(true);
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+
+  const run = async () => {
+    if (busy) return;
+    setBusy(true);
+    setInfo(null);
+    try {
+      setInfo(await checkAppUpdate());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    void checkAppUpdate(ctrl.signal)
+      .then((next) => {
+        if (!ctrl.signal.aborted) setInfo(next);
+      })
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (!ctrl.signal.aborted) setInfo({ status: "error", message: "检查失败，请稍后重试" });
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setBusy(false);
+      });
+    return () => ctrl.abort();
+  }, []);
+
   return (
     <div className="mset-note">
       <p>当前版本 {APP_VERSION}</p>
-      <p>已是最新版本。有新版本时会在这里提示。</p>
+      {busy && !info ? <p>正在检查…</p> : null}
+      {info?.status === "latest" ? <p>已是最新版本{info.latest ? `（${info.latest}）` : ""}。</p> : null}
+      {info?.status === "available" ? (
+        <>
+          <p>发现新版本 {info.latest}。</p>
+          <button type="button" className="btn auth-submit" onClick={() => openExternal(info.url)}>
+            {info.hasApk ? "下载安装包" : "查看更新"}
+          </button>
+        </>
+      ) : null}
+      {info?.status === "error" ? <p>{info.message}</p> : null}
+      <button type="button" className="btn" disabled={busy} onClick={() => void run()}>
+        {busy ? "检查中…" : "重新检查"}
+      </button>
     </div>
   );
 }

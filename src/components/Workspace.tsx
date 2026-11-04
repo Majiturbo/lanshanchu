@@ -1,13 +1,10 @@
-import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, FileDown, History as HistoryIcon, Maximize, MessageSquarePlus, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
+import { AlignLeft, ArrowLeft, Check, ChevronDown, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, MessageSquarePlus, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Canvas, useCrumbs } from "../canvas/Canvas.tsx";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
-import { rootOf } from "../history/snapshot.ts";
 import { history, useHistory } from "../history/store.ts";
-import { fileName, nodesMd, treeOrder } from "../lib/export.ts";
 import { short } from "../lib/format.ts";
-import { saveMarkdown } from "../lib/save.ts";
 import { screenTransition, swapScreen } from "../lib/transition.ts";
 import { drawerCss, settingsActions, useSettings } from "../settings/store.ts";
 import { actions, fit, isReady, useGraph, zoomAt } from "../store/graph.ts";
@@ -63,9 +60,9 @@ function Topbar() {
       </button>
       <span className="topbar-sep" aria-hidden="true" {...drag} />
       {IS_MOBILE_APP ? (
-        <button type="button" className="topbar-current" onClick={() => setSheet("path")}>
+        <button type="button" className="topbar-current" aria-expanded={sheet === "path"} onClick={() => setSheet((s) => (s === "path" ? null : "path"))}>
           <span>{short((crumbs[crumbs.length - 1]?.q ?? "").replace(/[？?]$/, ""), 16) || "知识地图"}</span>
-          {crumbs.length > 1 ? <ChevronRight size={14} strokeWidth={1.6} aria-hidden="true" /> : null}
+          {crumbs.length > 0 ? <ChevronDown size={14} strokeWidth={1.6} aria-hidden="true" /> : null}
         </button>
       ) : (
         <nav className="crumbs" aria-label="当前路径" {...drag}>
@@ -90,25 +87,34 @@ function Topbar() {
           >
             <Ellipsis size={16} strokeWidth={1.6} />
           </button>
-          {sheetP.mounted && createPortal(
-            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheet === "prefs" ? "回答偏好" : sheet === "path" ? "当前路径" : "画布菜单"}>
+          {sheetP.mounted && sheet === "path" && createPortal(
+            <div className={`path-pop${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label="当前路径">
+              <div className="path-pop-scrim" onClick={() => setSheet(null)} />
+              <div className="path-pop-panel">
+                <p className="path-pop-label">当前路径</p>
+                <ul className="path-pop-list">
+                  {crumbs.map((n, i) => {
+                    const current = i === crumbs.length - 1;
+                    return (
+                      <li key={n.id} className={current ? "is-current" : undefined}>
+                        <button type="button" onClick={() => { setSheet(null); actions.activate(n.id); }}>
+                          <span>{n.q}</span>
+                          {current ? <Check size={16} strokeWidth={1.8} aria-hidden="true" /> : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>,
+            document.body,
+          )}
+          {sheetP.mounted && sheet !== "path" && createPortal(
+            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheet === "prefs" ? "回答偏好" : "画布菜单"}>
               <div className="mobile-sheet-scrim" onClick={() => setSheet(null)} />
               <div className="mobile-sheet-panel">
                 <div className="mobile-sheet-handle" aria-hidden="true" />
-                {sheet === "path" ? (
-                  <>
-                    <p className="mobile-sheet-title">当前路径</p>
-                    <div className="ctx-group">
-                      {crumbs.map((n, i) => (
-                        <button key={n.id} type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); actions.activate(n.id); }}>
-                          <span>{n.q}</span>
-                          {i === crumbs.length - 1 ? <span className="meta">当前</span> : null}
-                        </button>
-                      ))}
-                    </div>
-                    <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
-                  </>
-                ) : sheet === "prefs" ? (
+                {sheet === "prefs" ? (
                   <>
                     <p className="mobile-sheet-title">回答偏好</p>
                     <div className="mobile-sheet-prefs">
@@ -118,11 +124,12 @@ function Topbar() {
                   </>
                 ) : (
                   <>
-                    {/* 每一行统一：图标 + 文字，联网用开关行 */}
+                    {/* 原型 18：联网搜索 + 开关；回答偏好带箭头；无导出、无设置 */}
                     <MobileSearchSwitch className="mobile-sheet-switch" />
                     <button type="button" className="mobile-sheet-item" onClick={() => setSheet("prefs")}>
                       <SlidersHorizontal size={16} strokeWidth={1.6} aria-hidden="true" />
-                      回答偏好
+                      <span className="mobile-sheet-item-label">回答偏好</span>
+                      <ChevronRight size={14} strokeWidth={1.6} aria-hidden="true" />
                     </button>
                     <button type="button" className="mobile-sheet-item" disabled={!hasAnswers} onClick={() => { setSheet(null); actions.openSummary(); }}>
                       <AlignLeft size={16} strokeWidth={1.6} aria-hidden="true" />
@@ -139,22 +146,6 @@ function Topbar() {
                     <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); fit(); }}>
                       <Maximize size={16} strokeWidth={1.6} aria-hidden="true" />
                       适应画布
-                    </button>
-                    <button
-                      type="button"
-                      className="mobile-sheet-item"
-                      disabled={!hasAnswers}
-                      onClick={() => {
-                        setSheet(null);
-                        const nodes = useGraph.getState().nodes;
-                        const all = treeOrder(nodes);
-                        if (!all.length) return;
-                        const title = rootOf(nodes)?.q ?? "阑珊处";
-                        void saveMarkdown(fileName(title), nodesMd(all, title), "map");
-                      }}
-                    >
-                      <FileDown size={16} strokeWidth={1.6} aria-hidden="true" />
-                      导出
                     </button>
                     <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
                   </>

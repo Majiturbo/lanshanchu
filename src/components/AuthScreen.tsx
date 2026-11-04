@@ -14,8 +14,9 @@ import { track } from "../analytics/index.ts";
 import { loginFrom, settingsActions, useSettings } from "../settings/store.ts";
 import { noticePlansSoon, openMobileSettingsPage } from "./MobileSettings.tsx";
 import { NAV_MS, useNavCover } from "./navMotion.ts";
-import { AccountSection } from "./SettingsDialog.tsx";
+import { formatExpiresAt, UsageMeter } from "./SettingsDialog.tsx";
 import { usePresence } from "./presence.ts";
+import { PlanMark } from "./PlanMark.tsx";
 
 /** 移动端独立全屏登录 / 额度页 */
 export function AuthScreen() {
@@ -58,6 +59,9 @@ function Screen({ kind, closing }: { kind: "login" | "quota"; closing: boolean }
 }
 
 function QuotaFlow() {
+  const usage = useSettings((s) => s.usage);
+  const planLabel = usage?.planLabel || (usage?.plan ? usage.plan : "");
+  const expires = formatExpiresAt(usage?.planExpiresAt ?? 0);
   return (
     <>
       <header className="auth-head">
@@ -67,22 +71,39 @@ function QuotaFlow() {
         <h1 id="auth-title">额度</h1>
         <span className="auth-head-spacer" aria-hidden="true" />
       </header>
-      <div className="auth-body">
-        <p className="auth-lead">当前额度不足，无法继续提问。可查看用量，或稍后再试。购买入口即将开放。</p>
-        <AccountSection
-          hideLogout
-          onPlans={noticePlansSoon}
-        />
+      <div className="auth-body quota-flow">
+        <h2 className="quota-hero">当前额度不足</h2>
+        <p className="auth-lead">三窗里至少有一窗已用完，暂时不能提问。可等重置，或购买套餐（即将开放）。</p>
+        {planLabel ? (
+          <div className="quota-card">
+            <div className="quota-card-head">
+              <span className="quota-card-plan">
+                <PlanMark plan={usage?.plan || planLabel} />
+                {planLabel}
+              </span>
+              {expires ? <span className="quota-card-expire">{expires}</span> : null}
+            </div>
+            {usage ? (
+              <div className="usage-meters">
+                <UsageMeter label="总使用量" pct={usage.monthPct} resetAt={usage.monthResetsAt} compact />
+                <UsageMeter label="5 小时用量" pct={usage.windowPct} resetAt={usage.windowResetsAt} compact />
+                <UsageMeter label="7 天用量" pct={usage.weekPct} resetAt={usage.weekResetsAt} compact />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <button type="button" className="btn btn-primary auth-submit" onClick={noticePlansSoon}>购买套餐</button>
         <button
           type="button"
-          className="btn auth-settings"
+          className="btn quota-secondary"
           onClick={() => {
             settingsActions.closeGate();
-            queueMicrotask(() => openMobileSettingsPage());
+            queueMicrotask(() => openMobileSettingsPage("account"));
           }}
         >
-          打开设置
+          查看用量
         </button>
+        <p className="quota-note">购买入口预留，暂不上线。</p>
       </div>
     </>
   );
@@ -209,6 +230,10 @@ function LoginFlow() {
   const purpose: SmsPurpose = pane === "register" ? "register" : pane === "reset" ? "reset" : "login";
 
   const showBack = pane === "register" || pane === "reset" || !!session;
+  const showMark = pane === "password" || pane === "sms";
+  const theme = useSettings((s) => s.theme);
+  const darkMark = theme === "dark"
+    || (theme === "system" && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
 
   return (
     <>
@@ -224,6 +249,16 @@ function LoginFlow() {
       </header>
       <div className="auth-body">
         <div className="auth-brand">
+          {showMark ? (
+            <img
+              className="auth-mark"
+              src={darkMark ? "./favicon.png" : "./favicon-light.png"}
+              alt=""
+              width={44}
+              height={44}
+              draggable={false}
+            />
+          ) : null}
           <h1 id="auth-title">{title}</h1>
           <p>{lead}</p>
         </div>

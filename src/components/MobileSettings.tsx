@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, LoaderCircle } from "lucide-react";
+import { ArrowLeft, Brain, ChevronRight, LoaderCircle, Map, Palette, RefreshCw, ShoppingCart } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useMemory } from "../memory/store.ts";
 import { bindSettingsBack } from "../lib/backStack.ts";
@@ -78,7 +78,7 @@ function MobileSettings({ closing }: { closing: boolean }) {
     pendingPage = null;
     return ["root", target];
   })();
-  const { stack, stackRef, phase, outgoing, push, pop, replace } = useStackNav<Page>(initial);
+  const { stack, stackRef, phase, outgoing, push, pop, popSwipe, replace } = useStackNav<Page>(initial);
   const page = stack[stack.length - 1] ?? "root";
   const under = stack.length >= 2 ? stack[stack.length - 2]! : null;
   const accountId = useSettings((s) => s.account?.id ?? "");
@@ -108,8 +108,9 @@ function MobileSettings({ closing }: { closing: boolean }) {
 
   useEffect(() => {
     // 必须用 ref 判断深度：Android 返回来自原生回调，setState updater 可能延后，不能靠副作用里改标志
-    return bindSettingsBack(() => pop(), () => stackRef.current.length);
-  }, [pop, stackRef]);
+    // 侧滑完成走 popSwipe，避免再播 is-pop-out 闪两页；按钮/系统返回仍走成对过渡
+    return bindSettingsBack((fromSwipe) => (fromSwipe ? popSwipe() : pop()), () => stackRef.current.length);
+  }, [pop, popSwipe, stackRef]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -184,56 +185,63 @@ function RootPage({ push }: { push: (page: Page) => void }) {
   const usage = useSettings((s) => s.usage);
   const canAsk = useSettings((s) => s.canAsk);
   const theme = useSettings((s) => s.theme);
-  const openSource = useSettings((s) => s.openSource);
   const memoryOn = useMemory((s) => s.enabled);
   const planLabel = usage?.planLabel || "";
+  const expires = usage?.planExpiresAt
+    ? new Date(usage.planExpiresAt * 1000).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour12: false })
+    : "";
   const status = !account
-    ? "登录 / 注册"
+    ? "登录后即可提问"
     : !planLabel
       ? "尚未开通套餐"
       : canAsk || usage?.canAsk
-        ? "额度充足"
+        ? (expires ? `额度充足 · ${expires}到期` : "额度充足")
         : "额度已用完";
   const themeLabel = THEMES.find(([value]) => value === theme)?.[1] ?? "跟随系统";
 
   return (
     <>
-      <button type="button" className="mset-account" onClick={() => (account ? push("account") : settingsActions.open("login"))}>
+      <button type="button" className="mset-card mset-account" onClick={() => (account ? push("account") : settingsActions.open("login"))}>
         <span className="mset-account-copy">
           <span className="mset-account-name">
             {account ? (account.nickname || account.username) : "登录 / 注册"}
             {account ? <PlanMark plan={usage?.plan || planLabel} /> : null}
+            {account && planLabel ? <span className="mset-plan-label">{planLabel}</span> : null}
           </span>
-          <span className="mset-account-status">{account ? status : "登录后即可提问"}</span>
+          <span className="mset-account-status">{status}</span>
         </span>
         <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
       </button>
-      <button type="button" className="mset-row" onClick={noticePlansSoon}>
+      <button type="button" className="mset-card mset-row" onClick={noticePlansSoon}>
+        <ShoppingCart size={16} strokeWidth={1.6} aria-hidden="true" />
         <span>购买套餐</span>
         <em>即将开放</em>
       </button>
-      <div className="mset-group">
+      <div className="mset-card mset-group">
         <button type="button" className="mset-row" onClick={() => push("memory")}>
+          <Brain size={16} strokeWidth={1.6} aria-hidden="true" />
           <span>记忆</span>
-          <em>{memoryOn ? "开启" : "关闭"}</em>
+          <em>{memoryOn ? "已开启" : "已关闭"}</em>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
         <button type="button" className="mset-row" onClick={() => push("look")}>
+          <Palette size={16} strokeWidth={1.6} aria-hidden="true" />
           <span>外观</span>
           <em>{themeLabel}</em>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
         <button type="button" className="mset-row" onClick={() => push("canvas")}>
+          <Map size={16} strokeWidth={1.6} aria-hidden="true" />
           <span>画布与来源</span>
-          <em>{openSource === "reader" ? "应用内阅读" : "系统浏览器"}</em>
-          <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
-        </button>
-        <button type="button" className="mset-row" onClick={() => push("update")}>
-          <span>检查更新</span>
-          <em>{APP_VERSION}</em>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
       </div>
+      <button type="button" className="mset-card mset-row" onClick={() => push("update")}>
+        <RefreshCw size={16} strokeWidth={1.6} aria-hidden="true" />
+        <span>检查更新</span>
+        <em>{APP_VERSION}</em>
+        <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
+      </button>
     </>
   );
 }
@@ -417,6 +425,7 @@ function BindPage({ onDone }: { onDone: () => void }) {
   };
   return (
     <form className="auth-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <p className="auth-lead">绑定后可以用验证码登录，也可以自助找回密码</p>
       <label className="auth-well">
         <input aria-label="手机号" inputMode="numeric" autoComplete="tel" maxLength={11} placeholder="11 位手机号" value={phone} onChange={(e) => setPhone(digits(e.target.value))} />
       </label>
@@ -427,8 +436,9 @@ function BindPage({ onDone }: { onDone: () => void }) {
       {error ? <p className="field-error" role="alert">{error}</p> : null}
       <button type="submit" className="btn btn-primary auth-submit" disabled={busy}>
         {busy ? <LoaderCircle className="spin" size={16} strokeWidth={1.8} /> : null}
-        绑定
+        完成绑定
       </button>
+      <p className="mset-form-note">一个手机号只能绑定一个账号。验证通过后立即生效。</p>
     </form>
   );
 }
@@ -473,16 +483,19 @@ function ChangePage({ onDone }: { onDone: () => void }) {
   };
   return (
     <form className="auth-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <p className="auth-sent">当前手机号 {maskPhone(current)}</p>
+      <p className="auth-lead">先验证当前手机号，再验证新号码。两枚验证码都要通过。</p>
       <label className="auth-well">
-        <input aria-label="当前号码验证码" inputMode="numeric" maxLength={8} placeholder="当前号码验证码" value={oldCode} onChange={(e) => setOldCode(digits(e.target.value).slice(0, 8))} />
+        <input aria-label="当前手机号" value={maskPhone(current) || current} readOnly />
+      </label>
+      <label className="auth-well">
+        <input aria-label="当前号码验证码" inputMode="numeric" maxLength={8} placeholder="验证码" value={oldCode} onChange={(e) => setOldCode(digits(e.target.value).slice(0, 8))} />
         <CodeButton left={oldLeft} busy={busy} onClick={() => { void send("phone-old", current, setOldLeft); }} />
       </label>
       <label className="auth-well">
-        <input aria-label="新手机号" inputMode="numeric" autoComplete="tel" maxLength={11} placeholder="新的 11 位手机号" value={phone} onChange={(e) => setPhone(digits(e.target.value))} />
+        <input aria-label="新手机号" inputMode="numeric" autoComplete="tel" maxLength={11} placeholder="新手机号" value={phone} onChange={(e) => setPhone(digits(e.target.value))} />
       </label>
       <label className="auth-well">
-        <input aria-label="新号码验证码" inputMode="numeric" maxLength={8} placeholder="新号码验证码" value={code} onChange={(e) => setCode(digits(e.target.value).slice(0, 8))} />
+        <input aria-label="新号码验证码" inputMode="numeric" maxLength={8} placeholder="验证码" value={code} onChange={(e) => setCode(digits(e.target.value).slice(0, 8))} />
         <CodeButton left={newLeft} busy={busy} onClick={() => { void send("phone-new", phone, setNewLeft); }} />
       </label>
       {error ? <p className="field-error" role="alert">{error}</p> : null}
@@ -490,6 +503,7 @@ function ChangePage({ onDone }: { onDone: () => void }) {
         {busy ? <LoaderCircle className="spin" size={16} strokeWidth={1.8} /> : null}
         完成更换
       </button>
+      <p className="mset-form-note">两个验证码都通过后，旧号码立即失效。不会新建账号。</p>
     </form>
   );
 }
@@ -497,7 +511,6 @@ function ChangePage({ onDone }: { onDone: () => void }) {
 function DeletePage({ onDone }: { onDone: () => void }) {
   const phone = useSettings((s) => s.account?.phone || "");
   const [code, setCode] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [left, setLeft] = useCountdown();
@@ -514,7 +527,6 @@ function DeletePage({ onDone }: { onDone: () => void }) {
     }
   };
   const submit = async () => {
-    if (confirm !== "注销账号") { setError("请输入「注销账号」以确认"); return; }
     if (code.trim().length < 4) { setError("请输入验证码"); return; }
     setBusy(true);
     setError("");
@@ -529,19 +541,20 @@ function DeletePage({ onDone }: { onDone: () => void }) {
   };
   return (
     <form className="auth-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <p className="auth-lead">注销后账号和本站上的用量不可恢复。本机的历史地图仍留在这台设备上。</p>
+      <p className="auth-lead">验证码发送到当前绑定的手机号。注销后这个账号不能再登录。这台设备上的知识地图还在。</p>
+      <label className="auth-well">
+        <input aria-label="当前手机号" value={maskPhone(phone) || phone} readOnly />
+      </label>
       <label className="auth-well">
         <input aria-label="验证码" inputMode="numeric" maxLength={8} placeholder="验证码" value={code} onChange={(e) => setCode(digits(e.target.value).slice(0, 8))} />
         <CodeButton left={left} busy={busy} onClick={() => { void send(); }} />
       </label>
-      <label className="auth-well">
-        <input aria-label="确认注销" placeholder="输入「注销账号」" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-      </label>
       {error ? <p className="field-error" role="alert">{error}</p> : null}
-      <button type="submit" className="btn btn-danger auth-submit" disabled={busy || confirm !== "注销账号"}>
+      <button type="submit" className="btn btn-danger auth-submit mset-delete-submit" disabled={busy}>
         {busy ? <LoaderCircle className="spin" size={16} strokeWidth={1.8} /> : null}
-        注销账号
+        确认注销
       </button>
+      <p className="mset-form-note">还没绑定手机号时不能注销，需要先绑定。</p>
     </form>
   );
 }

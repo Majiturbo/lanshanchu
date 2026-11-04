@@ -10,8 +10,6 @@ export interface Passage {
 
 /** 低于这个分数视为没有对应原文 */
 const MIN_SCORE = 0.22;
-/** 相邻句子分数达到最佳的这个比例时一起高亮（论证常跨两句） */
-const NEIGHBOR_RATIO = 0.6;
 
 /** 切句：中文句末标点与换行；保留标点在句子末尾 */
 export function splitSentences(text: string): string[] {
@@ -65,12 +63,41 @@ export function findPassage(source: string, quote: string): Passage {
   const scores = sentences.map((s) => score(q, s));
   let best = 0;
   for (let i = 1; i < scores.length; i++) if (scores[i] > scores[best]) best = i;
+  // 只标最贴的一句，不把相邻句一起刷成整段高亮
   if (scores[best] < MIN_SCORE) return { sentences, hits: [] };
-  const hits = [best];
-  for (const n of [best - 1, best + 1]) {
-    if (n >= 0 && n < scores.length && scores[n] >= Math.max(MIN_SCORE, scores[best] * NEIGHBOR_RATIO)) hits.push(n);
+  return { sentences, hits: [best] };
+}
+
+/** 在命中句里尽量只圈出与引用重叠的那段文字；对不上就退回整句（仍是行内 mark） */
+export function markSpan(sentence: string, quote: string): { start: number; end: number } {
+  const clean = quote.replace(/\[\d{1,2}\]/g, "").replace(/[#*]/g, "").trim();
+  if (clean.length >= 2) {
+    const direct = sentence.indexOf(clean);
+    if (direct >= 0) return { start: direct, end: direct + clean.length };
   }
-  return { sentences, hits: hits.sort((a, b) => a - b) };
+  const q = bigrams(normalize(quote));
+  const target = Math.max(normalize(quote).length, 4);
+  if (q.size < 2 || sentence.length <= target) return { start: 0, end: sentence.length };
+
+  let bestStart = 0;
+  let bestEnd = sentence.length;
+  let bestScore = -1;
+  const minLen = Math.max(4, Math.floor(target * 0.55));
+  const maxLen = Math.min(sentence.length, Math.ceil(target * 1.45));
+  for (let start = 0; start < sentence.length; start++) {
+    for (let len = minLen; len <= maxLen && start + len <= sentence.length; len++) {
+      const end = start + len;
+      const s = score(q, sentence.slice(start, end));
+      if (s < MIN_SCORE) continue;
+      if (s > bestScore + 0.02 || (s >= bestScore - 0.02 && len < bestEnd - bestStart)) {
+        bestScore = s;
+        bestStart = start;
+        bestEnd = end;
+      }
+    }
+  }
+  if (bestScore < MIN_SCORE) return { start: 0, end: sentence.length };
+  return { start: bestStart, end: bestEnd };
 }
 
 /** 回答文字里某个角标所在的那句话：从角标往前找到上一个句末标点为止 */

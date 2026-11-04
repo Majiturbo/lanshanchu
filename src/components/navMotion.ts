@@ -71,6 +71,17 @@ export function useStackNav<T extends string>(initial: T[]) {
     return true;
   }, [finish]);
 
+  /** 侧滑已把顶层拖出屏幕：瞬时卸层，不播 is-pop-out，否则会闪回两页 */
+  const popSwipe = useCallback((): boolean => {
+    if (stackRef.current.length <= 1) return false;
+    clearTimeout(timer.current);
+    busy.current = false;
+    setOutgoing(null);
+    setPhase("idle");
+    setStack((s) => s.slice(0, -1));
+    return true;
+  }, []);
+
   const replace = useCallback((next: T[]) => {
     clearTimeout(timer.current);
     busy.current = false;
@@ -79,5 +90,5 @@ export function useStackNav<T extends string>(initial: T[]) {
     setStack(next);
   }, []);
 
-  return { stack, stackRef, phase, outgoing, push, pop, replace };
+  return { stack, stackRef, phase, outgoing, push, pop, popSwipe, replace };
 }

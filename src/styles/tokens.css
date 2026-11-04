@@ -90,6 +90,30 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px -10px rgba(0, 0, 0, 0.16);
   --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.05), 0 24px 56px -16px rgba(0, 0, 0, 0.2);  /* black-a1、a4 */
+  /* 首页提问框：浅色白底 + 朱砂边 + 浮影（原型 35:1737）；深色块另写 */
+  --ask-fill: #fcfcfd;
+  --ask-line: var(--seal);
+  --ask-line-focus: var(--seal-strong);
+  --ask-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  /* 联网开：浅色朱砂粉底 + 朱砂图标（原型 35:1739）；深色块另写 */
+  --search-on-bg: #f6e6e3;
+  --search-on-icon: var(--seal);
+  /* 画布⋯ 联网开关轨道开态：浅色朱砂、深色蓝（原型 18） */
+  --search-switch-on: var(--seal);
+  /* 登录/绑定输入井（原型 35:2962 / 30:24）：浅色暖灰底+米边；深色块另写 */
+  --auth-well-fill: #ebe4da;
+  --auth-well-line: #c9bfb2;
+  --auth-well-focus: color-mix(in srgb, var(--seal) 70%, transparent);
+  --auth-title: var(--seal);
+  --auth-link: var(--seal);
+  --auth-tab-on: var(--seal);
+  --auth-submit-bg: var(--seal);
+  --auth-submit-fg: #fcfcfd;
+  /* 当前路径浮层（原型 17） */
+  --path-pop-bg: var(--surface);
+  --path-pop-line: var(--line);
+  --path-pop-rail: var(--line-strong);
+  --path-pop-current: var(--surface-sunken);
 
   /* 全站一套无衬线。-apple-system 只在苹果系统生效，即苹方；其他系统依次找 HarmonyOS Sans、MiSans（字重全），
      再是另装的苹方、微软雅黑。苹方必须排在 HarmonyOS 之后：有的 Windows 也装了苹方（实测），会抢在前面。不加载网络字体 */
@@ -174,6 +198,28 @@
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
     --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 56px -16px rgba(0, 0, 0, 0.7);
+    /* 深色提问框：同底色填充 + 白 11% 亮线边 + 浮影（原型 19:12） */
+    --ask-fill: #141726;
+    --ask-line: color-mix(in srgb, #fff 11%, transparent);
+    --ask-line-focus: color-mix(in srgb, #fff 18%, transparent);
+    --ask-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    /* 联网开：蓝底胶囊（原型 19:14） */
+    --search-on-bg: #1f2b57;
+    --search-on-icon: var(--accent);
+    --search-switch-on: var(--accent-solid);
+    /* 登录井深色：沉底 indigo-2 + 灰边；焦点淡紫边；主按钮浅底深字（原型 30:24/30:34） */
+    --auth-well-fill: #11131f;
+    --auth-well-line: #43484e;
+    --auth-well-focus: color-mix(in srgb, #9eb1ff 70%, transparent);
+    --auth-title: var(--ink);
+    --auth-link: #9eb1ff;
+    --auth-tab-on: var(--ink);
+    --auth-submit-bg: #edeef0;
+    --auth-submit-fg: #141726;
+    --path-pop-bg: #161a2b;
+    --path-pop-line: color-mix(in srgb, #fff 8%, transparent);
+    --path-pop-rail: color-mix(in srgb, #fff 15%, transparent);
+    --path-pop-current: color-mix(in srgb, #fff 5%, transparent);
   }
 }
 :root[data-theme="dark"] {
@@ -208,6 +254,25 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
   --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.3), 0 24px 56px -16px rgba(0, 0, 0, 0.7);
+  --ask-fill: #141726;
+  --ask-line: color-mix(in srgb, #fff 11%, transparent);
+  --ask-line-focus: color-mix(in srgb, #fff 18%, transparent);
+  --ask-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --search-on-bg: #1f2b57;
+  --search-on-icon: var(--accent);
+  --search-switch-on: var(--accent-solid);
+  --auth-well-fill: #11131f;
+  --auth-well-line: #43484e;
+  --auth-well-focus: color-mix(in srgb, #9eb1ff 70%, transparent);
+  --auth-title: var(--ink);
+  --auth-link: #9eb1ff;
+  --auth-tab-on: var(--ink);
+  --auth-submit-bg: #edeef0;
+  --auth-submit-fg: #141726;
+  --path-pop-bg: #161a2b;
+  --path-pop-line: color-mix(in srgb, #fff 8%, transparent);
+  --path-pop-rail: color-mix(in srgb, #fff 15%, transparent);
+  --path-pop-current: color-mix(in srgb, #fff 5%, transparent);
 }
 /* 墨色深色：大底、输入框、卡片、对话框都用 indigo-2 偏黑蓝；悬停才用 indigo-3 */
 @media (prefers-color-scheme: dark) {

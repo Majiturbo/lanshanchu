@@ -21,10 +21,12 @@ import { swapScreen } from "./transition.ts";
  * 4. 松手过半或够快则 dismissOne；否则弹回
  */
 
-let settingsPop: (() => boolean) | null = null;
+let settingsPop: ((fromSwipe: boolean) => boolean) | null = null;
 let settingsDepth: (() => number) | null = null;
+/** beginSwipeDismiss 期间为 true，设置栈走瞬时 pop，避免再播推出动画闪两页 */
+let swipeDismissing = false;
 
-export function bindSettingsBack(fn: () => boolean, depth?: () => number) {
+export function bindSettingsBack(fn: (fromSwipe: boolean) => boolean, depth?: () => number) {
   settingsPop = fn;
   settingsDepth = depth ?? null;
   return () => {
@@ -34,7 +36,7 @@ export function bindSettingsBack(fn: () => boolean, depth?: () => number) {
 }
 
 function popSettingsPage() {
-  return settingsPop?.() ?? false;
+  return settingsPop?.(swipeDismissing) ?? false;
 }
 
 const tauriPlatform = String(import.meta.env.TAURI_ENV_PLATFORM ?? "");
@@ -235,12 +237,13 @@ function startIosEdgeSwipe(): () => void {
   };
 
   /** 侧滑已把顶层拖走：禁止再播 is-closing / is-pop-out，否则会闪回整页再退一次。
-   * 设置二级的 `.nav-pane.is-front` 会被复用成一级页——行内 opacity/transform 必须在卸层后清掉，否则一级空白。 */
+   * 设置二级 front 会被 React 复用成一级——等提交后再清行内 transform，过早清会把二级瞬移回中间叠在一级上闪两页。 */
   const beginSwipeDismiss = (el: HTMLElement) => {
     const root = document.documentElement;
     root.dataset.swipeDismiss = "";
+    swipeDismissing = true;
     dismissOne();
-    // dismissOne 可能同步改栈：清掉拖拽行内样式，让复用后的一级页能显示
+    swipeDismissing = false;
     const wipe = () => {
       el.style.transform = "";
       el.style.transition = "";
@@ -249,8 +252,13 @@ function startIosEdgeSwipe(): () => void {
       el.style.pointerEvents = "";
       el.style.willChange = "";
     };
-    wipe();
-    requestAnimationFrame(wipe);
+    // 双 rAF：等内容从二级换成一级后再清，避免空白与闪两页
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        wipe();
+        delete root.dataset.swipeDismiss;
+      });
+    });
     window.setTimeout(() => {
       wipe();
       delete root.dataset.swipeDismiss;

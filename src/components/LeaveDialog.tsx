@@ -25,29 +25,7 @@ function Dialog({ count, closing }: { count: number; closing: boolean }) {
     return () => removeEventListener("keydown", onKey);
   }, []);
 
-  if (IS_MOBILE_APP) {
-    return (
-      <div className={`leave-sheet${closing ? " is-closing" : ""}`} role="alertdialog" aria-modal="true" aria-labelledby="leave-title">
-        <div className="ctx-sheet-scrim" onClick={cancel} />
-        <div className="ctx-sheet-panel leave-sheet-panel">
-          <div className="ctx-sheet-handle" aria-hidden="true" />
-          <h2 id="leave-title">还有 {count} 个问题正在回答</h2>
-          <label className="leave-remember">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            <span>记住我的选择</span>
-          </label>
-          <button ref={primary} type="button" className="btn btn-primary leave-sheet-btn" onClick={() => actions.resolveLeave("background", remember)}>
-            后台继续回答
-          </button>
-          <button type="button" className="btn btn-danger leave-sheet-btn" onClick={() => actions.resolveLeave("stop", remember)}>
-            全部终止
-          </button>
-          <button type="button" className="ctx-item ctx-cancel" onClick={cancel}>取消</button>
-        </div>
-      </div>
-    );
-  }
-
+  // 原型 09：居中对话框（叉号 + 记住选择 + 全部终止文字危色 + 后台继续实心主按钮），不用底栏 sheet
   return (
     <div className={`dialog-layer${closing ? " is-closing" : ""}`}>
       <div className="dialog-scrim" {...scrimClose(cancel)} />
@@ -61,9 +39,9 @@ function Dialog({ count, closing }: { count: number; closing: boolean }) {
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
             <span>记住我的选择</span>
           </label>
-          {MAC_DIALOG && (
+          {!IS_MOBILE_APP && MAC_DIALOG ? (
             <button type="button" className="btn" onClick={cancel}>取消</button>
-          )}
+          ) : null}
           <button type="button" className="btn btn-danger" onClick={() => actions.resolveLeave("stop", remember)}>全部终止</button>
           <button ref={primary} type="button" className="btn btn-primary" onClick={() => actions.resolveLeave("background", remember)}>后台继续回答</button>
         </footer>

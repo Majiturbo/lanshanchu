@@ -236,7 +236,7 @@ export function SearchToggle({ compact = false }: { compact?: boolean }) {
   );
 }
 
-/** 移动端联网开关：图标 +「联网 · 开/关」，状态一眼可读 */
+/** 画布⋯菜单联网行：图标 +「联网搜索」+ 右侧开关（原型 18） */
 export function MobileSearchSwitch({ className = "" }: { className?: string }) {
   const on = useGraph((s) => s.search);
   return (
@@ -244,10 +244,14 @@ export function MobileSearchSwitch({ className = "" }: { className?: string }) {
       type="button"
       className={`mobile-switch${on ? " is-on" : ""}${className ? ` ${className}` : ""}`}
       aria-pressed={on}
+      aria-label={on ? "联网搜索：开" : "联网搜索：关"}
       onClick={actions.toggleSearch}
     >
       <Globe size={16} strokeWidth={1.6} aria-hidden="true" />
-      <span>联网 · {on ? "开" : "关"}</span>
+      <span className="mobile-switch-label">联网搜索</span>
+      <span className={`mobile-switch-track${on ? " is-on" : ""}`} aria-hidden="true">
+        <span className="mobile-switch-knob" />
+      </span>
     </button>
   );
 }

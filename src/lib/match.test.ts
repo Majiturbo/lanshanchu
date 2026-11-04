@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { findPassage, quotesFor, sentenceBefore, splitSentences } from "./match.ts";
+import { findPassage, markSpan, quotesFor, sentenceBefore, splitSentences } from "./match.ts";
 
 const SOURCE = "每天到底睡多久最好？关于最佳睡眠时长，网络上有各种观点。一项覆盖32万亚洲人的研究显示，每晚睡7小时的人全因死亡风险最低。睡得过长同样有害，超过9小时的人心血管风险上升。\n周末补觉也要适度。";
 
@@ -14,9 +14,18 @@ test("改写过的回答也能对回原文句子", () => {
   assert.match(p.sentences[2], /32万亚洲人/);
 });
 
-test("相邻句子也很相关时一起高亮", () => {
+test("只高亮最贴的一句，不把相邻句刷成整段", () => {
   const p = findPassage(SOURCE, "每晚睡7小时死亡风险最低，睡超过9小时心血管风险上升");
-  assert.deepEqual(p.hits, [2, 3]);
+  assert.equal(p.hits.length, 1);
+  assert.ok(p.hits[0] === 2 || p.hits[0] === 3);
+});
+
+test("命中句里尽量只标重叠文字", () => {
+  const sentence = "一项覆盖32万亚洲人的研究显示，每晚睡7小时的人全因死亡风险最低。";
+  const span = markSpan(sentence, "每晚睡7小时的人全因死亡风险最低");
+  assert.equal(sentence.slice(span.start, span.end), "每晚睡7小时的人全因死亡风险最低");
+  assert.ok(span.start > 0);
+  assert.ok(span.end < sentence.length);
 });
 
 test("原文里没有对应内容时不高亮", () => {

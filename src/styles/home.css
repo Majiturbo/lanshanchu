@@ -54,48 +54,31 @@
 .lantern-sky.is-back { z-index: 0; }
 .lantern-sky.is-front { z-index: 2; }
 
-/* 盖住从框顶升起的灯；叠在最近列表之上。弹层打开时再抬高，避免「最近」列表穿模 */
+/* 盖住从框顶升起的灯；叠在最近列表之上。弹层打开时再抬高，避免「最近」列表穿模。
+   样式对齐原型 v2 首页提问框：浅色白底+朱砂边+浮影；深色亮线边+浮影（Figma 19:12 / 35:1737） */
 .ask {
   position: relative; z-index: 3;
-}
-.ask:has(.prefs-pop) {
-  z-index: 20;
-  background: var(--surface);
-  border: var(--hair) solid var(--line);
+  background: var(--ask-fill);
+  border: var(--hair) solid var(--ask-line);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--ask-shadow);
   padding: 16px 14px 10px 20px;
   margin-bottom: var(--kb-inset, 0px);
   transition: border-color var(--t-fast), box-shadow var(--t-fast), margin-bottom var(--t-fast);
 }
-.ask:focus-within { border-color: var(--line-hover); box-shadow: var(--shadow-2); }
-.ask.is-drop { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-2); }
-/* 浅色：朱砂印边，不浮影；跟随系统时也只在浅色生效 */
+.ask:has(.prefs-pop) { z-index: 20; }
+.ask:focus-within { border-color: var(--ask-line-focus); }
+.ask.is-drop {
+  border-color: var(--ask-line-focus);
+  box-shadow: 0 0 0 3px var(--seal-soft), var(--ask-shadow);
+}
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .ask {
-    border: 1px solid var(--seal);
-    box-shadow: none;
-  }
-  :root:not([data-theme="dark"]) .ask:focus-within {
-    border-color: var(--seal-strong);
-    box-shadow: none;
-  }
   :root:not([data-theme="dark"]) .ask.is-drop {
-    border-color: var(--seal-strong);
-    box-shadow: 0 0 0 3px var(--seal-soft);
+    box-shadow: 0 0 0 3px var(--seal-soft), var(--ask-shadow);
   }
-}
-:root[data-theme="light"] .ask {
-  border: 1px solid var(--seal);
-  box-shadow: none;
-}
-:root[data-theme="light"] .ask:focus-within {
-  border-color: var(--seal-strong);
-  box-shadow: none;
 }
 :root[data-theme="light"] .ask.is-drop {
-  border-color: var(--seal-strong);
-  box-shadow: 0 0 0 3px var(--seal-soft);
+  box-shadow: 0 0 0 3px var(--seal-soft), var(--ask-shadow);
 }
 .ask textarea {
   display: block; width: 100%; resize: none; border: 0; outline: 0; background: none;
@@ -104,8 +87,10 @@
 .ask textarea::placeholder { color: var(--ink-4); }
 .ask-bar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 0 -8px; }
 .ask-tools { display: flex; align-items: center; gap: 4px; }
-.ask-tools .icon-btn { width: 30px; height: 30px; color: var(--ink-3); }
+.ask-tools .icon-btn { width: 30px; height: 30px; color: var(--ink-4); }
 .ask-tools .icon-btn:disabled { opacity: 0.4; }
+/* 联网开态胶囊略宽于 30，贴合原型 36×30 */
+.ask-tools .toggle.is-compact[aria-pressed="true"] { width: 36px; }
 
 .home-status {
   position: relative; z-index: 3;
@@ -137,7 +122,7 @@
 .recent .scroll-thumb { right: -12px; }
 .recent-head { padding-left: 8px; padding-right: 8px; }
 
-/* 移动 App：提问框工具命中区加大，但不铺选中/按下底色 */
+/* 移动 App：提问框工具命中区加大；联网开态底色由 .toggle.is-compact[aria-pressed] 管 */
 html.is-mobile-app .ask-tools .toggle.is-compact,
 html.is-mobile-app .ask-tools .icon-btn {
   width: 36px; height: 36px; min-width: 44px; min-height: 44px;

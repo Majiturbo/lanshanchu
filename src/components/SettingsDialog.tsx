@@ -19,14 +19,14 @@ function formatResetAt(at: number): string {
   return `${date.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} 后重置`;
 }
 
-function formatExpiresAt(at: number): string {
+export function formatExpiresAt(at: number): string {
   if (!at) return "";
   const date = new Date(at * 1000);
   if (Number.isNaN(date.getTime())) return "";
   return `${date.toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour12: false })}到期`;
 }
 
-function UsageMeter({ label, pct, resetAt }: { label: string; pct: number; resetAt: number }) {
+export function UsageMeter({ label, pct, resetAt, compact }: { label: string; pct: number; resetAt: number; compact?: boolean }) {
   const value = Math.max(0, Math.min(100, pct));
   const hot = value >= 90;
   return (
@@ -38,7 +38,7 @@ function UsageMeter({ label, pct, resetAt }: { label: string; pct: number; reset
       <div className="usage-meter-track" aria-hidden="true">
         <div className={`usage-meter-fill${hot ? " is-hot" : ""}`} style={{ width: `${value}%` }} />
       </div>
-      <div className="usage-meter-reset">{formatResetAt(resetAt)}</div>
+      {compact ? null : <div className="usage-meter-reset">{formatResetAt(resetAt)}</div>}
     </div>
   );
 }

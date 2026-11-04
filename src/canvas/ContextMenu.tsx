@@ -24,11 +24,11 @@ function itemsFor(at: MenuAt, ask: () => void, connect: () => void): Item[][] {
     const close: Item[] = n.parent ? [{ icon: X, label: "关闭", run: () => actions.close(n.id), danger: true }] : [];
     if (!isReady(n)) return [copy, close];
     const many = selected.includes(n.id) ? selected.map((id) => nodes[id]).filter(isReady) : [];
-    // 移动首版不做触屏多选，「导出选中」隐藏；拖放连接用「连接到…」
+    // 移动不做触屏多选；手机卡片菜单按原型 19 去掉「连接到…」（桌面触控仍保留）
     const exportSelected = !IS_TOUCH_UI && many.length > 1
       ? [{ icon: FileDown, label: `导出选中的 ${many.length} 个节点`, run: () => void saveMarkdown(fileName(mapTitle()), nodesMd(many, mapTitle()), "selection") }]
       : [];
-    const connectItem: Item[] = IS_TOUCH_UI
+    const connectItem: Item[] = IS_TOUCH_UI && !IS_MOBILE_APP
       ? [{ icon: Link2, label: "连接到…", run: connect }]
       : [];
     return [copy, [

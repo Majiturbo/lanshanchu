@@ -3,7 +3,7 @@ import { IS_MOBILE_APP } from "../core/device.ts";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { track } from "../analytics/index.ts";
 import { relativeTime } from "../lib/format.ts";
-import { findPassage, type Passage } from "../lib/match.ts";
+import { findPassage, markSpan, type Passage } from "../lib/match.ts";
 import { citeOpenedRecently, closeCite, useCite, type CiteTarget } from "../store/cite.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import { useSettings } from "../settings/store.ts";
@@ -125,11 +125,21 @@ function Pop({ t }: { t: CiteTarget }) {
       <h4 className="cite-pop-title">{s.title}</h4>
       <div className="cite-pop-body">
         {from > 0 && <span className="cite-pop-gap">…</span>}
-        {sentences.slice(from, to).map((x, i) =>
-          hits.includes(from + i)
-            ? <mark key={i} ref={from + i === hits[0] ? mark : undefined}>{x}</mark>
-            : <span key={i}>{x}</span>,
-        )}
+        {sentences.slice(from, to).map((x, i) => {
+          const idx = from + i;
+          if (!hits.includes(idx)) return <span key={i}>{x}</span>;
+          const span = markSpan(x, t.quote);
+          const head = x.slice(0, span.start);
+          const mid = x.slice(span.start, span.end);
+          const tail = x.slice(span.end);
+          return (
+            <span key={i}>
+              {head}
+              <mark ref={idx === hits[0] ? mark : undefined}>{mid}</mark>
+              {tail}
+            </span>
+          );
+        })}
         {to < sentences.length && <span className="cite-pop-gap">…</span>}
         {!sentences.length && <span className="cite-pop-empty">没有可显示的原文</span>}
       </div>

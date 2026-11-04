@@ -266,6 +266,15 @@ html.is-mobile-app .drawer-ask { margin-inline: 12px; }
 /* 离开正在回答的地图前的确认：标题说清情况，按钮说清结果；左下记住选择 */
 .dialog.leave { max-width: 440px; }
 .leave-foot { display: flex; align-items: center; gap: 8px; padding: 8px 16px 16px 28px; }
+html.is-mobile-app .dialog.leave {
+  width: min(358px, calc(100vw - 32px));
+  margin: auto;
+}
+html.is-mobile-app .leave-foot {
+  flex-wrap: wrap; justify-content: flex-end;
+  padding: 4px 16px 16px;
+}
+html.is-mobile-app .leave-remember { margin-right: auto; }
 .leave-remember { display: flex; align-items: center; gap: 8px; margin-right: auto; font-size: var(--fs-sm); color: var(--ink-3); cursor: pointer; }
 .leave-remember input { margin: 0; accent-color: var(--ink); }
 
@@ -530,7 +539,11 @@ html.is-touch .hist-del { display: none; }
   margin: 10px 0 0; padding: 0 14px 4px; overflow-y: auto;
   font: 400 var(--fs-md)/1.8 var(--font-ui); letter-spacing: var(--read-track); color: var(--ink-3);
 }
-.cite-pop-body mark { color: var(--ink); background: var(--mark); box-shadow: 0 0 0 2px var(--mark); border-radius: var(--r-xs); }
+/* 只给命中文字上荧光笔，不整段铺底、不外扩光圈 */
+.cite-pop-body mark {
+  color: var(--ink); background: var(--mark); border-radius: 2px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
 .cite-pop-gap { color: var(--ink-4); }
 .cite-pop-empty { color: var(--ink-4); }
 .cite-pop-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px 12px; margin-top: 4px; }
@@ -588,8 +601,12 @@ html.is-mobile-app .reader-nav .icon-btn { width: 36px; height: 36px; }
 .reader-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 18px; font-size: var(--fs-sm); color: var(--ink-4); }
 .reader-link { color: var(--accent); font-size: var(--fs-sm); }
 .reader-text p { margin: 0.9em 0 0; font: 400 var(--read-size)/1.9 var(--font-ui); letter-spacing: var(--read-track); color: var(--ink-2); }
-.reader-text mark { color: var(--ink); background: var(--mark); border-radius: var(--r-xs); box-shadow: 0 0 0 2px var(--mark); transition: background var(--t-fast), box-shadow var(--t-fast); }
-.reader-text mark.is-on { background: var(--mark-strong); box-shadow: 0 0 0 2px var(--mark-strong); }
+.reader-text mark {
+  color: var(--ink); background: var(--mark); border-radius: 2px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  transition: background var(--t-fast);
+}
+.reader-text mark.is-on { background: var(--mark-strong); }
 
 /* ---------- 画布右键菜单与「在这里提一个新问题」 ---------- */
 /* 外框 10px、内边距 4px，菜单项 6px 圆角，保持同心 */

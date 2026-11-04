@@ -6,7 +6,7 @@ import { readPage } from "../api/client.ts";
 import { fullTextIssue, type Source } from "../core/protocol.ts";
 import { openExternal } from "../lib/external.ts";
 import { relativeTime, short } from "../lib/format.ts";
-import { findPassage, quotesFor, splitSentences } from "../lib/match.ts";
+import { findPassage, markSpan, quotesFor, splitSentences } from "../lib/match.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import type { GNode } from "../store/types.ts";
 import { MetaParts, SourceIcon } from "./common.tsx";
@@ -114,7 +114,15 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
                 const owners = view.owner.get(i);
                 if (!owners) return <span key={i}>{text}</span>;
                 const on = active !== null && owners.includes(active);
-                return <mark key={i} data-s={i} className={on ? "is-on" : undefined}>{text}</mark>;
+                const quote = view.quotes[on && active !== null ? active : owners[0]!]?.text ?? "";
+                const span = markSpan(text, quote);
+                return (
+                  <span key={i} data-s={i}>
+                    {text.slice(0, span.start)}
+                    <mark className={on ? "is-on" : undefined}>{text.slice(span.start, span.end)}</mark>
+                    {text.slice(span.end)}
+                  </span>
+                );
               })}
             </p>
           ))}

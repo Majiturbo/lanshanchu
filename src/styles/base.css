@@ -154,12 +154,17 @@ kbd { font: 500 var(--fs-sm)/1 var(--font-mono); color: var(--ink-4); }
 .toggle:hover { background: var(--surface-hover); }
 .toggle[aria-pressed="true"], .toggle[aria-expanded="true"] { color: var(--ink); background: var(--surface-sunken); }
 .toggle[aria-pressed="true"] .lucide { color: var(--accent); }
-/* 只有图标时选中态不铺底，靠图标色区分开/关 */
-.toggle.is-compact { width: 30px; padding: 0; justify-content: center; gap: 0; }
-.toggle.is-compact[aria-pressed="true"],
+/* 纯图标联网开关：关=无底+灰图标；开=粉底胶囊+主题色图标（原型） */
+.toggle.is-compact { width: 30px; padding: 0; justify-content: center; gap: 0; background: transparent; }
+.toggle.is-compact:hover { background: transparent; }
 .toggle.is-compact[aria-expanded="true"] { background: transparent; }
-.toggle.is-compact[aria-pressed="true"] .lucide,
 .toggle.is-compact[aria-expanded="true"] .lucide { color: var(--accent); }
+.toggle.is-compact[aria-pressed="true"],
+.toggle.is-compact[aria-pressed="true"]:hover {
+  background: var(--search-on-bg);
+  color: var(--search-on-icon);
+}
+.toggle.is-compact[aria-pressed="true"] .lucide { color: var(--search-on-icon); }
 .toggle.is-compact:not([aria-pressed="true"]):not([aria-expanded="true"]) .lucide { color: var(--ink-4); }
 
 /* 回答偏好：输入框旁的按钮与下拉弹层 */
@@ -456,15 +461,23 @@ html.is-mobile-app .history .hist-row:hover,
 html.is-mobile-app .hist-row.is-active {
   background: transparent;
 }
-/* 纯图标开关：选中也不铺底，开/关只靠图标色 */
-html.is-mobile-app .toggle.is-compact[aria-pressed="true"],
+/* 移动端联网开关跟原型：开有底色+对应图标色，关无底+灰图标；回答偏好展开仍无底 */
 html.is-mobile-app .toggle.is-compact[aria-expanded="true"] {
   background: transparent;
   color: var(--ink);
 }
-html.is-mobile-app .toggle.is-compact[aria-pressed="true"] .lucide,
 html.is-mobile-app .toggle.is-compact[aria-expanded="true"] .lucide {
   color: var(--accent);
+}
+html.is-mobile-app .toggle.is-compact[aria-pressed="true"] {
+  background: var(--search-on-bg);
+  color: var(--search-on-icon);
+}
+html.is-mobile-app .toggle.is-compact[aria-pressed="true"] .lucide {
+  color: var(--search-on-icon);
+}
+html.is-mobile-app .toggle.is-compact:not([aria-pressed="true"]):not([aria-expanded="true"]) {
+  background: transparent;
 }
 html.is-mobile-app .toggle.is-compact:not([aria-pressed="true"]):not([aria-expanded="true"]) .lucide {
   color: var(--ink-4);

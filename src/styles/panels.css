@@ -400,7 +400,8 @@ html.is-touch .hist-del { display: none; }
   position: relative; z-index: 1; background: var(--bg);
   transition: transform var(--t-fast) var(--ease);
 }
-.recent .hist-swipe-front { background: transparent; }
+/* 滑动时前景必须不透明，否则「时间」会透出叠在删除上 */
+.recent .hist-swipe-front { background: var(--bg); }
 .recent .hist-swipe-row.is-revealed .hist-swipe-front,
 .history .hist-swipe-row.is-revealed .hist-swipe-front {
   background: var(--surface);

@@ -70,21 +70,9 @@ html.is-mobile-app .home-titlebar {
 html.is-mobile-app .home-titlebar {
   height: calc(var(--titlebar-h) + env(safe-area-inset-top, 0px));
 }
+/* 移动 App：捏合缩放即可，不占底栏；详情页尤其不要桌面缩放条 */
 html.is-mobile-app .zoom {
-  right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px)));
-}
-html.is-mobile-app .zoom .icon-btn {
-  min-width: 44px;
-  min-height: 44px;
-}
-/* 全屏详情时仍保留适应画布入口，不把缩放条藏掉 */
-html.is-mobile-app .zoom.with-drawer,
-html.is-touch .zoom.with-drawer {
-  right: max(16px, env(safe-area-inset-right, 0px));
-  opacity: 1;
-  pointer-events: auto;
-  z-index: 16;
+  display: none;
 }
 html.is-mobile-app .drawer {
   top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));

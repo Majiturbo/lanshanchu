@@ -144,9 +144,12 @@ function applyEvent(map: string, id: string, ev: StreamEvent) {
       return patch(() => ({ imageNote: ev.text }));
     case "sources": {
       patch((n) => ({ sources: keepFullText(n.sources, ev.sources) }));
-      // 正在读的来源被复查剔除了：退出阅读视图，否则之后补搜又搜回这条时侧边栏会自己跳回阅读
+      // 正在读的来源被复查剔除了：退出阅读；从地图直进的一并关详情，勿留下没去过的详情层
       const { reading } = get();
-      if (get().map?.id === map && reading?.nodeId === id && !ev.sources.some((s) => s.id === reading.sourceId)) set({ reading: null });
+      if (get().map?.id === map && reading?.nodeId === id && !ev.sources.some((s) => s.id === reading.sourceId)) {
+        if (reading.back === "map") set({ reading: null, drawerId: null });
+        else set({ reading: null });
+      }
       return;
     }
     case "searched":

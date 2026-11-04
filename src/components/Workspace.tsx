@@ -52,7 +52,9 @@ function Topbar() {
     if (drawerId) return actions.closeDrawer();
     actions.leave(() => swapScreen(actions.goHome));
   };
-  const backLabel = reading ? "返回详情" : drawerId ? "关闭详情" : "回到首页";
+  const backLabel = reading
+    ? (reading.back === "map" ? "返回地图" : "返回详情")
+    : drawerId ? "关闭详情" : "回到首页";
 
   return (
     <header className="topbar" {...drag}>

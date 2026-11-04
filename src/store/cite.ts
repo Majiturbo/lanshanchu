@@ -18,8 +18,21 @@ export interface CiteTarget {
 
 export const useCite = create<{ open: CiteTarget | null }>(() => ({ open: null }));
 
+/** 打开时刻：挡住「打开同一次手势里落到遮罩上的幽灵 click / pointerdown」 */
+let openedAt = 0;
+
+export function citeOpenedRecently(ms = 400) {
+  return performance.now() - openedAt < ms;
+}
+
 export const openCite = (t: CiteTarget) => {
+  openedAt = performance.now();
   track("cite_opened", {});
   useCite.setState({ open: t });
 };
-export const closeCite = () => useCite.setState({ open: null });
+
+/** 默认带幽灵关闭保护；关闭按钮 / Esc 传 force */
+export const closeCite = (opts?: { force?: boolean }) => {
+  if (!opts?.force && citeOpenedRecently()) return;
+  useCite.setState({ open: null });
+};

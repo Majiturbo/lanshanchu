@@ -403,7 +403,11 @@ export const actions = {
     if (!s) return;
     if (s.url) recordSite(s.url, get().map?.id);
     track("reader_opened", { had_fulltext: !!s.text });
-    commitNodes(get().nodes, { ...focusOf(nodeId), drawerId: nodeId, reading: { nodeId, sourceId: s.id } });
+    // 详情已开着：返回详情；地图角标直进：返回地图。
+    // 已在 map 阅读中再开另一条：保留 map，勿因 drawerId 已有而改成 drawer。
+    const prev = get().reading;
+    const back = prev?.back === "map" || !get().drawerId ? "map" as const : "drawer" as const;
+    commitNodes(get().nodes, { ...focusOf(nodeId), drawerId: nodeId, reading: { nodeId, sourceId: s.id, back } });
   },
 
   /** 阅读视图里切换到上一条 / 下一条来源（循环） */
@@ -412,10 +416,20 @@ export const actions = {
     const sources = reading ? nodes[reading.nodeId]?.sources ?? [] : [];
     const i = reading ? sources.findIndex((s) => s.id === reading.sourceId) : -1;
     if (!reading || i < 0) return;
-    set({ reading: { nodeId: reading.nodeId, sourceId: sources[(i + delta + sources.length) % sources.length].id } });
+    set({
+      reading: {
+        nodeId: reading.nodeId,
+        sourceId: sources[(i + delta + sources.length) % sources.length].id,
+        back: reading.back ?? "drawer",
+      },
+    });
   },
 
-  closeReader: () => set({ reading: null }),
+  closeReader() {
+    const reading = get().reading;
+    if (reading?.back === "map") set({ reading: null, drawerId: null });
+    else set({ reading: null });
+  },
 
   /** 阅读视图读到全文后写回来源：之后写答案、引用气泡也能用全文 */
   setSourceText(nodeId: string, sourceId: string, text: string) {

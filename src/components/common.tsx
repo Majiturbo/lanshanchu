@@ -36,9 +36,14 @@ export function SourceStack({ sources, max = 4 }: { sources: Source[]; max?: num
   );
 }
 
-/** 角标：点击打开引用气泡（来源标题与原文高亮）；quote 是被引用的那句话 */
+/** 角标：打开引用气泡（来源标题与原文高亮）；quote 是被引用的那句话。
+ * 触屏在 pointerdown 就开——画布有 transform，卡片又有 overflow 时，iOS 会吞掉第一次 click。 */
 export function Cites({ cites, sources, quote = "" }: { cites: number[]; sources?: Source[]; quote?: string }) {
   const nodeId = useContext(CiteNode);
+  const open = (el: HTMLElement, n: number, s: NonNullable<typeof sources>[number]) => {
+    const r = el.getBoundingClientRect();
+    openCite({ source: s, n, quote, nodeId, anchor: { left: r.left, top: r.top, right: r.right, bottom: r.bottom } });
+  };
   return (
     <>
       {cites.map((c) => {
@@ -51,10 +56,21 @@ export function Cites({ cites, sources, quote = "" }: { cites: number[]; sources
             className="cite"
             data-act="cite"
             aria-label={`来源 ${c}：${s.title}`}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              if (e.button !== 0) return;
+              if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+              open(e.currentTarget, c, s);
+            }}
             onClick={(e) => {
               e.stopPropagation();
-              const r = e.currentTarget.getBoundingClientRect();
-              openCite({ source: s, n: c, quote, nodeId, anchor: { left: r.left, top: r.top, right: r.right, bottom: r.bottom } });
+              // 触屏已在 pointerdown 打开；粗指针设备跳过 click，避免和外部关闭打架
+              if (window.matchMedia("(pointer: coarse)").matches) return;
+              if (e.nativeEvent instanceof PointerEvent) {
+                const t = e.nativeEvent.pointerType;
+                if (t === "touch" || t === "pen") return;
+              }
+              open(e.currentTarget, c, s);
             }}
           >
             {c}

@@ -22,7 +22,8 @@ html.is-mobile-app:has(
   .viewer:not(.is-closing),
   .auth-screen:not(.is-closing),
   .phone-bind-gate:not(.is-closing),
-  .mset:not(.is-closing)
+  .mset:not(.is-closing),
+  .cite-sheet
 ) .stage {
   pointer-events: none;
 }

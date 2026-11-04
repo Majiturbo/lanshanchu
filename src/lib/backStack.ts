@@ -69,7 +69,7 @@ export function dismissOne(): boolean {
     return true;
   }
   if (document.querySelector(SHEET_SEL)) {
-    if (useCite.getState().open) closeCite();
+    if (useCite.getState().open) closeCite({ force: true });
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-menu"));
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-overflow"));
     return true;
@@ -83,7 +83,7 @@ export function dismissOne(): boolean {
     return true;
   }
   if (useCite.getState().open) {
-    closeCite();
+    closeCite({ force: true });
     return true;
   }
   if (useSettings.getState().gate) {

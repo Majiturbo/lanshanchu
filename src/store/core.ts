@@ -39,8 +39,9 @@ export interface GraphState {
   selected: string[];
   drawerId: string | null;
   /** 侧边栏里正在阅读的来源（节点 id 与来源 id）；为 null 时侧边栏显示节点详情。
-   * 按 id 而不是序号定位：回答过程中复查会剔除来源，序号会变 */
-  reading: { nodeId: string; sourceId: string } | null;
+   * 按 id 而不是序号定位：回答过程中复查会剔除来源，序号会变。
+   * back：从详情进阅读 → 返回详情；从地图角标直进 → 返回地图（不要留下没去过的详情层） */
+  reading: { nodeId: string; sourceId: string; back: "drawer" | "map" } | null;
   summaryOpen: boolean;
   search: boolean;
   view: View;

@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { track } from "../analytics/index.ts";
 import { relativeTime } from "../lib/format.ts";
 import { findPassage, type Passage } from "../lib/match.ts";
-import { closeCite, useCite, type CiteTarget } from "../store/cite.ts";
+import { citeOpenedRecently, closeCite, useCite, type CiteTarget } from "../store/cite.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import { useSettings } from "../settings/store.ts";
 import { MetaParts, SourceIcon } from "./common.tsx";
@@ -24,31 +24,34 @@ export function CitePopover() {
   // 不跟随节点内容变化——别的节点还在流式输出时，气泡不能被打断
   useEffect(() => {
     if (!open) return;
-    // 打开瞬间布局滚动会冒泡到外层；短窗口内忽略，否则第一次点开立刻被关掉
-    const openedAt = performance.now();
+    // 打开瞬间：布局滚动、落到遮罩上的幽灵 click 都会误关；短窗口内忽略外部关闭
     const unsub = useGraph.subscribe((s, prev) => {
-      if (s.view !== prev.view || s.drawerId !== prev.drawerId || s.screen !== prev.screen || s.summaryOpen !== prev.summaryOpen) closeCite();
+      if (s.view !== prev.view || s.drawerId !== prev.drawerId || s.screen !== prev.screen || s.summaryOpen !== prev.summaryOpen) {
+        closeCite({ force: true });
+      }
     });
     const onScroll = (e: Event) => {
-      if (performance.now() - openedAt < 450) return;
+      if (citeOpenedRecently(450)) return;
       if (!(e.target instanceof Element && e.target.closest(".cite-pop, .cite-sheet"))) closeCite();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); closeCite(); }
+      if (e.key === "Escape") { e.stopPropagation(); closeCite({ force: true }); }
     };
     const onDown = (e: PointerEvent) => {
-      if (!(e.target as HTMLElement).closest(".cite-pop, .cite-sheet-panel, [data-act=cite]")) closeCite();
+      if (citeOpenedRecently(400)) return;
+      if (!(e.target as HTMLElement).closest(".cite-pop, .cite-sheet-panel, .cite-sheet-scrim, [data-act=cite]")) closeCite();
     };
+    const onResize = () => closeCite({ force: true });
     addEventListener("keydown", onKey, true);
     addEventListener("pointerdown", onDown, true);
-    addEventListener("resize", closeCite);
+    addEventListener("resize", onResize);
     addEventListener("scroll", onScroll, true);
     return () => {
       removeEventListener("scroll", onScroll, true);
       unsub();
       removeEventListener("keydown", onKey, true);
       removeEventListener("pointerdown", onDown, true);
-      removeEventListener("resize", closeCite);
+      removeEventListener("resize", onResize);
     };
   }, [open]);
   return open ? <Pop key={`${open.source.id}:${open.n}:${open.quote}`} t={open} /> : null;
@@ -102,12 +105,12 @@ function Pop({ t }: { t: CiteTarget }) {
   const to = hits.length ? Math.min(sentences.length, hits[hits.length - 1] + CONTEXT + 1) : Math.min(sentences.length, HEAD);
 
   const openReader = () => {
-    closeCite();
+    closeCite({ force: true });
     track("source_opened", { via: "cite", open_mode: "reader" });
     actions.readSource(t.nodeId!, t.n);
   };
   const openBrowser = () => {
-    closeCite();
+    closeCite({ force: true });
     track("source_opened", { via: "cite", open_mode: "browser" });
   };
 
@@ -117,7 +120,7 @@ function Pop({ t }: { t: CiteTarget }) {
         <span className="cite-pop-n">{t.n}</span>
         <SourceIcon source={s} />
         <MetaParts className="cite-pop-meta" items={[s.site, relativeTime(s.date)]} />
-        <button type="button" className="icon-btn cite-pop-close" aria-label="关闭" onClick={closeCite}><X size={14} strokeWidth={1.8} /></button>
+        <button type="button" className="icon-btn cite-pop-close" aria-label="关闭" onClick={() => closeCite({ force: true })}><X size={14} strokeWidth={1.8} /></button>
       </header>
       <h4 className="cite-pop-title">{s.title}</h4>
       <div className="cite-pop-body">
@@ -166,7 +169,7 @@ function Pop({ t }: { t: CiteTarget }) {
   if (sheet) {
     return (
       <div className="cite-sheet" role="presentation">
-        <button type="button" className="cite-sheet-scrim" aria-label="关闭" onClick={closeCite} />
+        <button type="button" className="cite-sheet-scrim" aria-label="关闭" onClick={() => closeCite()} />
         <div
           ref={ref}
           className="cite-pop is-sheet cite-sheet-panel"

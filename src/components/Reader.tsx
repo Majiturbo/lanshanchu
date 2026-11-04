@@ -7,18 +7,20 @@ import { fullTextIssue, type Source } from "../core/protocol.ts";
 import { openExternal } from "../lib/external.ts";
 import { relativeTime, short } from "../lib/format.ts";
 import { findPassage, quotesFor, splitSentences } from "../lib/match.ts";
-import { actions } from "../store/graph.ts";
+import { actions, useGraph } from "../store/graph.ts";
 import type { GNode } from "../store/types.ts";
 import { MetaParts, SourceIcon } from "./common.tsx";
 
 // 侧边栏的来源阅读视图：网页正文（没读过的先读全文，读不到就用搜索摘要），
-// 这个节点里引用了这条来源的每一句都在原文里高亮，顶部可以逐处跳转；← → 切换来源，Esc 返回详情。
+// 这个节点里引用了这条来源的每一句都在原文里高亮，顶部可以逐处跳转；← → 切换来源。
+// 从详情进：返回详情；从地图角标直进：返回地图。
 
 type Load = { state: "idle" | "loading" | "done" } | { state: "error"; reason: string };
 
 export function Reader({ node, n }: { node: GNode; n: number }) {
   const s = node.sources[n - 1];
   const total = node.sources.length;
+  const backTo = useGraph((st) => st.reading?.back ?? "drawer");
   const body = useRef<HTMLDivElement>(null);
   const [load, setLoad] = useState<Load>({ state: s?.text || !s?.url ? "done" : "idle" });
   const [active, setActive] = useState<number | null>(null);
@@ -41,7 +43,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
     return () => ctrl.abort();
   }, [node.id, s?.url]);
 
-  // ← → 切换来源，Esc 回到详情（捕获阶段处理，避免同时关掉整个侧边栏）
+  // ← → 切换来源；Esc 走 closeReader（捕获阶段，避免同时关掉整栏）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.matches("input, textarea")) return;
@@ -66,7 +68,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
     <>
       <div className="drawer-head reader-head">
         <button type="button" className="reader-back" onClick={actions.closeReader}>
-          <ArrowLeft size={14} strokeWidth={1.8} />详情
+          <ArrowLeft size={14} strokeWidth={1.8} />{backTo === "map" ? "地图" : "详情"}
         </button>
         {IS_MOBILE_APP ? null : <MetaParts className="reader-crumb" items={[short(node.q, 14), `来源 ${n}/${total}`]} />}
         <span className="reader-nav">

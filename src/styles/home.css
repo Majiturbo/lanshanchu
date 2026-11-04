@@ -16,8 +16,18 @@
 /* 没有历史时整体居中，略偏上一点（视觉中心） */
 .home.is-empty { align-items: center; }
 .home.is-empty .home-inner { padding: var(--titlebar-h) 0 calc(var(--titlebar-h) + 6vh); }
-/* 历史记录读出之前先不显示，避免布局从居中跳到靠上 */
-.home.is-pending .home-inner { visibility: hidden; }
+/* 历史读出前先藏内容；用透明度淡入，避免 visibility 切换太硬 */
+.home-inner {
+  opacity: 1;
+  transition: opacity var(--t-mid) var(--ease);
+}
+.home.is-pending .home-inner {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-inner { transition: none; }
+}
 
 /* 字标是图形，字号只决定它的高度，不算文字字号。灯从提问框顶边升起，穿过字标一直往上 */
 .wordmark { position: relative; z-index: 1; margin: 0 0 28px; font-size: clamp(40px, 6.4vw, 56px); line-height: 1; display: flex; justify-content: center; }
@@ -52,7 +62,8 @@
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   padding: 16px 14px 10px 20px;
-  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  margin-bottom: var(--kb-inset, 0px);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), margin-bottom var(--t-fast);
 }
 .ask:focus-within { border-color: var(--line-hover); box-shadow: var(--shadow-2); }
 .ask.is-drop { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow-2); }

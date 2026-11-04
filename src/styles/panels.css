@@ -147,8 +147,26 @@ button.source { width: 100%; text-align: left; }
 .drawer-ask input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; }
 .drawer-ask input::placeholder { color: var(--ink-4); }
 
+/* 移动登录 / 额度门闸短页 */
+.dialog-layer.is-gate { align-items: stretch; padding: 0; }
+.dialog-layer.is-gate .dialog.gate-sheet {
+  width: 100%; max-width: none; height: 100%; max-height: none;
+  border-radius: 0; border: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px));
+}
+.gate-lead { margin: 0 0 16px; font-size: var(--fs-md); line-height: 1.7; color: var(--ink-2); }
+.gate-more { width: 100%; margin-top: 16px; justify-content: center; min-height: 44px; }
+.gate-sheet .account-form .btn-primary,
+.gate-sheet .field-actions .btn { min-height: 44px; padding-inline: 16px; }
+
 /* ---------- 对话框（总结、设置共用遮罩） ---------- */
-.dialog-layer { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.dialog-layer {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  padding-bottom: max(24px, calc(16px + var(--kb-inset, 0px) + env(safe-area-inset-bottom, 0px)));
+}
 /* 对话框只盖住内容区：标题栏（拖动窗口、最小化、关闭）保持清晰可用 */
 :root:has(.topbar) .dialog-layer { top: var(--topbar-h); }
 :root:has(.home-titlebar) .dialog-layer { top: var(--titlebar-h); }
@@ -367,6 +385,8 @@ button.source { width: 100%; text-align: left; }
 .hist-row:hover .hist-open, .hist-row.is-active .hist-open, .hist-open:focus-visible { color: var(--ink); }
 .hist-row:hover .hist-meta, .hist-row.is-active .hist-meta { color: var(--ink-3); }
 .hist-row:hover .hist-del, .hist-row.is-active .hist-del, .hist-del:focus-visible { opacity: 1; pointer-events: auto; }
+/* 触控无悬停：删除按钮常显 */
+html.is-touch .hist-del { opacity: 1; pointer-events: auto; }
 
 .history { max-width: 560px; min-height: min(380px, 100%); max-height: min(620px, 100%); }
 .history .dialog-head { gap: 10px; }
@@ -387,7 +407,8 @@ button.source { width: 100%; text-align: left; }
 /* ---------- 大图查看 ---------- */
 .viewer {
   position: fixed; inset: 0; z-index: 55;
-  display: grid; place-items: center; padding: 56px 72px;
+  display: grid; place-items: center;
+  padding: max(56px, calc(env(safe-area-inset-top, 0px) + 40px)) max(72px, calc(env(safe-area-inset-right, 0px) + 24px)) max(56px, calc(env(safe-area-inset-bottom, 0px) + 40px)) max(72px, calc(env(safe-area-inset-left, 0px) + 24px));
   background: var(--overlay); backdrop-filter: blur(6px);
   cursor: zoom-out;
   animation: fade var(--t-mid) var(--ease) both;
@@ -399,10 +420,10 @@ button.source { width: 100%; text-align: left; }
 .viewer.is-closing { animation: fade-out var(--t-fast) var(--ease-in) both; pointer-events: none; }
 .viewer .icon-btn { position: absolute; width: 36px; height: 36px; color: var(--overlay-text); }
 .viewer .icon-btn:hover { background: var(--overlay-hover); color: var(--on-solid); }
-.viewer-close { top: 14px; right: 16px; }
-.viewer-prev { left: 16px; top: 50%; margin-top: -18px; }
-.viewer-next { right: 16px; top: 50%; margin-top: -18px; }
-.viewer-count { position: absolute; bottom: 18px; left: 50%; translate: -50% 0; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: var(--overlay-text); }
+.viewer-close { top: max(14px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); }
+.viewer-prev { left: max(16px, env(safe-area-inset-left, 0px)); top: 50%; margin-top: -18px; }
+.viewer-next { right: max(16px, env(safe-area-inset-right, 0px)); top: 50%; margin-top: -18px; }
+.viewer-count { position: absolute; bottom: max(18px, env(safe-area-inset-bottom, 0px)); left: 50%; translate: -50% 0; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: var(--overlay-text); }
 
 .spin { animation: spin 900ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -489,6 +510,8 @@ button.source { width: 100%; text-align: left; }
 }
 .ctx-item .lucide { flex: none; color: var(--ink-3); }
 .ctx-item:hover, .ctx-item:focus-visible { background: var(--surface-hover); color: var(--ink); outline: none; }
+.ctx-item.is-danger { color: var(--danger); }
+.ctx-item.is-danger .lucide { color: var(--danger); }
 .ctx-ask {
   position: fixed; z-index: 40; width: 320px;
   background: var(--surface); border: var(--hair) solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-3);
@@ -498,6 +521,42 @@ button.source { width: 100%; text-align: left; }
 .ctx-ask-icon { flex: none; color: var(--ink-3); }
 .ctx-ask input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: var(--fs-md); color: var(--ink); }
 .ctx-ask input::placeholder { color: var(--ink-4); }
+/* 移动动作表：底部升起 */
+.ctx-sheet, .ctx-pick {
+  position: fixed; inset: 0; z-index: 45;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.ctx-sheet-scrim { position: absolute; inset: 0; background: var(--scrim, rgba(0, 0, 0, 0.4)); }
+.ctx-sheet-panel {
+  position: relative; z-index: 1; width: min(480px, 100%);
+  padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--shadow-3);
+  animation: enter var(--t-mid) var(--ease) both;
+}
+.ctx-sheet.is-closing .ctx-sheet-panel { animation: leave var(--t-fast) var(--ease-in) both; }
+.ctx-sheet-handle {
+  width: 36px; height: 4px; margin: 4px auto 12px;
+  border-radius: 999px; background: var(--line-strong);
+}
+.ctx-sheet .ctx-item, .ctx-pick .ctx-item {
+  height: 48px; font-size: var(--fs-lg);
+}
+.ctx-cancel {
+  margin-top: 8px; justify-content: center; font-weight: 500; color: var(--ink);
+  border-top: var(--hair) solid var(--line);
+  border-radius: var(--r-md);
+}
+.ctx-ask.is-sheet {
+  left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px));
+  width: auto; padding-bottom: 8px;
+}
+.ctx-pick-title {
+  margin: 0 8px 8px; font-size: var(--fs-md); font-weight: 600; color: var(--ink);
+}
+.ctx-pick-empty {
+  margin: 8px; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-3);
+}
 
 /* ---------- 设置里的记忆：一段可直接编辑的文本 ---------- */
 .memory-text {

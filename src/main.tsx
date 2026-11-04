@@ -13,6 +13,8 @@ import "./core/device.ts";
 import { IN_APP } from "./core/http.ts";
 import { refreshAccount } from "./core/platform.ts";
 import { startAutosave } from "./history/store.ts";
+import { startBackStack } from "./lib/backStack.ts";
+import { startKeyboardInset } from "./lib/keyboardInset.ts";
 import { startMemory } from "./memory/run.ts";
 import { useGraph } from "./store/graph.ts";
 import { useSettings, type Theme } from "./settings/store.ts";
@@ -29,6 +31,8 @@ if (IN_APP && !import.meta.env.DEV) {
 
 startAutosave();
 startMemory(() => useGraph.getState().map?.id ?? null);
+startKeyboardInset();
+startBackStack();
 trackAppOpened();
 useSettings.persist.onFinishHydration(() => { void refreshAccount(); });
 if (useSettings.persist.hasHydrated()) void refreshAccount();

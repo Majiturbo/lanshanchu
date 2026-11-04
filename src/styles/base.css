@@ -289,13 +289,14 @@ button.cite:hover { background: var(--accent-solid); color: var(--on-solid); }
 
 /* ---------- 轻提示 ---------- */
 .toast {
-  position: fixed; z-index: 60; left: 50%; bottom: 24px;
+  position: fixed; z-index: 60; left: 50%;
+  bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 12px + var(--kb-inset, 0px)));
   display: flex; align-items: center; gap: 14px;
   padding: 8px 16px; border-radius: 999px;
   background: var(--ink); color: var(--surface); font-size: var(--fs-md);
   box-shadow: var(--shadow-2);
   opacity: 0; transform: translate(-50%, 8px); pointer-events: none;
-  transition: opacity var(--t-fast) var(--ease-in), transform var(--t-fast) var(--ease-in);
+  transition: opacity var(--t-fast) var(--ease-in), transform var(--t-fast) var(--ease-in), bottom var(--t-fast);
 }
 .toast.is-on {
   opacity: 1; transform: translate(-50%, 0); pointer-events: auto;

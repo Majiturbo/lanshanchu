@@ -41,6 +41,15 @@ export async function saveMarkdown(name: string, content: string, scope: ExportS
         toast("已导出 Markdown");
         return;
       }
+      // 系统分享不可用或失败：复制 Markdown，再退回下载
+      try {
+        await navigator.clipboard.writeText(content);
+        track("export_done", { scope });
+        toast("已复制 Markdown");
+        return;
+      } catch {
+        /* 继续下载兜底 */
+      }
       downloadMarkdown(name, content);
       track("export_done", { scope });
       toast("已导出 Markdown");

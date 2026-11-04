@@ -1,4 +1,4 @@
-import { ArrowRight, Brain, ChevronsRight, LoaderCircle, Minus, PanelRightOpen, Plus, RotateCw, Settings } from "lucide-react";
+import { ArrowRight, Brain, ChevronsRight, Ellipsis, LoaderCircle, Minus, PanelRightOpen, Plus, RotateCw, Settings } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { history } from "../history/store.ts";
 import { slotKey } from "./layout.ts";
@@ -9,10 +9,16 @@ import { ThinkingStream } from "../components/ThinkingStream.tsx";
 import { splitPhrases, usePhraseReveal, useStagger, type Phrase } from "../components/smoothText.ts";
 import { VisualCard } from "../components/VisualCard.tsx";
 import { seconds } from "../components/SearchLog.tsx";
+import { IS_TOUCH_UI } from "../core/device.ts";
 import { sourceMeta } from "../lib/format.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import type { GNode } from "../store/types.ts";
+
+/** 触控下打开节点动作表（由 Canvas 监听并转成 ContextMenu） */
+export function openNodeMenu(nodeId: string, x: number, y: number) {
+  document.dispatchEvent(new CustomEvent("lanshan:node-menu", { detail: { nodeId, x, y } }));
+}
 
 const OP_LABEL = { summary: "总结", relate: "关联", deepen: "深入了解", expand: "扩散", custom: "指令" } as const;
 
@@ -253,6 +259,17 @@ function AnswerCard({ n, active }: { n: GNode; active: boolean }) {
                     <button type="button" className="icon-btn" data-act="detail" aria-label="打开详情" onClick={() => actions.openDrawer(n.id)}>
                       <PanelRightOpen size={14} strokeWidth={1.6} />
                     </button>
+                    {IS_TOUCH_UI && (
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        data-act="more"
+                        aria-label="更多操作"
+                        onClick={(e) => openNodeMenu(n.id, e.clientX, e.clientY)}
+                      >
+                        <Ellipsis size={14} strokeWidth={1.6} />
+                      </button>
+                    )}
                   </span>
                 </div>
               </>
@@ -420,8 +437,9 @@ function isDim(s: { nodes: Record<string, GNode>; activeId: string | null; selec
   return !!f && !f.lit.has(id);
 }
 
-/** 输入框此刻是否显示：当前节点的常显；其余在鼠标移到节点或输入框的位置上、有焦点、打了字或正在理解时显示 */
+/** 输入框此刻是否显示：当前节点的常显；其余在鼠标移到节点或输入框的位置上、有焦点、打了字或正在理解时显示。触控不再依赖悬停，完成节点一律可显（非当前用淡槽） */
 export function slotShown(s: { activeId: string | null; hovered: string | null; slotKeep: Record<string, true>; slotBusy: Record<string, true> }, parent: string) {
+  if (IS_TOUCH_UI) return true;
   return s.activeId === parent || s.hovered === parent || !!s.slotKeep[parent] || !!s.slotBusy[parent];
 }
 

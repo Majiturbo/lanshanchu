@@ -110,8 +110,9 @@ export function Home() {
       ? (usage?.plan ? "额度已用完" : "尚未开通套餐")
     : null;
 
+  // 待定时先按空首页排版（更常见），内容仍透明；读出后若有历史再经 swapScreen 挪布局
   return (
-    <main className={`home${empty ? " is-empty" : ""}${empty === null ? " is-pending" : ""}`}>
+    <main className={`home${empty !== false ? " is-empty" : ""}${empty === null ? " is-pending" : ""}`}>
       <LanternSky active={night && empty !== null && petals} />
       <header className="home-titlebar" {...drag}>
         <div className="home-titlebar-actions">

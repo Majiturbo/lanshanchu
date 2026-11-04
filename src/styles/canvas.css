@@ -113,7 +113,7 @@
 /* 内容超过最大高度：卡片里面滚动（鼠标在卡片上时滚轮只滚卡片，见 Canvas.tsx）。
    原生滚动条隐藏，用 NodeView 的 ScrollThumb 自绘一条 3px 的细条，贴在卡片右内边距里，正文宽度不变；
    悬停卡片或正在滚动时淡入，停下后淡出 */
-.card-shell.is-scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.card-shell.is-scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; touch-action: pan-y; }
 .card-shell.is-scroll::-webkit-scrollbar { display: none; }
 .card { position: relative; }
 .card .scroll-thumb { right: 6px; }
@@ -359,6 +359,14 @@
 /* 连到输入框的虚线：同样跟着淡入淡出，线本身用 stroke-opacity 调淡，不和淡入淡出的 opacity 互相覆盖 */
 .edge.is-slot { stroke-dasharray: 3 4; stroke-opacity: 0.6; opacity: 0; animation: none; transition: opacity var(--t-fast) var(--ease-in) var(--t-fast); }
 .edge.is-slot.is-shown { opacity: 1; transition: opacity var(--t-mid) var(--ease); }
+/* 触控：非当前追问槽淡显，不再依赖悬停 */
+html.is-touch .node.is-slot.is-shown:not(.is-current) { opacity: 0.55; }
+html.is-touch .node.is-slot.is-shown.is-current { opacity: 1; }
+html.is-touch .edge.is-slot.is-shown { opacity: 0.7; }
+/* 窄屏保证卡片两侧留出拖动画布的空隙 */
+@media (max-width: 720px) {
+  :root { --card-w: min(380px, calc(100vw - 48px)); }
+}
 .slot {
   display: flex; align-items: center; gap: 8px;
   width: var(--pill-w); padding: 4px 4px 4px 12px;

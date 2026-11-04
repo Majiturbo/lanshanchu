@@ -59,7 +59,7 @@
   .zoom.with-drawer { right: 16px; opacity: 0; pointer-events: none; }
 }
 
-/* 移动 App：顶栏吃进状态栏安全区；缩放控件避开底部横条 */
+/* 移动 App：顶栏吃进状态栏安全区；缩放控件避开底部横条与键盘 */
 html.is-mobile-app .topbar,
 html.is-mobile-app .home-titlebar {
   height: calc(var(--topbar-h, var(--titlebar-h)) + env(safe-area-inset-top, 0px));
@@ -72,9 +72,54 @@ html.is-mobile-app .home-titlebar {
 }
 html.is-mobile-app .zoom {
   right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px)));
 }
 html.is-mobile-app .zoom .icon-btn {
   min-width: 44px;
   min-height: 44px;
+}
+/* 全屏详情时仍保留适应画布入口，不把缩放条藏掉 */
+html.is-mobile-app .zoom.with-drawer,
+html.is-touch .zoom.with-drawer {
+  right: max(16px, env(safe-area-inset-right, 0px));
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 16;
+}
+html.is-mobile-app .drawer {
+  top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--kb-inset, 0px);
+}
+html.is-mobile-app .drawer-ask {
+  margin-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+html.is-mobile-app .topbar-actions {
+  position: relative;
+}
+html.is-mobile-app .topbar-overflow {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 200px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  background: var(--surface);
+  border: var(--hair) solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-3);
+  animation: enter var(--t-fast) var(--ease) both;
+}
+html.is-mobile-app .topbar-overflow.is-closing {
+  animation: leave var(--t-fast) var(--ease-in) both;
+  pointer-events: none;
+}
+html.is-mobile-app .topbar-overflow .toggle,
+html.is-mobile-app .topbar-overflow .prefs {
+  width: 100%;
+}
+html.is-mobile-app .crumbs .crumb {
+  max-width: min(160px, 36vw);
 }

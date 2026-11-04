@@ -1,10 +1,10 @@
-import { AlignLeft, ArrowLeft, ChevronRight, Maximize, Minus, Plus, Settings } from "lucide-react";
+import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, Maximize, Minus, Plus, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Canvas, useCrumbs } from "../canvas/Canvas.tsx";
-import { IS_TOUCH_UI } from "../core/device.ts";
+import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { short } from "../lib/format.ts";
 import { screenTransition, swapScreen } from "../lib/transition.ts";
-import { useHistory } from "../history/store.ts";
+import { history, useHistory } from "../history/store.ts";
 import { drawerCss, settingsActions, useSettings } from "../settings/store.ts";
 import { actions, fit, isReady, useGraph, zoomAt } from "../store/graph.ts";
 import { CitePopover } from "./CitePopover.tsx";
@@ -15,14 +15,45 @@ import { Drawer } from "./Drawer.tsx";
 import { HistoryButton } from "./History.tsx";
 import { SummarySheet } from "./SummarySheet.tsx";
 import { drag, WindowControls } from "./TitleBar.tsx";
+import { usePresence } from "./presence.ts";
 import "../styles/workspace.css";
 
 function Topbar() {
   const crumbs = useCrumbs();
   const hasAnswers = useGraph((s) => Object.values(s.nodes).some(isReady));
+  const drawerId = useGraph((s) => s.drawerId);
+  const reading = useGraph((s) => s.reading);
+  const [more, setMore] = useState(false);
+  const moreP = usePresence(more);
+
+  useEffect(() => {
+    if (!more) return;
+    dispatchEvent(new CustomEvent("lanshan:trap-back"));
+    const dismiss = () => setMore(false);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMore(false); };
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement).closest(".topbar-overflow, .topbar-more-btn")) setMore(false);
+    };
+    addEventListener("lanshan:dismiss-overflow", dismiss);
+    addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown, true);
+    return () => {
+      removeEventListener("lanshan:dismiss-overflow", dismiss);
+      removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown, true);
+    };
+  }, [more]);
+
+  const onBack = () => {
+    if (reading) return actions.closeReader();
+    if (drawerId) return actions.closeDrawer();
+    actions.leave(() => swapScreen(actions.goHome));
+  };
+  const backLabel = reading ? "返回详情" : drawerId ? "关闭详情" : "回到首页";
+
   return (
     <header className="topbar" {...drag}>
-      <button type="button" className="icon-btn topbar-back" aria-label="回到首页" data-replay-id="back" onClick={() => actions.leave(() => swapScreen(actions.goHome))}>
+      <button type="button" className="icon-btn topbar-back" aria-label={backLabel} data-replay-id="back" onClick={onBack}>
         <ArrowLeft size={16} strokeWidth={1.6} />
       </button>
       <span className="topbar-sep" aria-hidden="true" {...drag} />
@@ -36,18 +67,47 @@ function Topbar() {
           </span>
         ))}
       </nav>
-      <div className="topbar-actions">
-        <SearchToggle compact />
-        <PrefsMenu compact />
-        <button type="button" className="btn" onClick={actions.openSummary} disabled={!hasAnswers}>
-          <AlignLeft size={14} strokeWidth={1.6} />
-          <span className="btn-label">总结</span>
-        </button>
-        <HistoryButton />
-        <button type="button" className="icon-btn" aria-label="设置" data-replay-id="settings" onClick={() => settingsActions.open("manual")}>
-          <Settings size={16} strokeWidth={1.6} />
-        </button>
-      </div>
+      {IS_MOBILE_APP ? (
+        <div className="topbar-actions">
+          <button
+            type="button"
+            className="icon-btn topbar-more-btn"
+            aria-label="更多"
+            aria-expanded={more}
+            onClick={() => setMore((o) => !o)}
+          >
+            <Ellipsis size={16} strokeWidth={1.6} />
+          </button>
+          {moreP.mounted && (
+            <div className={`topbar-overflow${moreP.closing ? " is-closing" : ""}`} role="menu">
+              <SearchToggle compact />
+              <PrefsMenu compact />
+              <button type="button" className="ctx-item" role="menuitem" disabled={!hasAnswers} onClick={() => { setMore(false); actions.openSummary(); }}>
+                <AlignLeft size={14} strokeWidth={1.6} />总结
+              </button>
+              <button type="button" className="ctx-item" role="menuitem" onClick={() => { setMore(false); history.openPanel(); }}>
+                历史记录
+              </button>
+              <button type="button" className="ctx-item" role="menuitem" data-replay-id="settings" onClick={() => { setMore(false); settingsActions.open("manual"); }}>
+                <Settings size={14} strokeWidth={1.6} />设置
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="topbar-actions">
+          <SearchToggle compact />
+          <PrefsMenu compact />
+          <button type="button" className="btn" onClick={actions.openSummary} disabled={!hasAnswers}>
+            <AlignLeft size={14} strokeWidth={1.6} />
+            <span className="btn-label">总结</span>
+          </button>
+          <HistoryButton />
+          <button type="button" className="icon-btn" aria-label="设置" data-replay-id="settings" onClick={() => settingsActions.open("manual")}>
+            <Settings size={16} strokeWidth={1.6} />
+          </button>
+        </div>
+      )}
       <WindowControls />
     </header>
   );

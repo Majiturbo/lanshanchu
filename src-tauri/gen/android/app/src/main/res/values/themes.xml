@@ -1,6 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Theme.lanshanchu" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
+        <!-- 浅色背景，与 tokens / 启动衔接 -->
+        <item name="android:windowBackground">#f3efe9</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">#f3efe9</item>
     </style>
 </resources>

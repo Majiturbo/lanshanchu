@@ -159,10 +159,11 @@ export const useSettings = create<SettingsState>()(
   ),
 );
 
-/** 打开设置时的来源：登录表单用来区分 ask_gate / settings */
+/** 打开设置时的来源：登录表单用来区分 ask_gate / settings；移动门闸短页也看它 */
 export type SettingsOpenReason = "manual" | "login" | "quota";
 let settingsOpenReason: SettingsOpenReason = "manual";
 export const loginFrom = () => (settingsOpenReason === "login" ? "ask_gate" as const : "settings" as const);
+export const settingsReason = () => settingsOpenReason;
 
 export const settingsActions = {
   /** 设置即改即存：persist 中间件会把变更写入本机存储 */

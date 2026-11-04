@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>阑珊处</title>
     <link rel="icon" href="/favicon.png?v=lantern" type="image/png" />
+    <!-- 首屏前写好明暗与底色，避免启动页 / WebView 白底再跳到深色 -->
+    <script>
+      (function () {
+        var theme = "dark";
+        try {
+          var raw = localStorage.getItem("lanshan-settings");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var saved = parsed && parsed.state && parsed.state.theme;
+            if (saved === "light" || saved === "dark" || saved === "system") theme = saved;
+            else theme = "system";
+          }
+        } catch (_) {}
+        var root = document.documentElement;
+        if (theme === "system") root.removeAttribute("data-theme");
+        else root.setAttribute("data-theme", theme);
+        var dark =
+          theme === "dark" ||
+          (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var bg = dark ? "#141726" : "#f3efe9";
+        root.style.backgroundColor = bg;
+        root.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

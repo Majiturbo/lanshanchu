@@ -1,5 +1,8 @@
 node_modules/
 dist/
+dist-mobile/
+# iOS 前端拷贝产物由移动构建写入，不进仓库
+src-tauri/gen/apple/assets/
 .env
 .env.*
 !.env.example

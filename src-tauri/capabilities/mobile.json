@@ -3,6 +3,7 @@
   "identifier": "mobile",
   "description": "iOS / Android：无窗口拖拽与窗控。网络请求允许公网 http/https，拒绝本机与内网；外链交给系统浏览器。",
   "platforms": ["iOS", "android"],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "opener:allow-open-url",

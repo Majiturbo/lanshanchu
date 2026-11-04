@@ -90,6 +90,24 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![]);
 
     builder
+        .setup(|app| {
+            // iOS 27 Scene 下配置窗口有时尚未挂上；没有就显式建一个，避免只有原生壳、WebView 空白。
+            #[cfg(mobile)]
+            {
+                use tauri::Manager;
+                if app.webview_windows().is_empty() {
+                    tauri::WebviewWindowBuilder::new(
+                        app,
+                        "main",
+                        tauri::WebviewUrl::App("index.html".into()),
+                    )
+                    .title("阑珊处")
+                    .build()?;
+                }
+            }
+            let _ = app;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

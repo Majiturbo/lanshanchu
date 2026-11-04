@@ -111,7 +111,10 @@ function Panel({ closing }: { closing: boolean }) {
   // 键盘移动按分组后的顺序
   const flat = groups.flatMap((x) => x.rows);
 
-  useEffect(() => input.current?.focus(), []);
+  useEffect(() => {
+    // 移动端不自动聚焦搜索，避免软键盘挡住列表
+    if (!matchMedia("(pointer: coarse)").matches) input.current?.focus();
+  }, []);
   useEffect(() => setCursor(0), [query]);
   useEffect(() => {
     list.current?.querySelector(".hist-row.is-active")?.scrollIntoView({ block: "nearest" });

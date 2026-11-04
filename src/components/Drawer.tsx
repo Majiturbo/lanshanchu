@@ -1,6 +1,7 @@
-import { ArrowUp, CalendarClock, RotateCw, Sparkles, TextSearch, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, CalendarClock, RotateCw, Sparkles, TextSearch, X } from "lucide-react";
 import { SOURCES_CAP } from "../core/protocol.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IS_MOBILE_APP } from "../core/device.ts";
 import { actions, isReady, newsSince, useGraph } from "../store/graph.ts";
 import type { GNode } from "../store/types.ts";
 import { CiteNode, Markdown, SourceItem } from "./common.tsx";
@@ -85,7 +86,7 @@ function DrawerBody({ n }: { n: GNode }) {
           <span className="drawer-q">{n.q}</span>
         </span>
         <button type="button" className="icon-btn" aria-label="关闭详情" data-replay-id="drawer-close" onClick={actions.closeDrawer}>
-          <X size={16} strokeWidth={1.6} />
+          {IS_MOBILE_APP ? <ArrowLeft size={16} strokeWidth={1.6} /> : <X size={16} strokeWidth={1.6} />}
         </button>
       </div>
       <div className="drawer-body">

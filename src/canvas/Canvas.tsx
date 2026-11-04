@@ -7,6 +7,8 @@ import { ContextMenu, type MenuAt } from "./ContextMenu.tsx";
 import "../styles/canvas.css";
 
 const DRAG_THRESHOLD = 4;
+/** 触屏长按打开动作表；移动超过阈值或第二指落下则取消 */
+const LONG_PRESS_MS = 480;
 /** 视角停止变化多久后撤掉合成图层、按最终比例重绘 */
 const SETTLE_MS = 180;
 /** 与 canvas.css 里 .world.glide 的时长一致：自动移动视角期间一直保持合成图层 */
@@ -131,6 +133,8 @@ export function Canvas() {
   const [mode, setMode] = useState<"" | "is-panning" | "is-marquee" | "is-dragging">("");
   const worldRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<MenuAt | null>(null);
+  const longPress = useRef<number | null>(null);
+  const suppressClick = useRef(false);
   // 拖动节点时悬停在另一个回答完成的节点上：松手就把它们连起来（弹出「想对它们做什么？」）
   const dropEl = useRef<HTMLElement | null>(null);
   const setDrop = (el: HTMLElement | null) => {
@@ -140,17 +144,42 @@ export function Canvas() {
     dropEl.current = el;
   };
   const closeMenu = useCallback(() => setMenu(null), []);
+  const clearLongPress = () => {
+    if (longPress.current != null) {
+      clearTimeout(longPress.current);
+      longPress.current = null;
+    }
+  };
+  const openMenuAt = useCallback((clientX: number, clientY: number, nodeId: string | null, text = "") => {
+    const { view: v } = useGraph.getState();
+    const r = stageRef.current!.getBoundingClientRect();
+    setMenu({
+      x: clientX,
+      y: clientY,
+      wx: (clientX - r.left - v.x) / v.s,
+      wy: (clientY - r.top - v.y) / v.s,
+      nodeId,
+      text,
+    });
+  }, []);
+
+  useEffect(() => {
+    const onNodeMenu = (e: Event) => {
+      const d = (e as CustomEvent<{ nodeId: string; x: number; y: number }>).detail;
+      openMenuAt(d.x, d.y, d.nodeId);
+    };
+    addEventListener("lanshan:node-menu", onNodeMenu);
+    return () => removeEventListener("lanshan:node-menu", onNodeMenu);
+  }, [openMenuAt]);
 
   // 画布上的右键：节点上是复制与导出，空白处是新问题与导出整张地图（ContextMenu.tsx）；侧边栏等其他区域保留系统菜单
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    if ((e.target as HTMLElement).closest(".ctx-menu, .ctx-ask")) return;
-    const { view: v } = useGraph.getState();
-    const r = stageRef.current!.getBoundingClientRect();
+    if ((e.target as HTMLElement).closest(".ctx-menu, .ctx-sheet, .ctx-ask, .ctx-pick")) return;
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>(".node[data-id]");
     const sel = window.getSelection();
     const text = sel && !sel.isCollapsed && nodeEl?.contains(sel.anchorNode) ? sel.toString() : "";
-    setMenu({ x: e.clientX, y: e.clientY, wx: (e.clientX - r.left - v.x) / v.s, wy: (e.clientY - r.top - v.y) / v.s, nodeId: nodeEl?.dataset.id ?? null, text });
+    openMenuAt(e.clientX, e.clientY, nodeEl?.dataset.id ?? null, text);
   };
 
   // 平移缩放过程中把整个画布提升为一个合成图层：GPU 直接平移、拉伸，帧率稳定（缩放时会略虚）；
@@ -196,7 +225,8 @@ export function Canvas() {
     if (e.pointerType === "touch") {
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touches.current.size === 2) {
-        // 第二根手指落下：放弃单指拖动，改为捏合
+        // 第二根手指落下：放弃单指拖动与长按，改为捏合
+        clearLongPress();
         drag.current = null;
         setMode("");
         setMarquee(null);
@@ -210,9 +240,24 @@ export function Canvas() {
     if (e.button !== 0 && e.button !== 1) return;
     const target = e.target as HTMLElement;
     if (target.closest("[data-act], a")) return; // 卡片内按钮与链接自行处理点击
-    if (target.closest(".ctx-menu, .ctx-ask")) return; // 右键菜单经 portal 渲染，React 事件仍会冒泡到这里
+    if (target.closest(".ctx-menu, .ctx-sheet, .ctx-ask, .ctx-pick")) return; // 右键菜单经 portal 渲染，React 事件仍会冒泡到这里
     const nodeEl = target.closest<HTMLElement>(".node");
     const { selected, nodes, view: v } = useGraph.getState();
+    // 触屏长按 = 右键：节点或空白均可；输入槽不抢
+    if (e.pointerType === "touch" && touches.current.size === 1 && !target.closest(".is-slot")) {
+      const nodeId = nodeEl?.dataset.id ?? null;
+      const sx = e.clientX;
+      const sy = e.clientY;
+      clearLongPress();
+      longPress.current = window.setTimeout(() => {
+        longPress.current = null;
+        suppressClick.current = true;
+        drag.current = null;
+        setMode("");
+        openMenuAt(sx, sy, nodeId);
+        navigator.vibrate?.(12);
+      }, LONG_PRESS_MS);
+    }
     // 卡片里是回答正文，可以选中复制；拖动节点用卡片上方的问题行（加载中的卡片没有可选的字，整张都能拖）
     const card = target.closest(".card");
     if (nodeEl && e.button === 0 && card && !card.classList.contains("is-loading") && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
@@ -252,6 +297,7 @@ export function Canvas() {
     if (!d.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       d.moved = true;
+      clearLongPress();
       if (d.type === "text") return;
       if (d.type === "pan") setMode("is-panning");
       if (d.type === "node") setMode("is-dragging");
@@ -277,6 +323,7 @@ export function Canvas() {
   };
 
   const endDrag = (e: React.PointerEvent, cancelled = false) => {
+    clearLongPress();
     if (e.pointerType === "touch") {
       touches.current.delete(e.pointerId);
       if (pinch.current) {
@@ -292,6 +339,10 @@ export function Canvas() {
     setMarquee(null);
     const target = dropEl.current?.dataset.id;
     setDrop(null);
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
     if (d?.type === "node" && d.moved && target && !cancelled) {
       // 拖到别的节点上：节点回到原位，选中两边，交给「想对它们做什么？」
       actions.moveNodes(d.orig, 0, 0);

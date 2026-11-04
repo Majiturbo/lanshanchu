@@ -388,13 +388,14 @@ html.is-mobile-app body {
   -webkit-tap-highlight-color: transparent;
 }
 /* 触控上 :hover 会粘住、:active 也会留灰底。凡是「点一下铺一层底」的控件，移动端一律不铺；
-   列表行、面包屑、来源、延伸问题等同理。真·鼠标才恢复悬停底。 */
+   列表行、面包屑、来源、延伸问题等同理。真·鼠标才恢复悬停底。
+   选中 / 按下态（preset、非 compact 开关）必须保留底色，不能被这条清掉。 */
 html.is-mobile-app :is(
   .icon-btn, .toggle, .btn, .wc, .crumb, .zoom-value, .slot-send,
   .followup, .reader-back, .hist-del, .preset, .ctx-item,
   .source:is(a, button), .research-queries li, a.dropped-row,
   .mset-account, .mset-row, .mobile-sheet-item, .phone-bind-leave
-):is(:hover, :focus, :focus-visible) {
+):is(:hover, :focus, :focus-visible):not([aria-selected="true"]):not([aria-pressed="true"]):not([aria-expanded="true"]) {
   background: transparent;
   outline: none;
 }

@@ -10,6 +10,8 @@ export interface Account {
   username: string;
   nickname: string;
   role: string;
+  /** 已验证的手机号；旧账号未绑定则为空 */
+  phone: string;
 }
 
 /** 服务端对外黑盒用量；百分比为已用比例，不暴露具体消耗单位 */
@@ -167,7 +169,9 @@ export const useSettings = create<SettingsState>()(
               canUseReset: usageRaw.canUseReset === true,
             }
           : null;
-        const account = p.account && typeof p.account === "object" && typeof p.account.id === "string" ? p.account : null;
+        const account = p.account && typeof p.account === "object" && typeof p.account.id === "string"
+          ? { ...p.account, phone: typeof p.account.phone === "string" ? p.account.phone : "" }
+          : null;
         return { ...current, ...p, session, account, canAsk, usage, model, openSource, drawerRatio, onLeave, theme, petals, prefs: cleanPrefs(p.prefs), gate: null };
       },
     },

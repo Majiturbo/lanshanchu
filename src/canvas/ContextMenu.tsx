@@ -1,10 +1,9 @@
-import { ArrowRight, Columns2, Copy, FileDown, Link2, Maximize, MessageSquarePlus, PanelRightOpen, RefreshCw, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Columns2, Copy, FileDown, Maximize, MessageSquarePlus, PanelRightOpen, RefreshCw, X, type LucideIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePresence } from "../components/presence.ts";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { fileName, nodesMd, treeOrder } from "../lib/export.ts";
-import { short } from "../lib/format.ts";
 import { copyText, saveMarkdown } from "../lib/save.ts";
 import { rootOf } from "../history/snapshot.ts";
 import { actions, fit, isReady, useGraph } from "../store/graph.ts";
@@ -15,7 +14,7 @@ export interface MenuAt { x: number; y: number; wx: number; wy: number; nodeId: 
 
 interface Item { icon: LucideIcon; label: string; run: () => void; danger?: boolean }
 
-function itemsFor(at: MenuAt, ask: () => void, connect: () => void): Item[][] {
+function itemsFor(at: MenuAt, ask: () => void): Item[][] {
   const { nodes, selected } = useGraph.getState();
   const n = at.nodeId ? nodes[at.nodeId] : null;
   const copy: Item[] = at.text ? [{ icon: Copy, label: "复制", run: () => void copyText(at.text) }] : [];
@@ -28,9 +27,7 @@ function itemsFor(at: MenuAt, ask: () => void, connect: () => void): Item[][] {
     const exportSelected = !IS_TOUCH_UI && many.length > 1
       ? [{ icon: FileDown, label: `导出选中的 ${many.length} 个节点`, run: () => void saveMarkdown(fileName(mapTitle()), nodesMd(many, mapTitle()), "selection") }]
       : [];
-    const connectItem: Item[] = IS_TOUCH_UI
-      ? [{ icon: Link2, label: "连接到…", run: connect }]
-      : [];
+    const connectItem: Item[] = [];
     return [copy, [
       { icon: PanelRightOpen, label: "打开详情", run: () => actions.openDrawer(n.id) },
       { icon: RefreshCw, label: "重新回答", run: () => actions.retry(n.id) },
@@ -67,9 +64,13 @@ function useClamp(x: number, y: number) {
 }
 
 /** 画布的右键 / 长按菜单：移动端为底部动作表 */
-export function ContextMenu({ at, onClose }: { at: MenuAt | null; onClose: () => void }) {
+export function ContextMenu({ at, onClose, externalAsk = null, onExternalAskDone }: {
+  at: MenuAt | null;
+  onClose: () => void;
+  externalAsk?: MenuAt | null;
+  onExternalAskDone?: () => void;
+}) {
   const [asking, setAsking] = useState<MenuAt | null>(null);
-  const [connectFrom, setConnectFrom] = useState<string | null>(null);
   const shown = useRef(at);
   if (at) shown.current = at;
   const p = usePresence(!!at, 120);
@@ -104,30 +105,28 @@ export function ContextMenu({ at, onClose }: { at: MenuAt | null; onClose: () =>
           closing={p.closing}
           onClose={onClose}
           onAsk={() => setAsking(shown.current)}
-          onConnect={() => {
-            const id = shown.current?.nodeId;
-            onClose();
-            if (id) setConnectFrom(id);
-          }}
         />
       )}
-      {asking && <AskHere at={asking} onDone={() => setAsking(null)} />}
-      {connectFrom && <ConnectPick from={connectFrom} onDone={() => setConnectFrom(null)} />}
+      {(asking || externalAsk) && (
+        <AskHere
+          at={(asking ?? externalAsk)!}
+          onDone={() => { setAsking(null); onExternalAskDone?.(); }}
+        />
+      )}
     </>,
     document.body,
   );
 }
 
-function Menu({ at, closing, onClose, onAsk, onConnect }: {
+function Menu({ at, closing, onClose, onAsk }: {
   at: MenuAt;
   closing: boolean;
   onClose: () => void;
   onAsk: () => void;
-  onConnect: () => void;
 }) {
   const sheet = IS_MOBILE_APP || IS_TOUCH_UI;
   const { ref, pos } = useClamp(at.x, at.y);
-  const groups = itemsFor(at, onAsk, onConnect).filter((g) => g.length);
+  const groups = itemsFor(at, onAsk).filter((g) => g.length);
   useEffect(() => { ref.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, [ref]);
   if (!groups.length) return null;
   const onKey = (e: React.KeyboardEvent) => {
@@ -215,49 +214,3 @@ function AskHere({ at, onDone }: { at: MenuAt; onDone: () => void }) {
   );
 }
 
-/** 触控下拖放连接的菜单替代：选目标节点后与来源一起选中，弹出综合指令 */
-function ConnectPick({ from, onDone }: { from: string; onDone: () => void }) {
-  const nodes = useGraph((s) => s.nodes);
-  const targets = Object.values(nodes).filter((n) => n.id !== from && isReady(n));
-  useEffect(() => {
-    const dismiss = () => onDone();
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onDone(); };
-    addEventListener("lanshan:dismiss-menu", dismiss);
-    addEventListener("keydown", key);
-    return () => {
-      removeEventListener("lanshan:dismiss-menu", dismiss);
-      removeEventListener("keydown", key);
-    };
-  }, [onDone]);
-  return createPortal(
-    <div className="ctx-pick" role="dialog" aria-label="连接到节点">
-      <div className="ctx-sheet-scrim" onClick={onDone} />
-      <div className="ctx-sheet-panel">
-        <div className="ctx-sheet-handle" aria-hidden="true" />
-        <p className="ctx-pick-title">连接到…</p>
-        {targets.length === 0 ? (
-          <p className="ctx-pick-empty">暂无其他可连接的回答。综合多个节点请在电脑上框选使用。</p>
-        ) : (
-          <div className="ctx-group" role="list">
-            {targets.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className="ctx-item"
-                onClick={() => {
-                  onDone();
-                  actions.setSelected([from, n.id]);
-                }}
-              >
-                <Link2 size={14} strokeWidth={1.6} aria-hidden="true" />
-                {short(n.q, 28)}
-              </button>
-            ))}
-          </div>
-        )}
-        <button type="button" className="ctx-item ctx-cancel" onClick={onDone}>取消</button>
-      </div>
-    </div>,
-    document.body,
-  );
-}

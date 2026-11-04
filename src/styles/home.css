@@ -181,7 +181,7 @@ html.is-mobile-app .ask-tools .toggle:not([aria-pressed="true"]) .lucide { color
   /* 上方略小于下方，大字标+提问仍略偏上；主要靠加大字标填满空旷感 */
   .home-inner::before {
     content: "";
-    flex: 0.55 1 0;
+    flex: 0.22 1 0;
     min-height: 8px;
   }
   .home.is-empty .home-inner::after {

@@ -50,9 +50,10 @@ function Row({ m, query = "", current, active, onHover, style }: RowProps) {
     );
   }
 
+  const open = dx <= SWIPE_OPEN / 2;
   return (
     <li
-      className={`hist-row hist-swipe-row${active ? " is-active" : ""}${dx <= SWIPE_OPEN / 2 ? " is-revealed" : ""}`}
+      className={`hist-row hist-swipe-row${active ? " is-active" : ""}${open ? " is-revealed" : ""}`}
       style={style}
       onPointerDown={(e) => {
         if (!canDelete || e.pointerType === "mouse") return;
@@ -61,7 +62,10 @@ function Row({ m, query = "", current, active, onHover, style }: RowProps) {
       }}
       onPointerMove={(e) => {
         if (startX.current == null) return;
-        setDx(Math.min(0, Math.max(SWIPE_OPEN, e.clientX - startX.current)));
+        const next = Math.min(0, Math.max(SWIPE_OPEN, e.clientX - startX.current));
+        // 横向滑过阈值才动，避免和列表滚动抢手势
+        if (Math.abs(next) < 8 && Math.abs(e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top) > 24) return;
+        setDx(next);
       }}
       onPointerUp={() => {
         startX.current = null;
@@ -88,7 +92,8 @@ function Row({ m, query = "", current, active, onHover, style }: RowProps) {
           }}
         >
           <span className="hist-title"><Highlight text={m.title} query={query} /></span>
-          <span className="hist-meta">
+          {/* 滑开时藏 meta，避免时间叠在删除按钮上 */}
+          <span className="hist-meta" aria-hidden={open || undefined}>
             {current ? <span className="hist-current">当前</span> : running ? <span className="hist-current"><LoaderCircle className="spin" size={12} strokeWidth={1.8} aria-hidden="true" />后台回答中</span> : <MetaParts items={[`${m.answers} 个回答`, ago(m.updatedAt)]} />}
           </span>
         </button>

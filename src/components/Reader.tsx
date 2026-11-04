@@ -1,4 +1,5 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, LoaderCircle, X } from "lucide-react";
+import { IS_MOBILE_APP } from "../core/device.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { track } from "../analytics/index.ts";
 import { readPage } from "../api/client.ts";
@@ -67,15 +68,18 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
         <button type="button" className="reader-back" onClick={actions.closeReader}>
           <ArrowLeft size={14} strokeWidth={1.8} />详情
         </button>
-        <MetaParts className="reader-crumb" items={[short(node.q, 14), `来源 ${n}/${total}`]} />
+        {IS_MOBILE_APP ? null : <MetaParts className="reader-crumb" items={[short(node.q, 14), `来源 ${n}/${total}`]} />}
         <span className="reader-nav">
           <button type="button" className="icon-btn" aria-label="上一条来源" onClick={() => actions.stepSource(-1)} disabled={total < 2}><ChevronLeft size={16} strokeWidth={1.6} /></button>
+          {IS_MOBILE_APP ? <span className="reader-count">{n} / {total}</span> : null}
           <button type="button" className="icon-btn" aria-label="下一条来源" onClick={() => actions.stepSource(1)} disabled={total < 2}><ChevronRight size={16} strokeWidth={1.6} /></button>
-          {s.url && <button type="button" className="icon-btn" aria-label="在浏览器中打开" onClick={() => {
+          {s.url && <button type="button" className="icon-btn" aria-label="浏览器打开" onClick={() => {
             track("source_opened", { via: "reader", open_mode: "browser" });
             openExternal(s.url);
           }}><ExternalLink size={15} strokeWidth={1.6} /></button>}
-          <button type="button" className="icon-btn" aria-label="关闭侧边栏" onClick={actions.closeDrawer}><X size={16} strokeWidth={1.6} /></button>
+          {IS_MOBILE_APP ? null : (
+            <button type="button" className="icon-btn" aria-label="关闭侧边栏" onClick={actions.closeDrawer}><X size={16} strokeWidth={1.6} /></button>
+          )}
         </span>
       </div>
       <div className="drawer-body reader-body" ref={body}>

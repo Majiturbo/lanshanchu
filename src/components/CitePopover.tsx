@@ -1,4 +1,5 @@
 import { ExternalLink, PanelRightOpen, X } from "lucide-react";
+import { IS_MOBILE_APP } from "../core/device.ts";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { track } from "../analytics/index.ts";
 import { relativeTime } from "../lib/format.ts";
@@ -70,6 +71,10 @@ function Pop({ t }: { t: CiteTarget }) {
 
   // 优先放在角标下方，放不下就放上方；左右不超出窗口
   useLayoutEffect(() => {
+    if (IS_MOBILE_APP) {
+      setPos({ left: 0, top: 0 });
+      return;
+    }
     const h = ref.current!.offsetHeight;
     const left = Math.min(Math.max(12, t.anchor.left - 24), innerWidth - WIDTH - 12);
     const below = t.anchor.bottom + GAP;
@@ -89,7 +94,7 @@ function Pop({ t }: { t: CiteTarget }) {
   return (
     <div
       ref={ref}
-      className="cite-pop"
+      className={`cite-pop${IS_MOBILE_APP ? " is-sheet" : ""}`}
       role="dialog"
       aria-label={`来源 ${t.n}`}
       style={{ width: WIDTH, left: pos?.left ?? -9999, top: pos?.top ?? 0, visibility: pos ? "visible" : "hidden" }}
@@ -120,7 +125,7 @@ function Pop({ t }: { t: CiteTarget }) {
               track("source_opened", { via: "cite", open_mode: "reader" });
               actions.readSource(t.nodeId!, t.n);
             }}>
-              <PanelRightOpen size={12} strokeWidth={1.8} />在侧边栏阅读
+              <PanelRightOpen size={12} strokeWidth={1.8} />{IS_MOBILE_APP ? "在应用内阅读" : "在侧边栏阅读"}
             </button>
           )}
           {s.url && (
@@ -128,7 +133,7 @@ function Pop({ t }: { t: CiteTarget }) {
               closeCite();
               track("source_opened", { via: "cite", open_mode: "browser" });
             }}>
-              打开原网页<ExternalLink size={12} strokeWidth={1.8} />
+              {IS_MOBILE_APP ? "浏览器打开" : "打开原网页"}<ExternalLink size={12} strokeWidth={1.8} />
             </a>
           )}
         </span>

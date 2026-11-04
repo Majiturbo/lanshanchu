@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
-import { actions, chain, isReady, setView, useGraph, zoomAt, ZOOM_MAX, ZOOM_MIN } from "../store/graph.ts";
+import { actions, chain, fit, isReady, setView, useGraph, zoomAt, ZOOM_MAX, ZOOM_MIN } from "../store/graph.ts";
 import { edgePath, type Box } from "./layout.ts";
 import { usePresence } from "../components/presence.ts";
 import { AskSlots, focusSets, isHeld, NodeView, slotShown } from "./NodeView.tsx";
@@ -134,6 +134,8 @@ export function Canvas() {
   const [mode, setMode] = useState<"" | "is-panning" | "is-marquee" | "is-dragging">("");
   const worldRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<MenuAt | null>(null);
+  const [directAsk, setDirectAsk] = useState<MenuAt | null>(null);
+  const lastBlankTap = useRef<{ t: number; x: number; y: number } | null>(null);
   const longPress = useRef<number | null>(null);
   const suppressClick = useRef(false);
   // 拖动节点时悬停在另一个回答完成的节点上：松手就把它们连起来（弹出「想对它们做什么？」）
@@ -169,8 +171,28 @@ export function Canvas() {
       const d = (e as CustomEvent<{ nodeId: string; x: number; y: number }>).detail;
       openMenuAt(d.x, d.y, d.nodeId);
     };
+    const onNewQuestion = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const r = stage.getBoundingClientRect();
+      const v = useGraph.getState().view;
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height * 0.72;
+      setDirectAsk({
+        x,
+        y,
+        wx: (x - r.left - v.x) / v.s,
+        wy: (y - r.top - v.y) / v.s,
+        nodeId: null,
+        text: "",
+      });
+    };
     addEventListener("lanshan:node-menu", onNodeMenu);
-    return () => removeEventListener("lanshan:node-menu", onNodeMenu);
+    addEventListener("lanshan:new-question", onNewQuestion);
+    return () => {
+      removeEventListener("lanshan:node-menu", onNodeMenu);
+      removeEventListener("lanshan:new-question", onNewQuestion);
+    };
   }, [openMenuAt]);
 
   // 画布上的右键：节点上是复制与导出，空白处是新问题与导出整张地图（ContextMenu.tsx）；侧边栏等其他区域保留系统菜单
@@ -355,6 +377,14 @@ export function Canvas() {
     // 双击选词等选中了文字时不算点击
     if (d.type === "text" && window.getSelection()?.toString()) return;
     if (d.type === "pan") {
+      const now = performance.now();
+      const prev = lastBlankTap.current;
+      if (IS_MOBILE_APP && prev && now - prev.t < 320 && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < 28) {
+        lastBlankTap.current = null;
+        fit();
+      } else if (IS_MOBILE_APP) {
+        lastBlankTap.current = { t: now, x: e.clientX, y: e.clientY };
+      }
       if (useGraph.getState().selected.length) actions.setSelected([]);
       return;
     }
@@ -392,7 +422,7 @@ export function Canvas() {
         </div>
       </div>
       <Marquee rect={marquee} />
-      <ContextMenu at={menu} onClose={closeMenu} />
+      <ContextMenu at={menu} onClose={closeMenu} externalAsk={directAsk} onExternalAskDone={() => setDirectAsk(null)} />
     </>
   );
 }

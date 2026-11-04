@@ -169,6 +169,21 @@ async function platformFetch(path: string, init: RequestInit = {}, fetchImpl: ty
   return res;
 }
 
+function readAccount(raw: unknown): Account | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Partial<Account>;
+  const id = String(row.id || "").trim();
+  const username = String(row.username || "").trim();
+  if (!id || !username) return null;
+  return {
+    id,
+    username,
+    nickname: String(row.nickname || ""),
+    role: String(row.role || "user"),
+    phone: String(row.phone || ""),
+  };
+}
+
 export async function login(username: string, password: string) {
   const res = await platformFetch("/api/lanshan/login", {
     method: "POST",
@@ -176,9 +191,81 @@ export async function login(username: string, password: string) {
   });
   const payload = (await res.json()) as AuthPayload;
   const session = payload.session?.trim() ?? "";
-  if (!session || !payload.account) throw platformError(500, "登录结果不完整");
+  const account = readAccount(payload.account);
+  if (!session || !account) throw platformError(500, "登录结果不完整");
   const usage = parseUsage(payload);
-  settingsActions.update({ session, account: payload.account, canAsk: usage.canAsk, usage });
+  settingsActions.update({ session, account, canAsk: usage.canAsk, usage });
+}
+
+export type SmsPurpose = "login" | "register" | "reset" | "bind" | "phone-old" | "phone-new" | "delete";
+
+export async function sendSms(phone: string, purpose: SmsPurpose) {
+  await platformFetch("/api/lanshan/sms/send", {
+    method: "POST",
+    body: JSON.stringify({ phone: phone.trim(), purpose }),
+  });
+}
+
+async function enterWithCode(path: string, body: Record<string, string>) {
+  const res = await platformFetch(path, { method: "POST", body: JSON.stringify(body) });
+  const payload = (await res.json()) as { session?: string; username?: string };
+  const session = payload.session?.trim() ?? "";
+  if (!session) throw platformError(500, "登录结果不完整");
+  // 先写入 session，完整账号以 /me 为准，避免空 id 中间态
+  settingsActions.update({ session, account: null, canAsk: false, usage: null });
+  await refreshAccount();
+  if (!useSettings.getState().account?.id) {
+    settingsActions.clearAccount();
+    throw platformError(500, "登录结果不完整");
+  }
+}
+
+export function loginWithCode(phone: string, code: string) {
+  return enterWithCode("/api/lanshan/login/sms", { phone: phone.trim(), code: code.trim() });
+}
+
+export function registerWithPhone(phone: string, code: string, password: string) {
+  return enterWithCode("/api/lanshan/register", {
+    phone: phone.trim(),
+    code: code.trim(),
+    password,
+  });
+}
+
+export function resetPassword(phone: string, code: string, password: string) {
+  return enterWithCode("/api/lanshan/password/reset", {
+    phone: phone.trim(),
+    code: code.trim(),
+    password,
+  });
+}
+
+export async function bindPhone(phone: string, code: string) {
+  await platformFetch("/api/lanshan/phone/bind", {
+    method: "POST",
+    body: JSON.stringify({ phone: phone.trim(), code: code.trim() }),
+  });
+  await refreshAccount();
+  const bound = String(useSettings.getState().account?.phone || "");
+  if (!/^1\d{10}$/.test(bound)) {
+    throw platformError(500, "绑定结果未同步，请重试");
+  }
+}
+
+export async function changePhone(oldCode: string, phone: string, code: string) {
+  await platformFetch("/api/lanshan/phone/change", {
+    method: "POST",
+    body: JSON.stringify({ old_code: oldCode.trim(), phone: phone.trim(), code: code.trim() }),
+  });
+  await refreshAccount();
+}
+
+export async function deleteAccount(code: string) {
+  await platformFetch("/api/lanshan/account/delete-sms", {
+    method: "POST",
+    body: JSON.stringify({ code: code.trim(), confirm: "注销账号" }),
+  });
+  settingsActions.clearAccount();
 }
 
 export async function logout() {
@@ -196,9 +283,10 @@ export async function refreshAccount() {
   try {
     const res = await platformFetch("/api/lanshan/me");
     const payload = (await res.json()) as AuthPayload;
-    if (payload.account) {
+    const account = readAccount(payload.account);
+    if (account) {
       const usage = parseUsage(payload);
-      settingsActions.update({ account: payload.account, canAsk: usage.canAsk, usage });
+      settingsActions.update({ account, canAsk: usage.canAsk, usage });
     }
   } catch (err) {
     if (err instanceof ProviderError && err.kind === "auth") return;

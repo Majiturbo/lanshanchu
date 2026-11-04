@@ -120,7 +120,7 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
         onClick={() => setOpen((o) => !o)}
       >
         <SlidersHorizontal size={15} strokeWidth={1.6} aria-hidden="true" />
-        <span className={compact ? "toggle-label" : undefined}>{summary(prefs)}</span>
+        {!compact && <span>{summary(prefs)}</span>}
       </button>
       {mounted && (
         <div ref={pop} className={`prefs-pop${closing ? " is-closing" : ""}`} role="dialog" aria-label="回答偏好">

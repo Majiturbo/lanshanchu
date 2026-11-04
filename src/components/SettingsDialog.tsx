@@ -189,7 +189,7 @@ function Dialog({ closing }: { closing: boolean }) {
   );
 }
 
-export function AccountSection({ inputRef }: { inputRef?: Ref<HTMLInputElement> }) {
+export function AccountSection({ inputRef, hideLogout, onPlans }: { inputRef?: Ref<HTMLInputElement>; hideLogout?: boolean; onPlans?: () => void }) {
   const account = useSettings((s) => s.account);
   const canAsk = useSettings((s) => s.canAsk);
   const cached = useSettings((s) => s.usage);
@@ -271,7 +271,10 @@ export function AccountSection({ inputRef }: { inputRef?: Ref<HTMLInputElement> 
           <div className="account-usage">正在读取用量</div>
         ) : view && planLabel ? (
           <div className="usage-block">
-            <div className="usage-block-title">用量</div>
+            <div className="usage-block-title">
+              <span>用量</span>
+              {onPlans ? <button type="button" className="usage-more" onClick={onPlans}>更多套餐</button> : null}
+            </div>
             <div className="usage-meters">
               <UsageMeter label="总使用量" pct={view.monthPct} resetAt={view.monthResetsAt} />
               <UsageMeter label="5 小时用量" pct={view.windowPct} resetAt={view.windowResetsAt} />
@@ -295,9 +298,11 @@ export function AccountSection({ inputRef }: { inputRef?: Ref<HTMLInputElement> 
           </div>
         ) : null}
         <div className="account-usage">{status}</div>
-        <div className="field-actions">
-          <button type="button" className="btn btn-sm" onClick={() => { void logout(); }}>退出</button>
-        </div>
+        {hideLogout ? null : (
+          <div className="field-actions">
+            <button type="button" className="btn btn-sm" onClick={() => { void logout(); }}>退出</button>
+          </div>
+        )}
       </div>
     );
   }

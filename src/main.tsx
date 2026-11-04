@@ -4,6 +4,9 @@ import { trackAppOpened } from "./analytics/index.ts";
 import { AuthScreen } from "./components/AuthScreen.tsx";
 import { HistoryPanel } from "./components/History.tsx";
 import { Home } from "./components/Home.tsx";
+import { IS_MOBILE_APP } from "./core/device.ts";
+import { MobileSettingsHost } from "./components/MobileSettings.tsx";
+import { PhoneBindGate } from "./components/PhoneBindGate.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { LeaveDialog } from "./components/LeaveDialog.tsx";
 import { useWindowFocus } from "./components/TitleBar.tsx";
@@ -45,8 +48,9 @@ function App() {
     <>
       {screen === "home" ? <Home /> : <Workspace />}
       <AuthScreen />
+      {IS_MOBILE_APP ? <PhoneBindGate /> : null}
       <HistoryPanel />
-      <SettingsDialog />
+      {IS_MOBILE_APP ? <MobileSettingsHost /> : <SettingsDialog />}
       <LeaveDialog />
       <Toast />
       <Tooltip />
@@ -58,14 +62,22 @@ function App() {
 delete document.documentElement.dataset.palette;
 const isDarkTheme = (t: Theme) => t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
 const applyFavicon = (dark: boolean) => {
-  const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-  if (!link) return;
-  link.href = dark ? "/favicon.png?v=lantern-night" : "/favicon-light.png?v=lantern-day";
+  const base = import.meta.env.BASE_URL || "./";
+  const href = `${base}${dark ? "favicon.png?v=lantern-night" : "favicon-light.png?v=lantern-day"}`;
+  document.querySelectorAll('link[rel="icon"]').forEach((node) => node.remove());
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = "image/png";
+  link.href = href;
+  document.head.appendChild(link);
 };
 const applyTheme = (t: Theme) => {
   if (t === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = t;
-  applyFavicon(isDarkTheme(t));
+  const dark = isDarkTheme(t);
+  applyFavicon(dark);
+  const bars = (window as unknown as { LanshanBars?: { setDark: (dark: boolean) => void } }).LanshanBars;
+  bars?.setDark(dark);
 };
 applyTheme(useSettings.getState().theme);
 useSettings.subscribe((s) => { applyTheme(s.theme); });

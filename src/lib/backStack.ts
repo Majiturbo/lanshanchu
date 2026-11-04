@@ -1,10 +1,23 @@
 import { exit, onBackButtonPress } from "@tauri-apps/api/app";
 import { IS_MOBILE_APP } from "../core/device.ts";
 import { history as mapHistory, useHistory } from "../history/store.ts";
+import { needsPhoneBind } from "../components/PhoneBindGate.tsx";
 import { settingsActions, useSettings } from "../settings/store.ts";
 import { closeCite, useCite } from "../store/cite.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import { swapScreen } from "./transition.ts";
+
+let settingsPop: (() => boolean) | null = null;
+
+/** 设置二级页先退一层；没有更深的页面时返回 false，由调用方关闭设置 */
+export function bindSettingsBack(fn: () => boolean) {
+  settingsPop = fn;
+  return () => { if (settingsPop === fn) settingsPop = null; };
+}
+
+function popSettingsPage() {
+  return settingsPop?.() ?? false;
+}
 
 const tauriPlatform = String(import.meta.env.TAURI_ENV_PLATFORM ?? "");
 const isAndroid =
@@ -13,6 +26,10 @@ const isAndroid =
 
 /** 关闭一层浮层 / 详情 / 页面；有东西可关时返回 true（系统返回应留在 App 内） */
 export function dismissOne(): boolean {
+  if (needsPhoneBind(useSettings.getState().account)) {
+    // 强制绑定不能关掉，系统返回留在弹窗里
+    return true;
+  }
   const viewer = document.querySelector<HTMLElement>(".viewer:not(.is-closing) .viewer-close");
   if (viewer) {
     viewer.click();
@@ -40,6 +57,10 @@ export function dismissOne(): boolean {
     return true;
   }
   const g = useGraph.getState();
+  if (g.leaving) {
+    actions.resolveLeave(null);
+    return true;
+  }
   if (g.reading) {
     actions.closeReader();
     return true;
@@ -53,6 +74,7 @@ export function dismissOne(): boolean {
     return true;
   }
   if (useSettings.getState().open) {
+    if (popSettingsPage()) return true;
     settingsActions.close();
     return true;
   }
@@ -69,9 +91,11 @@ export function dismissOne(): boolean {
 
 function needTrap(): boolean {
   const g = useGraph.getState();
+  const settings = useSettings.getState();
   return !!(
-    g.drawerId || g.reading || g.summaryOpen || g.screen !== "home"
-    || useSettings.getState().open || useSettings.getState().gate
+    needsPhoneBind(settings.account)
+    || g.drawerId || g.reading || g.summaryOpen || g.leaving || g.screen !== "home"
+    || settings.open || settings.gate
     || useHistory.getState().open || useCite.getState().open
     || document.querySelector(".mobile-sheet, .ctx-sheet, .viewer")
   );

@@ -44,6 +44,14 @@
   padding: 0 8px; font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap; user-select: none;
 }
 .zoom-sep { width: var(--hair); height: 16px; background: var(--line); margin: 0 3px; }
+.topbar-current {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px;
+  height: 36px; text-align: left; color: var(--ink); font-weight: 600;
+}
+.topbar-current span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-current .lucide { flex: none; color: var(--ink-3); }
+html.is-mobile-app .card-actions .icon-btn { width: 36px; height: 36px; }
+html.is-mobile-app .card-more { display: none; }
 
 @media (max-width: 720px) {
   /* 窄窗口时侧边栏占满，覆盖 Workspace 上按设置写入的宽度 */
@@ -156,8 +164,79 @@ html.is-mobile-app .crumbs .crumb {
 .auth-head-spacer { width: 40px; }
 .auth-body {
   flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
   padding: 8px 20px 24px; max-width: 480px; width: 100%; margin: 0 auto;
 }
+.auth-brand h1 { margin: 12px 0 0; font-size: var(--fs-xl); font-weight: 600; }
+.auth-brand p { margin: 6px 0 0; font-size: var(--fs-md); color: var(--ink-2); }
+.auth-tabs { display: flex; gap: 28px; margin: 22px 0 16px; }
+.auth-tabs button { padding: 0 0 8px; font-size: var(--fs-lg); color: var(--ink-3); }
+.auth-tabs button.on { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ink); }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-well {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 48px; padding: 0 16px;
+  border: var(--hair) solid var(--line); border-radius: 999px;
+  background: var(--surface);
+}
+.auth-well:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.auth-well input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: none; font-size: var(--fs-lg); }
+.auth-code {
+  flex: none; padding-left: 12px;
+  border-left: var(--hair) solid var(--line);
+  color: var(--accent); font-weight: 600;
+}
+.auth-code:disabled { color: var(--ink-3); font-weight: 500; }
+.auth-links { display: flex; justify-content: flex-end; }
+.auth-links button { padding: 4px 0; font-size: var(--fs-md); color: var(--ink-2); }
+.auth-submit { width: 100%; height: 48px; border-radius: 999px; justify-content: center; }
+.auth-sent { margin: 0; font-size: var(--fs-sm); color: var(--ink-3); }
+.auth-foot { margin-top: auto; padding: 24px 0 8px; text-align: center; color: var(--ink-3); }
+.auth-foot button { margin-left: 4px; color: var(--ink); font-weight: 600; }
+.mset-account, .mset-row {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 52px; padding: 12px 2px; text-align: left;
+}
+.mset-account { align-items: center; }
+.mset-account-copy { flex: 1; min-width: 0; }
+.mset-account-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.mset-account-status { display: block; margin-top: 2px; color: var(--ink-3); font-size: var(--fs-sm); font-weight: 400; }
+.mset-row em { margin-left: auto; font-style: normal; color: var(--ink-3); font-size: var(--fs-sm); }
+.mset-row .lucide, .mset-account .lucide { color: var(--ink-3); flex: none; }
+.mset-group { margin-top: 8px; }
+.mset-row:disabled { opacity: 0.45; }
+.mset-account-page { display: flex; flex-direction: column; }
+.mset-logout { margin-top: 28px; min-height: 48px; color: var(--danger); font-weight: 600; }
+.mset .field + .field { margin-top: 18px; }
+.mset-note { display: grid; gap: 8px; margin-top: 8px; }
+.mset-note p { margin: 0; font-size: var(--fs-md); line-height: 1.7; color: var(--ink-2); }
+
+html.phone-bind-locked,
+html.phone-bind-locked body { overflow: hidden; }
+.phone-bind-gate {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  animation: enter var(--t-mid) var(--ease) both;
+}
+.phone-bind-gate.is-closing { animation: leave var(--t-fast) var(--ease-in) both; pointer-events: none; }
+.phone-bind-sheet {
+  width: min(400px, 100%);
+  border-radius: 22px; background: var(--surface); color: var(--ink);
+  box-shadow: var(--shadow-3); padding: 22px 22px 16px;
+}
+.phone-bind-sheet h2 { margin: 0; font-size: var(--fs-xl); font-weight: 700; }
+.phone-bind-sheet > p { margin: 8px 0 0; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-2); }
+.phone-bind-sheet .auth-form { margin-top: 16px; }
+.phone-bind-leave {
+  display: block; width: 100%; margin-top: 10px; padding: 10px 0;
+  color: var(--ink-3); font-size: var(--fs-md);
+}
+.phone-bind-leave:hover { color: var(--ink); }
 .auth-lead { margin: 0 0 20px; font-size: var(--fs-md); line-height: 1.7; color: var(--ink-2); }
 .auth-settings { width: 100%; margin-top: 20px; justify-content: center; min-height: 44px; }
 .auth-body .account-form .btn-primary,

@@ -137,6 +137,7 @@ button.source { width: 100%; text-align: left; }
 .followup:hover { background: var(--surface-hover); color: var(--ink); }
 .followup-q { flex: 1; min-width: 0; }
 
+html.is-mobile-app .drawer-ask { margin-inline: 12px; margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .drawer-ask {
   display: flex; align-items: center; gap: 8px;
   margin: 0 16px 16px; padding: 6px 6px 6px 14px;
@@ -280,7 +281,8 @@ button.source { width: 100%; text-align: left; }
 }
 .account-usage { font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; line-height: 1.5; }
 .usage-block { display: grid; gap: 12px; padding-top: 4px; }
-.usage-block-title { font-size: var(--fs-md); font-weight: 600; color: var(--ink); }
+.usage-block-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-md); font-weight: 600; color: var(--ink); }
+.usage-more { color: var(--accent); font-size: var(--fs-md); font-weight: 600; }
 .usage-meters { display: grid; gap: 14px; }
 .usage-meter { display: grid; gap: 6px; }
 .usage-meter-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -400,12 +402,13 @@ html.is-touch .hist-del { display: none; }
   position: relative; z-index: 1; background: var(--bg);
   transition: transform var(--t-fast) var(--ease);
 }
-/* 滑动时前景必须不透明，否则「时间」会透出叠在删除上 */
+/* 滑动时前景不透明；滑开后藏 meta，避免时间叠在删除上 */
 .recent .hist-swipe-front { background: var(--bg); }
 .recent .hist-swipe-row.is-revealed .hist-swipe-front,
 .history .hist-swipe-row.is-revealed .hist-swipe-front {
   background: var(--surface);
 }
+.hist-swipe-row.is-revealed .hist-meta { visibility: hidden; }
 
 .history { max-width: 560px; min-height: min(380px, 100%); max-height: min(620px, 100%); }
 .history .dialog-head { gap: 10px; }
@@ -465,6 +468,12 @@ html.is-touch .hist-del { display: none; }
   box-shadow: var(--shadow-3);
   animation: enter var(--t-fast) var(--ease) both;
 }
+html.is-mobile-app .cite-pop.is-sheet {
+  left: 0; right: 0; bottom: 0; top: auto; width: auto;
+  max-height: min(70vh, 560px);
+  border-radius: 18px 18px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 .cite-pop-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 0 14px; }
 .cite-pop-n { font: 500 var(--fs-sm)/16px var(--font-mono); color: var(--accent); }
 .cite-pop-meta { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -494,10 +503,18 @@ html.is-touch .hist-del { display: none; }
 
 /* ---------- 侧边栏：来源阅读视图 ---------- */
 .reader-head { gap: 8px; padding-left: 16px; }
+html.is-mobile-app .reader-head {
+  padding-left: 8px;
+  padding-right: 8px;
+  min-height: 48px;
+}
+html.is-mobile-app .reader-back { height: 36px; padding: 0 10px; font-size: var(--fs-md); }
+html.is-mobile-app .reader-nav .icon-btn { width: 36px; height: 36px; }
 .reader-back { display: inline-flex; align-items: center; gap: 4px; flex: none; height: 28px; padding: 0 8px; border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink-2); }
 .reader-back:hover { background: var(--surface-hover); color: var(--ink); }
 .reader-crumb { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.reader-nav { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.reader-nav { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: auto; }
+.reader-count { min-width: 42px; text-align: center; font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .reader-nav .icon-btn:disabled { opacity: 0.35; }
 .reader-source { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--fs-sm); color: var(--ink-3); }
 .reader-title { margin: 8px 0 0; font: 600 var(--fs-xl)/1.45 var(--font-ui); letter-spacing: 0.01em; }

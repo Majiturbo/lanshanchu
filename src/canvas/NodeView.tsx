@@ -9,7 +9,7 @@ import { ThinkingStream } from "../components/ThinkingStream.tsx";
 import { splitPhrases, usePhraseReveal, useStagger, type Phrase } from "../components/smoothText.ts";
 import { VisualCard } from "../components/VisualCard.tsx";
 import { seconds } from "../components/SearchLog.tsx";
-import { IS_TOUCH_UI } from "../core/device.ts";
+import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { sourceMeta } from "../lib/format.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
 import { actions, useGraph } from "../store/graph.ts";
@@ -256,9 +256,11 @@ function AnswerCard({ n, active }: { n: GNode; active: boolean }) {
                   <SourceStack sources={n.sources} />
                   {streaming ? <StatusText className="meta status-text" text={stageText(n, search)} /> : <span className="meta">{sourceMeta(n.sources)}</span>}
                   <span className="card-actions">
-                    <button type="button" className="icon-btn" data-act="detail" aria-label="打开详情" onClick={() => actions.openDrawer(n.id)}>
-                      <PanelRightOpen size={14} strokeWidth={1.6} />
-                    </button>
+                    {!IS_MOBILE_APP && (
+                      <button type="button" className="icon-btn" data-act="detail" aria-label="打开详情" onClick={() => actions.openDrawer(n.id)}>
+                        <PanelRightOpen size={14} strokeWidth={1.6} />
+                      </button>
+                    )}
                     {IS_TOUCH_UI && (
                       <button
                         type="button"

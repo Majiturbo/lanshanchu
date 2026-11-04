@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUp, CalendarClock, RotateCw, Sparkles, TextSearch, X } from "lucide-react";
+import { ArrowUp, CalendarClock, RotateCw, Sparkles, TextSearch, X } from "lucide-react";
 import { SOURCES_CAP } from "../core/protocol.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IS_MOBILE_APP } from "../core/device.ts";
@@ -85,9 +85,11 @@ function DrawerBody({ n }: { n: GNode }) {
           {kind && <span className="drawer-kind">{kind}</span>}
           <span className="drawer-q">{n.q}</span>
         </span>
-        <button type="button" className="icon-btn" aria-label="关闭详情" data-replay-id="drawer-close" onClick={actions.closeDrawer}>
-          {IS_MOBILE_APP ? <ArrowLeft size={16} strokeWidth={1.6} /> : <X size={16} strokeWidth={1.6} />}
-        </button>
+        {IS_MOBILE_APP ? null : (
+          <button type="button" className="icon-btn" aria-label="关闭详情" data-replay-id="drawer-close" onClick={actions.closeDrawer}>
+            <X size={16} strokeWidth={1.6} />
+          </button>
+        )}
       </div>
       <div className="drawer-body">
         {n.images.length > 0 && (

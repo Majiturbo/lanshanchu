@@ -1,4 +1,4 @@
-import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
+import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, MessageSquarePlus, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Canvas, useCrumbs } from "../canvas/Canvas.tsx";
@@ -19,7 +19,7 @@ import { drag, WindowControls } from "./TitleBar.tsx";
 import { usePresence } from "./presence.ts";
 import "../styles/workspace.css";
 
-type MobileSheet = "menu" | "prefs" | null;
+type MobileSheet = "menu" | "prefs" | "path" | null;
 
 function Topbar() {
   const crumbs = useCrumbs();
@@ -57,16 +57,23 @@ function Topbar() {
         <ArrowLeft size={16} strokeWidth={1.6} />
       </button>
       <span className="topbar-sep" aria-hidden="true" {...drag} />
-      <nav className="crumbs" aria-label="当前路径" {...drag}>
-        {crumbs.map((n, i) => (
-          <span key={n.id} className="crumb-item">
-            {i > 0 && <ChevronRight className="crumb-sep" size={13} strokeWidth={1.6} aria-hidden="true" />}
-            <button type="button" className="crumb" aria-current={i === crumbs.length - 1 || undefined} onClick={() => actions.activate(n.id)}>
-              {short(n.q.replace(/[？?]$/, ""), 18)}
-            </button>
-          </span>
-        ))}
-      </nav>
+      {IS_MOBILE_APP ? (
+        <button type="button" className="topbar-current" onClick={() => setSheet("path")}>
+          <span>{short((crumbs[crumbs.length - 1]?.q ?? "").replace(/[？?]$/, ""), 16) || "知识地图"}</span>
+          {crumbs.length > 1 ? <ChevronRight size={14} strokeWidth={1.6} aria-hidden="true" /> : null}
+        </button>
+      ) : (
+        <nav className="crumbs" aria-label="当前路径" {...drag}>
+          {crumbs.map((n, i) => (
+            <span key={n.id} className="crumb-item">
+              {i > 0 && <ChevronRight className="crumb-sep" size={13} strokeWidth={1.6} aria-hidden="true" />}
+              <button type="button" className="crumb" aria-current={i === crumbs.length - 1 || undefined} onClick={() => actions.activate(n.id)}>
+                {short(n.q.replace(/[？?]$/, ""), 18)}
+              </button>
+            </span>
+          ))}
+        </nav>
+      )}
       {IS_MOBILE_APP ? (
         <div className="topbar-actions">
           <button
@@ -79,11 +86,24 @@ function Topbar() {
             <Ellipsis size={16} strokeWidth={1.6} />
           </button>
           {sheetP.mounted && createPortal(
-            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheet === "prefs" ? "回答偏好" : "画布菜单"}>
+            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheet === "prefs" ? "回答偏好" : sheet === "path" ? "当前路径" : "画布菜单"}>
               <div className="mobile-sheet-scrim" onClick={() => setSheet(null)} />
               <div className="mobile-sheet-panel">
                 <div className="mobile-sheet-handle" aria-hidden="true" />
-                {sheet === "prefs" ? (
+                {sheet === "path" ? (
+                  <>
+                    <p className="mobile-sheet-title">当前路径</p>
+                    <div className="ctx-group">
+                      {crumbs.map((n, i) => (
+                        <button key={n.id} type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); actions.activate(n.id); }}>
+                          <span>{n.q}</span>
+                          {i === crumbs.length - 1 ? <span className="meta">当前</span> : null}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
+                  </>
+                ) : sheet === "prefs" ? (
                   <>
                     <p className="mobile-sheet-title">回答偏好</p>
                     <div className="mobile-sheet-prefs">
@@ -107,9 +127,13 @@ function Topbar() {
                       <HistoryIcon size={16} strokeWidth={1.6} aria-hidden="true" />
                       历史记录
                     </button>
-                    <button type="button" className="mobile-sheet-item" data-replay-id="settings" onClick={() => { setSheet(null); settingsActions.open("manual"); }}>
-                      <Settings size={16} strokeWidth={1.6} aria-hidden="true" />
-                      设置
+                    <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); dispatchEvent(new CustomEvent("lanshan:new-question")); }}>
+                      <MessageSquarePlus size={16} strokeWidth={1.6} aria-hidden="true" />
+                      新建问题
+                    </button>
+                    <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); fit(); }}>
+                      <Maximize size={16} strokeWidth={1.6} aria-hidden="true" />
+                      适应画布
                     </button>
                     <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
                   </>
@@ -196,7 +220,7 @@ export function Workspace() {
       <Canvas />
       <CommandPalette />
       <Drawer />
-      <ZoomControls />
+      {!IS_MOBILE_APP && <ZoomControls />}
       <SummarySheet />
       <CitePopover />
     </div>

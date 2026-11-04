@@ -194,7 +194,7 @@ export function SearchToggle({ compact = false }: { compact?: boolean }) {
       onClick={actions.toggleSearch}
     >
       <Globe size={15} strokeWidth={1.6} aria-hidden="true" />
-      <span className={compact ? "toggle-label" : undefined}>联网搜索</span>
+      {!compact && <span>联网搜索</span>}
     </button>
   );
 }

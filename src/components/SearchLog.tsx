@@ -99,7 +99,7 @@ export function SearchLogSection({ n }: { n: GNode }) {
             );
           }
           round++;
-          const label = round === 1 ? `第 1 轮 · ${s.queries.length > 1 ? `同时查 ${s.queries.length} 个` : "查 1 个"}` : `第 ${round} 轮 · 补查 ${s.queries.length} 个`;
+          const label = round === 1 ? `第 1 轮 ${s.queries.length > 1 ? `同时查 ${s.queries.length} 个` : "查 1 个"}` : `第 ${round} 轮 补查 ${s.queries.length} 个`;
           return [
             round > 1 && (
               <li key={`why-${i}`} className="research-step">

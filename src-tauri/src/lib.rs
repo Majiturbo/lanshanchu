@@ -105,6 +105,21 @@ pub fn run() {
                     .build()?;
                 }
             }
+            // iOS：打开 WKWebView 左右滑前进/后退。前端 history 哨兵会把侧滑转成 dismissOne。
+            #[cfg(target_os = "ios")]
+            {
+                use objc2::msg_send;
+                use objc2::runtime::AnyObject;
+                use tauri::Manager;
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.with_webview(|platform| unsafe {
+                        let view: *mut AnyObject = platform.inner().cast();
+                        if !view.is_null() {
+                            let _: () = msg_send![&*view, setAllowsBackForwardNavigationGestures: true];
+                        }
+                    });
+                }
+            }
             let _ = app;
             Ok(())
         })

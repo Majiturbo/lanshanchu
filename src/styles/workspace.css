@@ -83,13 +83,15 @@ html.is-mobile-app .home-titlebar {
 html.is-mobile-app .zoom {
   display: none;
 }
+/* 详情铺满屏底；安全区只在追问条上留一次，避免 bottom + padding + margin 叠出大块空白 */
 html.is-mobile-app .drawer {
-  top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
-  bottom: env(safe-area-inset-bottom, 0px);
+  top: 0;
+  bottom: 0;
+  padding-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   padding-bottom: var(--kb-inset, 0px);
 }
 html.is-mobile-app .drawer-ask {
-  margin-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  margin-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 html.is-mobile-app .crumbs .crumb {
   max-width: min(160px, 36vw);
@@ -104,7 +106,8 @@ html.is-mobile-app .crumbs .crumb {
 .mobile-sheet-scrim { position: absolute; inset: 0; background: var(--scrim); touch-action: none; }
 .mobile-sheet-panel {
   position: relative; z-index: 1; width: min(480px, 100%);
-  padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  /* 只垫一截 Home 指示条高度，不再叠加额外大块空白 */
+  padding: 8px 12px max(12px, env(safe-area-inset-bottom, 0px));
   background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0;
   box-shadow: var(--shadow-3);
   animation: enter var(--t-mid) var(--ease) both;

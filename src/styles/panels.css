@@ -60,11 +60,7 @@ html.is-mobile-app .workspace.has-drawer .stage {
   pointer-events: none;
 }
 html.is-mobile-app .drawer {
-  top: 0;
-  padding-top: var(--topbar-h);
   border-left: 0;
-  /* 盖住底部安全区，避免点阵/卡片从底缝露出 */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--bg);
 }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px 0 24px; }
@@ -163,7 +159,7 @@ button.source { width: 100%; text-align: left; }
 .followup:hover { background: var(--surface-hover); color: var(--ink); }
 .followup-q { flex: 1; min-width: 0; }
 
-html.is-mobile-app .drawer-ask { margin-inline: 12px; margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+html.is-mobile-app .drawer-ask { margin-inline: 12px; }
 .drawer-ask {
   display: flex; align-items: center; gap: 8px;
   margin: 0 16px 16px; padding: 6px 6px 6px 14px;
@@ -497,20 +493,18 @@ html.is-touch .hist-del { display: none; }
   .summary-foot { padding-left: 20px; }
 }
 
-/* ---------- 引用气泡 ---------- */
+/* ---------- 引用气泡（桌面 / 移动都贴角标；移动端不要底栏 sheet） ---------- */
 .cite-pop {
   position: fixed; z-index: 70;
-  display: flex; flex-direction: column; max-height: min(440px, calc(100vh - 24px));
+  display: flex; flex-direction: column; max-height: min(440px, calc(100dvh - 24px));
   background: var(--surface); border: var(--hair) solid var(--line); border-radius: var(--r-md);
   box-shadow: var(--shadow-3);
   animation: enter var(--t-fast) var(--ease) both;
 }
-html.is-mobile-app .cite-pop.is-sheet {
-  left: 0; right: 0; bottom: 0; top: auto; width: auto;
-  max-height: min(70vh, 560px);
-  border-radius: 18px 18px 0 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+html.is-mobile-app .cite-pop {
+  max-height: min(440px, calc(100dvh - 24px - env(safe-area-inset-bottom, 0px)));
 }
+html.is-mobile-app .cite-pop-actions { flex-wrap: wrap; justify-content: flex-end; }
 .cite-pop-head { display: flex; align-items: center; gap: 8px; padding: 10px 8px 0 14px; }
 .cite-pop-n { font: 500 var(--fs-sm)/16px var(--font-mono); color: var(--accent); }
 .cite-pop-meta { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -602,7 +596,7 @@ html.is-mobile-app .reader-nav .icon-btn { width: 36px; height: 36px; }
 .ctx-sheet-scrim { position: absolute; inset: 0; background: var(--scrim, rgba(0, 0, 0, 0.4)); touch-action: none; }
 .ctx-sheet-panel {
   position: relative; z-index: 1; width: min(480px, 100%);
-  padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 12px max(12px, env(safe-area-inset-bottom, 0px));
   background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0;
   box-shadow: var(--shadow-3);
   animation: enter var(--t-mid) var(--ease) both;

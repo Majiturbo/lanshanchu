@@ -20,6 +20,9 @@ tauri-plugin-dialog = "2"
 # tauri.conf.json 里有插件配置（plugins.http.scopeRedirects）时，generate_context! 生成的代码需要它
 serde_json = "1"
 
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+
 [profile.release]
 codegen-units = 1
 lto = true

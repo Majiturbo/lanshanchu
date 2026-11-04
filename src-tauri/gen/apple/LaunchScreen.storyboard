@@ -14,7 +14,7 @@
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
-                        <!-- 与深色 --bg #141726 一致，避免系统白底启动页切进应用时闪一下 -->
+                        <!-- Match dark app bg #141726 to avoid a white flash on launch -->
                         <color key="backgroundColor" red="0.0784313725490196" green="0.09019607843137255" blue="0.14901960784313725" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
                 </viewController>

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { IS_MOBILE_APP } from "../core/device.ts";
 import { DEFAULT_MAIN_MODEL, VISIBLE_MODELS, type MainModel } from "../core/models.ts";
 import { PACK_MODE } from "../core/devNet.ts";
 import type { Prefs } from "../core/protocol.ts";
@@ -43,7 +44,7 @@ export interface Settings {
   autoCollapse: boolean;
   /** 打开详情侧边栏时自动生成详解；关闭时（默认）侧边栏里点按钮才生成，省一次主模型调用 */
   autoDetail: boolean;
-  /** 点击来源时：用系统默认浏览器打开，或在侧边栏的阅读视图里打开 */
+  /** 点击来源时：系统浏览器，或应用内阅读。移动端默认应用内，避免跳出 App */
   openSource: "browser" | "reader";
   /** 侧边栏宽度占窗口宽度的比例，拖动左边缘调整；记比例而不是像素，窗口变宽变窄时侧边栏跟着变 */
   drawerRatio: number;
@@ -85,22 +86,33 @@ export const drawerCss = (ratio: number) => `max(${DRAWER_MIN}px, ${clampRatio(r
 /** 拖动边缘到距窗口右边 px 像素时的比例；360 的下限只在显示时保证，记下的比例不受当前窗口宽度抬高 */
 export const drawerRatioAt = (px: number) => clampRatio(px / innerWidth);
 
+export type AuthGate = "login" | "quota";
+
 interface SettingsState extends Settings {
   open: boolean;
+  /** 移动端独立登录 / 额度全屏页；与设置对话框互斥 */
+  gate: AuthGate | null;
 }
+
+const defaultOpenSource = (): Settings["openSource"] => (IS_MOBILE_APP ? "reader" : "browser");
 
 export const useSettings = create<SettingsState>()(
   persist(
-    (): SettingsState => ({ session: "", account: null, canAsk: false, usage: null, model: DEFAULT_MAIN_MODEL, autoCollapse: false, autoDetail: false, openSource: "browser", drawerRatio: DRAWER_RATIO, onLeave: "background", theme: "dark", petals: true, prefs: DEFAULT_PREFS, open: false }),
+    (): SettingsState => ({
+      session: "", account: null, canAsk: false, usage: null, model: DEFAULT_MAIN_MODEL,
+      autoCollapse: false, autoDetail: false, openSource: defaultOpenSource(), drawerRatio: DRAWER_RATIO,
+      onLeave: "background", theme: "dark", petals: true, prefs: DEFAULT_PREFS, open: false, gate: null,
+    }),
     {
       name: "lanshan-settings",
-      version: 7,
+      version: 8,
       // 版本 2：「切换节点时收起上一个节点的要点」默认改为保持展开（用户要求），老用户也改一次
       // 版本 3：回答风格新增「自动」并设为默认，原来默认的「简洁明了」改为自动（用户反馈简洁明了答得太少），其他选择保留
       // 版本 4：密钥改由平台代发，本机只保留登录会话
       // 版本 5：去掉可切换配色，只留墨色
       // 版本 6：灯火余额改为月租双窗黑盒用量
       // 版本 7：用量快照补 planExpiresAt（设置账号区展示到期）
+      // 版本 8：移动端点击来源默认改为应用内阅读，避免跳出 App
       migrate: (persisted, version) => {
         let s = (persisted ?? {}) as Partial<SettingsState> & { palette?: unknown; remaining?: unknown };
         if (version < 2) s = { ...s, autoCollapse: false };
@@ -118,6 +130,7 @@ export const useSettings = create<SettingsState>()(
           const u = s.usage as UsageView & { planExpiresAt?: number };
           s = { ...s, usage: { ...u, planExpiresAt: Math.max(0, Math.floor(Number(u.planExpiresAt) || 0)) } };
         }
+        if (version < 8 && IS_MOBILE_APP) s = { ...s, openSource: "reader" };
         return s as SettingsState;
       },
       storage: createJSONStorage(() => localStorage),
@@ -126,7 +139,9 @@ export const useSettings = create<SettingsState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<Settings>;
         const model = VISIBLE_MODELS.some((m) => m.id === p.model) ? p.model! : DEFAULT_MAIN_MODEL;
-        const openSource = p.openSource === "reader" ? "reader" : "browser";
+        const openSource = p.openSource === "reader" || p.openSource === "browser"
+          ? p.openSource
+          : defaultOpenSource();
         const drawerRatio = typeof p.drawerRatio === "number" && p.drawerRatio >= 0 && p.drawerRatio <= 1 ? p.drawerRatio : DRAWER_RATIO;
         const onLeave = p.onLeave === "stop" || p.onLeave === "ask" ? p.onLeave : "background";
         // 新用户默认深色；存过设置的保持原样，存档里没有明暗（加这个选项之前存的）说明一直跟随系统
@@ -153,13 +168,13 @@ export const useSettings = create<SettingsState>()(
             }
           : null;
         const account = p.account && typeof p.account === "object" && typeof p.account.id === "string" ? p.account : null;
-        return { ...current, ...p, session, account, canAsk, usage, model, openSource, drawerRatio, onLeave, theme, petals, prefs: cleanPrefs(p.prefs) };
+        return { ...current, ...p, session, account, canAsk, usage, model, openSource, drawerRatio, onLeave, theme, petals, prefs: cleanPrefs(p.prefs), gate: null };
       },
     },
   ),
 );
 
-/** 打开设置时的来源：登录表单用来区分 ask_gate / settings；移动门闸短页也看它 */
+/** 打开设置时的来源：登录表单用来区分 ask_gate / settings */
 export type SettingsOpenReason = "manual" | "login" | "quota";
 let settingsOpenReason: SettingsOpenReason = "manual";
 export const loginFrom = () => (settingsOpenReason === "login" ? "ask_gate" as const : "settings" as const);
@@ -171,13 +186,22 @@ export const settingsActions = {
   setPrefs: (p: Partial<Prefs>) => useSettings.setState((s) => ({ prefs: { ...s.prefs, ...p } })),
   open: (reason: SettingsOpenReason = "manual") => {
     settingsOpenReason = reason;
-    useSettings.setState({ open: true });
-    // 动态导入，避免 settings ↔ analytics 循环依赖
+    // 移动端登录 / 额度走独立全屏页，不塞进设置对话框
+    if (IS_MOBILE_APP && (reason === "login" || reason === "quota")) {
+      useSettings.setState({ gate: reason, open: false });
+      void import("../analytics/index.ts").then(({ track }) => track("settings_opened", { reason }));
+      return;
+    }
+    useSettings.setState({ open: true, gate: null });
     void import("../analytics/index.ts").then(({ track }) => track("settings_opened", { reason }));
   },
   close: () => {
     settingsOpenReason = "manual";
-    useSettings.setState({ open: false });
+    useSettings.setState({ open: false, gate: null });
+  },
+  closeGate: () => {
+    settingsOpenReason = "manual";
+    useSettings.setState({ gate: null });
   },
   clearAccount: () => useSettings.setState({ session: "", account: null, canAsk: false, usage: null }),
 };

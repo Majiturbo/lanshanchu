@@ -1,16 +1,17 @@
-import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, Maximize, Minus, Plus, Settings } from "lucide-react";
+import { AlignLeft, ArrowLeft, ChevronRight, Ellipsis, History as HistoryIcon, Maximize, Minus, Plus, Settings, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Canvas, useCrumbs } from "../canvas/Canvas.tsx";
 import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
+import { history, useHistory } from "../history/store.ts";
 import { short } from "../lib/format.ts";
 import { screenTransition, swapScreen } from "../lib/transition.ts";
-import { history, useHistory } from "../history/store.ts";
 import { drawerCss, settingsActions, useSettings } from "../settings/store.ts";
 import { actions, fit, isReady, useGraph, zoomAt } from "../store/graph.ts";
 import { CitePopover } from "./CitePopover.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
-import { SearchToggle } from "./common.tsx";
-import { PrefsMenu } from "./PrefsMenu.tsx";
+import { MobileSearchSwitch, SearchToggle } from "./common.tsx";
+import { PrefsFields, PrefsMenu } from "./PrefsMenu.tsx";
 import { Drawer } from "./Drawer.tsx";
 import { HistoryButton } from "./History.tsx";
 import { SummarySheet } from "./SummarySheet.tsx";
@@ -18,31 +19,30 @@ import { drag, WindowControls } from "./TitleBar.tsx";
 import { usePresence } from "./presence.ts";
 import "../styles/workspace.css";
 
+type MobileSheet = "menu" | "prefs" | null;
+
 function Topbar() {
   const crumbs = useCrumbs();
   const hasAnswers = useGraph((s) => Object.values(s.nodes).some(isReady));
   const drawerId = useGraph((s) => s.drawerId);
   const reading = useGraph((s) => s.reading);
-  const [more, setMore] = useState(false);
-  const moreP = usePresence(more);
+  const [sheet, setSheet] = useState<MobileSheet>(null);
+  const sheetP = usePresence(!!sheet);
 
   useEffect(() => {
-    if (!more) return;
+    if (!sheet) return;
     dispatchEvent(new CustomEvent("lanshan:trap-back"));
-    const dismiss = () => setMore(false);
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMore(false); };
-    const onDown = (e: PointerEvent) => {
-      if (!(e.target as HTMLElement).closest(".topbar-overflow, .topbar-more-btn")) setMore(false);
-    };
+    const dismiss = () => setSheet(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
     addEventListener("lanshan:dismiss-overflow", dismiss);
+    addEventListener("lanshan:dismiss-menu", dismiss);
     addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onDown, true);
     return () => {
       removeEventListener("lanshan:dismiss-overflow", dismiss);
+      removeEventListener("lanshan:dismiss-menu", dismiss);
       removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onDown, true);
     };
-  }, [more]);
+  }, [sheet]);
 
   const onBack = () => {
     if (reading) return actions.closeReader();
@@ -73,25 +73,50 @@ function Topbar() {
             type="button"
             className="icon-btn topbar-more-btn"
             aria-label="更多"
-            aria-expanded={more}
-            onClick={() => setMore((o) => !o)}
+            aria-expanded={!!sheet}
+            onClick={() => setSheet((s) => (s ? null : "menu"))}
           >
             <Ellipsis size={16} strokeWidth={1.6} />
           </button>
-          {moreP.mounted && (
-            <div className={`topbar-overflow${moreP.closing ? " is-closing" : ""}`} role="menu">
-              <SearchToggle compact />
-              <PrefsMenu compact />
-              <button type="button" className="ctx-item" role="menuitem" disabled={!hasAnswers} onClick={() => { setMore(false); actions.openSummary(); }}>
-                <AlignLeft size={14} strokeWidth={1.6} />总结
-              </button>
-              <button type="button" className="ctx-item" role="menuitem" onClick={() => { setMore(false); history.openPanel(); }}>
-                历史记录
-              </button>
-              <button type="button" className="ctx-item" role="menuitem" data-replay-id="settings" onClick={() => { setMore(false); settingsActions.open("manual"); }}>
-                <Settings size={14} strokeWidth={1.6} />设置
-              </button>
-            </div>
+          {sheetP.mounted && createPortal(
+            <div className={`mobile-sheet${sheetP.closing ? " is-closing" : ""}`} role="dialog" aria-label={sheet === "prefs" ? "回答偏好" : "画布菜单"}>
+              <div className="mobile-sheet-scrim" onClick={() => setSheet(null)} />
+              <div className="mobile-sheet-panel">
+                <div className="mobile-sheet-handle" aria-hidden="true" />
+                {sheet === "prefs" ? (
+                  <>
+                    <p className="mobile-sheet-title">回答偏好</p>
+                    <div className="mobile-sheet-prefs">
+                      <PrefsFields onDone={() => setSheet(null)} />
+                    </div>
+                    <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>完成</button>
+                  </>
+                ) : (
+                  <>
+                    {/* 每一行统一：图标 + 文字，联网用开关行 */}
+                    <MobileSearchSwitch className="mobile-sheet-switch" />
+                    <button type="button" className="mobile-sheet-item" onClick={() => setSheet("prefs")}>
+                      <SlidersHorizontal size={16} strokeWidth={1.6} aria-hidden="true" />
+                      回答偏好
+                    </button>
+                    <button type="button" className="mobile-sheet-item" disabled={!hasAnswers} onClick={() => { setSheet(null); actions.openSummary(); }}>
+                      <AlignLeft size={16} strokeWidth={1.6} aria-hidden="true" />
+                      总结
+                    </button>
+                    <button type="button" className="mobile-sheet-item" onClick={() => { setSheet(null); history.openPanel(); }}>
+                      <HistoryIcon size={16} strokeWidth={1.6} aria-hidden="true" />
+                      历史记录
+                    </button>
+                    <button type="button" className="mobile-sheet-item" data-replay-id="settings" onClick={() => { setSheet(null); settingsActions.open("manual"); }}>
+                      <Settings size={16} strokeWidth={1.6} aria-hidden="true" />
+                      设置
+                    </button>
+                    <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>取消</button>
+                  </>
+                )}
+              </div>
+            </div>,
+            document.body,
           )}
         </div>
       ) : (
@@ -119,7 +144,6 @@ function ZoomControls() {
   const center = () => [innerWidth / 2, innerHeight / 2] as const;
   return (
     <div className={`zoom${drawer ? " with-drawer" : ""}`} role="group" aria-label="缩放">
-      {/* 框选依赖 Shift，空白拖是平移；不写出来用户会以为框选坏了。触屏首版不做框选，不显示 */}
       {!IS_TOUCH_UI && <span className="zoom-hint">Shift 框选</span>}
       {!IS_TOUCH_UI && <span className="zoom-sep" aria-hidden="true" />}
       <button type="button" className="icon-btn" aria-label="缩小" onClick={() => zoomAt(1 / 1.2, ...center(), true)}><Minus size={15} strokeWidth={1.6} /></button>
@@ -138,7 +162,7 @@ export function Workspace() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useGraph.getState();
-      if (useSettings.getState().open || useHistory.getState().open) return; // 对话框自己处理按键
+      if (useSettings.getState().open || useHistory.getState().open || useSettings.getState().gate) return;
       if (e.key === "Escape") {
         if (s.summaryOpen) return actions.closeSummary();
         if (s.selected.length) return actions.setSelected([]);
@@ -155,7 +179,12 @@ export function Workspace() {
     return () => removeEventListener("keydown", onKey);
   }, []);
 
-  // 挂载时定下进场方式并保持不变：在页面切换中挂载就交给过渡淡入，不再自己播动画
+  // 移动端不保留多选框选态显示：进画布就清掉遗留选中
+  useEffect(() => {
+    if (!IS_MOBILE_APP) return;
+    if (useGraph.getState().selected.length) actions.setSelected([]);
+  }, []);
+
   const [intro] = useState(() => {
     const vt = screenTransition();
     return vt === "hero" ? "enter-hero" : vt ? "enter-vt" : "enter-self";

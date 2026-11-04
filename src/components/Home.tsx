@@ -8,7 +8,8 @@ import { AttachmentStrip, hasFiles, useAttachments } from "./Attachments.tsx";
 import { refreshUsageIfNeeded } from "../core/platform.ts";
 import { actions } from "../store/graph.ts";
 import { MOCK_MODE, settingsActions, useSettings } from "../settings/store.ts";
-import { SearchToggle } from "./common.tsx";
+import { IS_MOBILE_APP } from "../core/device.ts";
+import { MobileSearchSwitch, SearchToggle } from "./common.tsx";
 import { PrefsMenu } from "./PrefsMenu.tsx";
 import { HistoryButton, RecentList } from "./History.tsx";
 import { useHistory } from "../history/store.ts";
@@ -164,10 +165,11 @@ export function Home() {
             />
             <div className="ask-bar">
               <div className="ask-tools">
-                <SearchToggle compact />
+                {IS_MOBILE_APP ? <MobileSearchSwitch /> : <SearchToggle compact />}
                 <PrefsMenu compact />
-                <button type="button" className="icon-btn" aria-label="添加图片" disabled={att.full} onClick={() => file.current?.click()}>
+                <button type="button" className={`icon-btn${IS_MOBILE_APP ? " ask-tool-labeled" : ""}`} aria-label="添加图片" disabled={att.full} onClick={() => file.current?.click()}>
                   <ImagePlus size={16} strokeWidth={1.6} />
+                  {IS_MOBILE_APP && <span>图片</span>}
                 </button>
                 <input ref={file} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden
                   onChange={(e) => { att.add([...(e.target.files ?? [])]); e.target.value = ""; ref.current?.focus(); }} />
@@ -183,7 +185,9 @@ export function Home() {
             <CircleAlert size={14} strokeWidth={1.8} />
             <span>{problem}</span>
             {CAN_FETCH && (
-              <button type="button" className="link-btn" onClick={() => settingsActions.open(!session ? "login" : "quota")}>去设置</button>
+              <button type="button" className="link-btn" onClick={() => settingsActions.open(!session ? "login" : "quota")}>
+                {!session ? "去登录" : "查看额度"}
+              </button>
             )}
           </p>
         )}

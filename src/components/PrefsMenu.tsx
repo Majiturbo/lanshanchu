@@ -51,6 +51,35 @@ function keepInView(el: HTMLElement) {
   el.style.translate = dx ? `${dx}px 0` : "";
 }
 
+/** 偏好表单本体：桌面弹层与移动底栏共用 */
+export function PrefsFields({ onDone }: { onDone?: () => void }) {
+  const prefs = useSettings((s) => s.prefs);
+  const custom = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <Choice label="回答风格" options={STYLES} value={prefs.style} onChange={(style) => {
+        settingsActions.setPrefs({ style });
+        if (style === "custom") requestAnimationFrame(() => custom.current?.focus());
+      }} />
+      {prefs.style === "custom" && (
+        <input
+          ref={custom}
+          className="prefs-input"
+          aria-label="自定义回答风格"
+          placeholder="自定义回答风格"
+          maxLength={100}
+          value={prefs.customStyle}
+          onChange={(e) => settingsActions.setPrefs({ customStyle: e.target.value })}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onDone?.(); } }}
+        />
+      )}
+      <Choice label="来源" options={SOURCES} value={prefs.sources} onChange={(sources) => settingsActions.setPrefs({ sources })} />
+      <Choice label="时间" options={TIMES} value={prefs.time} onChange={(time) => settingsActions.setPrefs({ time })} />
+      <MapMemory />
+    </>
+  );
+}
+
 /** 输入框旁的回答偏好：回答风格、来源偏好、时间范围；选了即存，之后的提问都按它来 */
 export function PrefsMenu({ compact = false }: { compact?: boolean }) {
   const prefs = useSettings((s) => s.prefs);
@@ -58,7 +87,6 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
   const { mounted, closing } = usePresence(open);
   const ref = useRef<HTMLDivElement>(null);
   const pop = useRef<HTMLDivElement>(null);
-  const custom = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +102,6 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
     if (!mounted || !el) return;
     const place = () => keepInView(el);
     place();
-    // 进场动画带 scale，结束后再夹一次，避免按缩小后的宽度定位
     const t = window.setTimeout(place, 280);
     const ro = new ResizeObserver(place);
     ro.observe(el);
@@ -90,25 +117,7 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
       </button>
       {mounted && (
         <div ref={pop} className={`prefs-pop${closing ? " is-closing" : ""}`} role="dialog" aria-label="回答偏好">
-          <Choice label="回答风格" options={STYLES} value={prefs.style} onChange={(style) => {
-            settingsActions.setPrefs({ style });
-            if (style === "custom") requestAnimationFrame(() => custom.current?.focus());
-          }} />
-          {prefs.style === "custom" && (
-            <input
-              ref={custom}
-              className="prefs-input"
-              aria-label="自定义回答风格"
-              placeholder="自定义回答风格"
-              maxLength={100}
-              value={prefs.customStyle}
-              onChange={(e) => settingsActions.setPrefs({ customStyle: e.target.value })}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setOpen(false); } }}
-            />
-          )}
-          <Choice label="来源" options={SOURCES} value={prefs.sources} onChange={(sources) => settingsActions.setPrefs({ sources })} />
-          <Choice label="时间" options={TIMES} value={prefs.time} onChange={(time) => settingsActions.setPrefs({ time })} />
-          <MapMemory />
+          <PrefsFields onDone={() => setOpen(false)} />
         </div>
       )}
     </div>

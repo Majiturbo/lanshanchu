@@ -147,6 +147,19 @@
    和悬停（只深一阶的边线）分得开，和多选（强调色加光圈）也分得开，一眼认得出又不抢正文 */
 .node.is-active .card { border-color: var(--edge-active); box-shadow: 0 0 0 var(--hair) var(--edge-active), var(--shadow-3); }
 .node.is-selected .card { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* 移动端：不展示桌面式点选 / 多选框；只有开着详情时当前节点才描边定位 */
+html.is-mobile-app .node.is-selected .card {
+  border-color: var(--line);
+  box-shadow: var(--shadow-1);
+}
+html.is-mobile-app .node.is-active .card {
+  border-color: var(--line);
+  box-shadow: var(--shadow-1);
+}
+html.is-mobile-app .workspace.has-drawer .node.is-active .card {
+  border-color: var(--edge-active);
+  box-shadow: 0 0 0 var(--hair) var(--edge-active), var(--shadow-3);
+}
 
 /* 问题行：问题退到卡片上方。它没有框，问题贴卡片左边、方向标签贴卡片右边（用户要求）；延伸问题（.pill）有框，
    按自己的内边距同样是问题靠左、标签靠右，两者各按自己的容器对齐，不靠固定偏移去凑。离自己的卡片 8px、

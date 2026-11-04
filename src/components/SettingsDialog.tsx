@@ -10,7 +10,7 @@ import { DialogCloseIcon, DialogDone, scrimClose } from "./DialogChrome.tsx";
 import { usePresence } from "./presence.ts";
 import { MemorySection } from "./MemorySection.tsx";
 import { PlanMark } from "./PlanMark.tsx";
-import { loginFrom, MOCK_MODE, settingsActions, settingsReason, THEMES, useSettings, type Settings } from "../settings/store.ts";
+import { loginFrom, MOCK_MODE, settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
 
 function formatResetAt(at: number): string {
   if (!at) return "使用后开始计时";
@@ -57,56 +57,20 @@ function Dialog({ closing }: { closing: boolean }) {
   const onLeave = useSettings((s) => s.onLeave);
   const theme = useSettings((s) => s.theme);
   const petals = useSettings((s) => s.petals);
-  const account = useSettings((s) => s.account);
   const first = useRef<HTMLInputElement>(null);
-  const gateRef = useRef<HTMLInputElement>(null);
   const [savedTick, setSavedTick] = useState(0);
-  // 移动门闸短页：打开时的 reason；可升到完整设置列表
-  const [view, setView] = useState(() => settingsReason());
-  const gate = IS_MOBILE_APP && (view === "login" || view === "quota");
   const update = (patch: Partial<Settings>) => {
     settingsActions.update(patch);
     setSavedTick((t) => t + 1);
   };
 
   useEffect(() => {
-    // 移动端 / 门闸不自动聚焦，避免软键盘立刻顶起挡住内容
-    if (!IS_MOBILE_APP && !gate) first.current?.focus();
+    // 移动端不自动聚焦，避免软键盘立刻顶起挡住内容
+    if (!IS_MOBILE_APP) first.current?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") settingsActions.close(); };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [gate]);
-
-  useEffect(() => {
-    if (view === "login" && account) settingsActions.close();
-  }, [view, account]);
-
-  if (gate) {
-    return (
-      <div className={`dialog-layer is-gate${closing ? " is-closing" : ""}`}>
-        <div className="dialog-scrim" {...scrimClose(settingsActions.close)} />
-        <div className="dialog settings gate-sheet" role="dialog" aria-modal="true" aria-labelledby="gate-title">
-          <header className="dialog-head">
-            <h2 id="gate-title">{view === "login" ? "登录" : "额度"}</h2>
-            <DialogCloseIcon onClose={settingsActions.close} label="关闭" />
-          </header>
-          <div className="dialog-body">
-            {view === "quota" && (
-              <p className="gate-lead">当前额度不足，无法继续提问。可查看用量或联系管理员开通 / 发放重置。</p>
-            )}
-            {view === "login" && (
-              <p className="gate-lead">登录后即可提问。账号与工作台同一套。</p>
-            )}
-            <AccountSection inputRef={gateRef} />
-            <button type="button" className="btn gate-more" onClick={() => setView("manual")}>
-              打开完整设置
-            </button>
-          </div>
-          <DialogDone onClose={settingsActions.close} />
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <div className={`dialog-layer${closing ? " is-closing" : ""}`}>
@@ -195,7 +159,10 @@ function Dialog({ closing }: { closing: boolean }) {
               <div className="field">
                 <span className="field-label" id="open-source-label">点击来源时</span>
                 <div className="segmented" role="radiogroup" aria-labelledby="open-source-label">
-                  {([["browser", "系统浏览器打开"], ["reader", "侧边栏阅读视图"]] as const).map(([v, label]) => (
+                  {(IS_MOBILE_APP
+                    ? ([["reader", "应用内阅读"], ["browser", "系统浏览器"]] as const)
+                    : ([["browser", "系统浏览器打开"], ["reader", "侧边栏阅读视图"]] as const)
+                  ).map(([v, label]) => (
                     <button key={v} type="button" role="radio" aria-checked={openSource === v} onClick={() => openSource !== v && update({ openSource: v })}>
                       {label}
                     </button>
@@ -222,7 +189,7 @@ function Dialog({ closing }: { closing: boolean }) {
   );
 }
 
-function AccountSection({ inputRef }: { inputRef: Ref<HTMLInputElement> }) {
+export function AccountSection({ inputRef }: { inputRef?: Ref<HTMLInputElement> }) {
   const account = useSettings((s) => s.account);
   const canAsk = useSettings((s) => s.canAsk);
   const cached = useSettings((s) => s.usage);

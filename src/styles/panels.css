@@ -385,8 +385,26 @@ button.source { width: 100%; text-align: left; }
 .hist-row:hover .hist-open, .hist-row.is-active .hist-open, .hist-open:focus-visible { color: var(--ink); }
 .hist-row:hover .hist-meta, .hist-row.is-active .hist-meta { color: var(--ink-3); }
 .hist-row:hover .hist-del, .hist-row.is-active .hist-del, .hist-del:focus-visible { opacity: 1; pointer-events: auto; }
-/* 触控无悬停：删除按钮常显 */
-html.is-touch .hist-del { opacity: 1; pointer-events: auto; }
+/* 触控：桌面 hover 删除改为左滑；不常显垃圾桶抢打开 */
+html.is-touch .hist-del { display: none; }
+.hist-swipe-row {
+  position: relative; overflow: hidden;
+}
+.hist-swipe-del {
+  position: absolute; inset: 0 0 0 auto; width: 72px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--danger); color: var(--on-solid);
+  font-size: var(--fs-md); font-weight: 500;
+}
+.hist-swipe-front {
+  position: relative; z-index: 1; background: var(--bg);
+  transition: transform var(--t-fast) var(--ease);
+}
+.recent .hist-swipe-front { background: transparent; }
+.recent .hist-swipe-row.is-revealed .hist-swipe-front,
+.history .hist-swipe-row.is-revealed .hist-swipe-front {
+  background: var(--surface);
+}
 
 .history { max-width: 560px; min-height: min(380px, 100%); max-height: min(620px, 100%); }
 .history .dialog-head { gap: 10px; }

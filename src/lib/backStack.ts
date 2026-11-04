@@ -1,3 +1,4 @@
+import { exit, onBackButtonPress } from "@tauri-apps/api/app";
 import { IS_MOBILE_APP } from "../core/device.ts";
 import { history as mapHistory, useHistory } from "../history/store.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
@@ -12,8 +13,9 @@ export function dismissOne(): boolean {
     viewer.click();
     return true;
   }
-  if (document.querySelector(".ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick")) {
+  if (document.querySelector(".mobile-sheet:not(.is-closing), .ctx-menu:not(.is-closing), .ctx-sheet:not(.is-closing), .ctx-ask, .ctx-pick")) {
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-menu"));
+    document.dispatchEvent(new CustomEvent("lanshan:dismiss-overflow"));
     return true;
   }
   if (document.querySelector(".prefs-pop:not(.is-closing)")) {
@@ -26,6 +28,10 @@ export function dismissOne(): boolean {
   }
   if (useCite.getState().open) {
     closeCite();
+    return true;
+  }
+  if (useSettings.getState().gate) {
+    settingsActions.closeGate();
     return true;
   }
   const g = useGraph.getState();
@@ -56,56 +62,59 @@ export function dismissOne(): boolean {
   return false;
 }
 
-/** 是否还有需要系统返回拦截的一层（首页空态不拦截，让下一次返回退出 App） */
-function shouldTrap(): boolean {
-  if (document.querySelector(".viewer:not(.is-closing), .ctx-menu, .ctx-sheet, .ctx-ask, .ctx-pick, .prefs-pop, .topbar-overflow")) {
-    return true;
-  }
-  if (useCite.getState().open) return true;
-  const g = useGraph.getState();
-  if (g.reading || g.drawerId || g.summaryOpen || g.screen !== "home") return true;
-  if (useSettings.getState().open || useHistory.getState().open) return true;
-  return false;
-}
-
-/** 有可关层时推一枚哨兵；首页空态不推，避免多按一次才能退出 */
-export function ensureBackTrap() {
-  if (!IS_MOBILE_APP) return;
-  if (!shouldTrap()) return;
-  if (window.history.state?.lanshan === 1) return;
-  window.history.pushState({ lanshan: 1 }, "");
-}
-
 /**
- * 移动 App：用 history 哨兵接管 Android 返回。
- * 只在「有东西可关」时占一层；首页且无浮层时不占层，系统返回直接出 App。
+ * 移动 App 返回栈。
+ * Android：用 `onBackButtonPress` 接管（单页 App 的 history 哨兵经常管不到详情层）。
+ * 其它：仍用 history 哨兵兜底。
  */
 export function startBackStack(): () => void {
   if (!IS_MOBILE_APP) return () => {};
-  window.history.replaceState({ lanshan: 0 }, "");
-  ensureBackTrap();
 
-  const onPop = () => {
-    if (dismissOne()) {
-      // 关掉一层后若还有层，再占哨兵，避免下一次返回直接出 App
-      queueMicrotask(ensureBackTrap);
+  let cancelled = false;
+  let unreg: (() => void) | undefined;
+
+  void onBackButtonPress(() => {
+    if (dismissOne()) return;
+    void exit(0);
+  }).then((listener) => {
+    if (cancelled) {
+      void listener.unregister();
+      return;
     }
-  };
-
-  const unsubs = [
-    useGraph.subscribe(ensureBackTrap),
-    useSettings.subscribe(ensureBackTrap),
-    useHistory.subscribe(ensureBackTrap),
-    useCite.subscribe(ensureBackTrap),
-  ];
-  addEventListener("popstate", onPop);
-  addEventListener("lanshan:node-menu", ensureBackTrap);
-  addEventListener("lanshan:trap-back", ensureBackTrap);
+    unreg = () => { void listener.unregister(); };
+  }).catch(() => {
+    // 非 Android 或旧运行时：退回 history 哨兵
+    if (cancelled) return;
+    window.history.replaceState({ lanshan: 0 }, "");
+    const pushIfNeeded = () => {
+      const g = useGraph.getState();
+      const need = !!(
+        g.drawerId || g.reading || g.summaryOpen || g.screen !== "home"
+        || useSettings.getState().open || useSettings.getState().gate
+        || useHistory.getState().open || useCite.getState().open
+        || document.querySelector(".mobile-sheet, .ctx-sheet, .viewer")
+      );
+      if (need && window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
+    };
+    pushIfNeeded();
+    const onPop = () => {
+      if (dismissOne()) queueMicrotask(pushIfNeeded);
+    };
+    addEventListener("popstate", onPop);
+    const unsubs = [
+      useGraph.subscribe(pushIfNeeded),
+      useSettings.subscribe(pushIfNeeded),
+      useHistory.subscribe(pushIfNeeded),
+      useCite.subscribe(pushIfNeeded),
+    ];
+    unreg = () => {
+      removeEventListener("popstate", onPop);
+      unsubs.forEach((u) => u());
+    };
+  });
 
   return () => {
-    removeEventListener("popstate", onPop);
-    removeEventListener("lanshan:node-menu", ensureBackTrap);
-    removeEventListener("lanshan:trap-back", ensureBackTrap);
-    unsubs.forEach((u) => u());
+    cancelled = true;
+    unreg?.();
   };
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { actions, chain, isReady, setView, useGraph, zoomAt, ZOOM_MAX, ZOOM_MIN } from "../store/graph.ts";
 import { edgePath, type Box } from "./layout.ts";
 import { usePresence } from "../components/presence.ts";
@@ -439,6 +440,14 @@ function dropTargetAt(x: number, y: number, dragging: Record<string, unknown>): 
 function onNodeClick(id: string, e: { ctrlKey: boolean; metaKey: boolean }) {
   const { nodes, selected } = useGraph.getState();
   const n = nodes[id];
+  // 移动首版不做多选：忽略 Ctrl 加选，并清掉选中框
+  if (IS_MOBILE_APP || IS_TOUCH_UI) {
+    if (selected.length) actions.setSelected([]);
+    if (n.kind === "question") return actions.ask(id);
+    if (n.status === "loading") actions.activate(id);
+    else actions.openDrawer(id);
+    return;
+  }
   if (e.ctrlKey || e.metaKey) {
     if (n.kind === "answer") actions.toggleSelected(id);
     return;

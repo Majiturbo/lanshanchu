@@ -1,5 +1,6 @@
 import { ArrowRight, History as HistoryIcon, LoaderCircle, Search, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { IS_MOBILE_APP, IS_TOUCH_UI } from "../core/device.ts";
 import { history, useHistory } from "../history/store.ts";
 import { ago, groupOf, matches, type Group, type MapMeta } from "../history/snapshot.ts";
 import { useGraph, useParked } from "../store/graph.ts";
@@ -11,6 +12,7 @@ import { ScrollThumb } from "./ScrollThumb.tsx";
 /** 首页「最近」一屏大约显示的行数（超过时「全部历史」旁显示总数）与最多列出的条数，再多的去历史面板找 */
 const RECENT = 5;
 const RECENT_MAX = 30;
+const SWIPE_OPEN = -72;
 
 /** 把命中的关键词标出来 */
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -25,19 +27,72 @@ interface RowProps { m: MapMeta; query?: string; current?: boolean; active?: boo
 
 function Row({ m, query = "", current, active, onHover, style }: RowProps) {
   const running = useParked((s) => s.ids.includes(m.id));
+  const canDelete = !current && !running;
+  const swipe = IS_MOBILE_APP || IS_TOUCH_UI;
+  const [dx, setDx] = useState(0);
+  const startX = useRef<number | null>(null);
+
+  if (!swipe) {
+    return (
+      <li className={`hist-row${active ? " is-active" : ""}`} style={style} onPointerEnter={onHover}>
+        <button type="button" className="hist-open" data-replay-id={`history-${m.id}`} onClick={() => void history.open(m.id)}>
+          <span className="hist-title"><Highlight text={m.title} query={query} /></span>
+          <span className="hist-meta">
+            {current ? <span className="hist-current">当前</span> : running ? <span className="hist-current"><LoaderCircle className="spin" size={12} strokeWidth={1.8} aria-hidden="true" />后台回答中</span> : <MetaParts items={[`${m.answers} 个回答`, ago(m.updatedAt)]} />}
+          </span>
+        </button>
+        {canDelete && (
+          <button type="button" className="icon-btn hist-del" aria-label={`删除「${m.title}」`} onClick={() => history.remove(m.id)}>
+            <Trash2 size={14} strokeWidth={1.6} />
+          </button>
+        )}
+      </li>
+    );
+  }
+
   return (
-    <li className={`hist-row${active ? " is-active" : ""}`} style={style} onPointerEnter={onHover}>
-      <button type="button" className="hist-open" data-replay-id={`history-${m.id}`} onClick={() => void history.open(m.id)}>
-        <span className="hist-title"><Highlight text={m.title} query={query} /></span>
-        <span className="hist-meta">
-          {current ? <span className="hist-current">当前</span> : running ? <span className="hist-current"><LoaderCircle className="spin" size={12} strokeWidth={1.8} aria-hidden="true" />后台回答中</span> : <MetaParts items={[`${m.answers} 个回答`, ago(m.updatedAt)]} />}
-        </span>
-      </button>
-      {!current && !running && (
-        <button type="button" className="icon-btn hist-del" aria-label={`删除「${m.title}」`} onClick={() => history.remove(m.id)}>
-          <Trash2 size={14} strokeWidth={1.6} />
+    <li
+      className={`hist-row hist-swipe-row${active ? " is-active" : ""}${dx <= SWIPE_OPEN / 2 ? " is-revealed" : ""}`}
+      style={style}
+      onPointerDown={(e) => {
+        if (!canDelete || e.pointerType === "mouse") return;
+        startX.current = e.clientX - dx;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (startX.current == null) return;
+        setDx(Math.min(0, Math.max(SWIPE_OPEN, e.clientX - startX.current)));
+      }}
+      onPointerUp={() => {
+        startX.current = null;
+        setDx((v) => (v < SWIPE_OPEN / 2 ? SWIPE_OPEN : 0));
+      }}
+      onPointerCancel={() => {
+        startX.current = null;
+        setDx(0);
+      }}
+    >
+      {canDelete && (
+        <button type="button" className="hist-swipe-del" aria-label={`删除「${m.title}」`} onClick={() => history.remove(m.id)}>
+          删除
         </button>
       )}
+      <div className="hist-swipe-front" style={{ transform: `translateX(${dx}px)` }}>
+        <button
+          type="button"
+          className="hist-open"
+          data-replay-id={`history-${m.id}`}
+          onClick={() => {
+            if (dx < -8) { setDx(0); return; }
+            void history.open(m.id);
+          }}
+        >
+          <span className="hist-title"><Highlight text={m.title} query={query} /></span>
+          <span className="hist-meta">
+            {current ? <span className="hist-current">当前</span> : running ? <span className="hist-current"><LoaderCircle className="spin" size={12} strokeWidth={1.8} aria-hidden="true" />后台回答中</span> : <MetaParts items={[`${m.answers} 个回答`, ago(m.updatedAt)]} />}
+          </span>
+        </button>
+      </div>
     </li>
   );
 }
@@ -54,7 +109,6 @@ export function RecentList() {
   useLayoutEffect(() => {
     const el = list.current;
     if (!el) return;
-    // 超出区域才显示滚动条；底部羽化由 ScrollThumb 切换的 has-more 类控制
     const check = () => setScrollable(el.scrollHeight > el.clientHeight + 1);
     check();
     const ro = new ResizeObserver(check);
@@ -108,11 +162,9 @@ function Panel({ closing }: { closing: boolean }) {
 
   const found = useMemo(() => items.filter((m) => matches(m, query)), [items, query]);
   const groups = useMemo(() => GROUPS.map((g) => ({ g, rows: found.filter((m) => groupOf(m.updatedAt) === g) })).filter((x) => x.rows.length), [found]);
-  // 键盘移动按分组后的顺序
   const flat = groups.flatMap((x) => x.rows);
 
   useEffect(() => {
-    // 移动端不自动聚焦搜索，避免软键盘挡住列表
     if (!matchMedia("(pointer: coarse)").matches) input.current?.focus();
   }, []);
   useEffect(() => setCursor(0), [query]);

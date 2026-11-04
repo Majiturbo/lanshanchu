@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { trackAppOpened } from "./analytics/index.ts";
+import { AuthScreen } from "./components/AuthScreen.tsx";
 import { HistoryPanel } from "./components/History.tsx";
 import { Home } from "./components/Home.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
@@ -43,6 +44,7 @@ function App() {
   return (
     <>
       {screen === "home" ? <Home /> : <Workspace />}
+      <AuthScreen />
       <HistoryPanel />
       <SettingsDialog />
       <LeaveDialog />

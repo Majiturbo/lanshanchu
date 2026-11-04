@@ -186,9 +186,25 @@ export function CiteText({ text, sources }: { text: string; sources?: Source[] }
 export function SearchToggle({ compact = false }: { compact?: boolean }) {
   const on = useGraph((s) => s.search);
   return (
-    <button type="button" className="toggle" aria-pressed={on} onClick={actions.toggleSearch}>
+    <button type="button" className={`toggle${on ? " is-on" : ""}`} aria-pressed={on} onClick={actions.toggleSearch}>
       <Globe size={15} strokeWidth={1.6} />
       <span className={compact ? "toggle-label" : undefined}>联网搜索</span>
+    </button>
+  );
+}
+
+/** 移动端联网开关：图标 +「联网 · 开/关」，状态一眼可读 */
+export function MobileSearchSwitch({ className = "" }: { className?: string }) {
+  const on = useGraph((s) => s.search);
+  return (
+    <button
+      type="button"
+      className={`mobile-switch${on ? " is-on" : ""}${className ? ` ${className}` : ""}`}
+      aria-pressed={on}
+      onClick={actions.toggleSearch}
+    >
+      <Globe size={16} strokeWidth={1.6} aria-hidden="true" />
+      <span>联网 · {on ? "开" : "关"}</span>
     </button>
   );
 }

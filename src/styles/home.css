@@ -195,8 +195,24 @@
     border-radius: var(--r-lg);
   }
   .ask-bar { margin: 8px 0 0 -6px; }
-  .ask-tools .toggle-label {
+  /* 桌面窄窗仍可藏标签；移动 App 用 MobileSearchSwitch，不走这段 */
+  html:not(.is-mobile-app) .ask-tools .toggle-label {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  html.is-mobile-app .ask-tools {
+    flex-wrap: wrap; gap: 6px;
+  }
+  html.is-mobile-app .ask-tool-labeled {
+    width: auto; height: 36px; padding: 0 10px; gap: 6px;
+    border-radius: var(--r-md); background: var(--surface-sunken); color: var(--ink-2);
+  }
+  html.is-mobile-app .ask-tools .prefs .toggle {
+    height: 36px; padding: 0 10px; gap: 6px;
+    border-radius: var(--r-md); background: var(--surface-sunken);
+  }
+  html.is-mobile-app .ask-tools .prefs .toggle-label {
+    position: static; width: auto; height: auto; clip: auto; overflow: visible; white-space: nowrap;
+    font-size: var(--fs-md);
   }
   .home-status { margin: 12px 4px 0; }
   .recent {

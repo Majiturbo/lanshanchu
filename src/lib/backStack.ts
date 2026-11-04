@@ -6,6 +6,11 @@ import { closeCite, useCite } from "../store/cite.ts";
 import { actions, useGraph } from "../store/graph.ts";
 import { swapScreen } from "./transition.ts";
 
+const tauriPlatform = String(import.meta.env.TAURI_ENV_PLATFORM ?? "");
+const isAndroid =
+  tauriPlatform === "android"
+  || (tauriPlatform !== "ios" && /Android/i.test(navigator.userAgent));
+
 /** 关闭一层浮层 / 详情 / 页面；有东西可关时返回 true（系统返回应留在 App 内） */
 export function dismissOne(): boolean {
   const viewer = document.querySelector<HTMLElement>(".viewer:not(.is-closing) .viewer-close");
@@ -62,16 +67,57 @@ export function dismissOne(): boolean {
   return false;
 }
 
+function needTrap(): boolean {
+  const g = useGraph.getState();
+  return !!(
+    g.drawerId || g.reading || g.summaryOpen || g.screen !== "home"
+    || useSettings.getState().open || useSettings.getState().gate
+    || useHistory.getState().open || useCite.getState().open
+    || document.querySelector(".mobile-sheet, .ctx-sheet, .viewer")
+  );
+}
+
+/** history 哨兵：iOS 侧滑、或 Android 原生返回注册失败时用；监听 trap-back 以便底栏菜单等本地态入栈 */
+function startHistorySentinel(): () => void {
+  window.history.replaceState({ lanshan: 0 }, "");
+  const pushIfNeeded = () => {
+    if (needTrap() && window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
+  };
+  const onTrap = () => {
+    if (window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
+  };
+  const onPop = () => {
+    if (dismissOne()) queueMicrotask(pushIfNeeded);
+  };
+  pushIfNeeded();
+  addEventListener("popstate", onPop);
+  addEventListener("lanshan:trap-back", onTrap);
+  const unsubs = [
+    useGraph.subscribe(pushIfNeeded),
+    useSettings.subscribe(pushIfNeeded),
+    useHistory.subscribe(pushIfNeeded),
+    useCite.subscribe(pushIfNeeded),
+  ];
+  return () => {
+    removeEventListener("popstate", onPop);
+    removeEventListener("lanshan:trap-back", onTrap);
+    unsubs.forEach((u) => u());
+  };
+}
+
 /**
  * 移动 App 返回栈。
- * Android：用 `onBackButtonPress` 接管（单页 App 的 history 哨兵经常管不到详情层）。
- * 其它：仍用 history 哨兵兜底。
+ * Android：`onBackButtonPress` 接管（单页 history 管不到详情层）；注册失败才退回 history。
+ * 其它（含 iOS）：history 哨兵 + trap-back。
  */
 export function startBackStack(): () => void {
   if (!IS_MOBILE_APP) return () => {};
 
+  if (!isAndroid) return startHistorySentinel();
+
   let cancelled = false;
   let unreg: (() => void) | undefined;
+  let stopFallback: (() => void) | undefined;
 
   void onBackButtonPress(() => {
     if (dismissOne()) return;
@@ -83,38 +129,12 @@ export function startBackStack(): () => void {
     }
     unreg = () => { void listener.unregister(); };
   }).catch(() => {
-    // 非 Android 或旧运行时：退回 history 哨兵
-    if (cancelled) return;
-    window.history.replaceState({ lanshan: 0 }, "");
-    const pushIfNeeded = () => {
-      const g = useGraph.getState();
-      const need = !!(
-        g.drawerId || g.reading || g.summaryOpen || g.screen !== "home"
-        || useSettings.getState().open || useSettings.getState().gate
-        || useHistory.getState().open || useCite.getState().open
-        || document.querySelector(".mobile-sheet, .ctx-sheet, .viewer")
-      );
-      if (need && window.history.state?.lanshan !== 1) window.history.pushState({ lanshan: 1 }, "");
-    };
-    pushIfNeeded();
-    const onPop = () => {
-      if (dismissOne()) queueMicrotask(pushIfNeeded);
-    };
-    addEventListener("popstate", onPop);
-    const unsubs = [
-      useGraph.subscribe(pushIfNeeded),
-      useSettings.subscribe(pushIfNeeded),
-      useHistory.subscribe(pushIfNeeded),
-      useCite.subscribe(pushIfNeeded),
-    ];
-    unreg = () => {
-      removeEventListener("popstate", onPop);
-      unsubs.forEach((u) => u());
-    };
+    if (!cancelled) stopFallback = startHistorySentinel();
   });
 
   return () => {
     cancelled = true;
     unreg?.();
+    stopFallback?.();
   };
 }

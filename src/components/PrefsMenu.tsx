@@ -111,8 +111,15 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="prefs" ref={ref}>
-      <button type="button" className="toggle" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
-        <SlidersHorizontal size={15} strokeWidth={1.6} />
+      <button
+        type="button"
+        className="toggle"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={summary(prefs)}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <SlidersHorizontal size={15} strokeWidth={1.6} aria-hidden="true" />
         <span className={compact ? "toggle-label" : undefined}>{summary(prefs)}</span>
       </button>
       {mounted && (

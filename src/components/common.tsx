@@ -186,8 +186,14 @@ export function CiteText({ text, sources }: { text: string; sources?: Source[] }
 export function SearchToggle({ compact = false }: { compact?: boolean }) {
   const on = useGraph((s) => s.search);
   return (
-    <button type="button" className={`toggle${on ? " is-on" : ""}`} aria-pressed={on} onClick={actions.toggleSearch}>
-      <Globe size={15} strokeWidth={1.6} />
+    <button
+      type="button"
+      className={`toggle${on ? " is-on" : ""}`}
+      aria-pressed={on}
+      aria-label={on ? "联网搜索：开" : "联网搜索：关"}
+      onClick={actions.toggleSearch}
+    >
+      <Globe size={15} strokeWidth={1.6} aria-hidden="true" />
       <span className={compact ? "toggle-label" : undefined}>联网搜索</span>
     </button>
   );

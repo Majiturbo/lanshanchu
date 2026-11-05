@@ -16,7 +16,14 @@ export interface OrientSurface {
   overlay: boolean;
 }
 
-export type OrientAngle = 0 | 90 | 180 | 270;
+/** 系统方向锁开着就冻结；否则只有画布跟随用户方向，其它界面只要正向竖屏。 */
+export type OrientMode = "locked" | "free" | "portrait";
+
+export function orientationMode(rotationLocked: boolean, allows: boolean): OrientMode {
+  if (rotationLocked) return "locked";
+  if (allows) return "free";
+  return "portrait";
+}
 
 export function allowsLandscape(s: OrientSurface): boolean {
   if (!s.mobile) return true;
@@ -24,16 +31,4 @@ export function allowsLandscape(s: OrientSurface): boolean {
   if (s.drawer || s.reading || s.summary || s.leaving) return false;
   if (s.settings || s.gate || s.phoneBind || s.history || s.cite || s.overlay) return false;
   return true;
-}
-
-export function viewportAngle(angle: number | undefined, width: number, height: number): OrientAngle {
-  if (angle === 0 || angle === 90 || angle === 180 || angle === 270) return angle;
-  return width > height ? 90 : 0;
-}
-
-/** 需要把横屏视口转回竖屏时返回设备角；画布横屏或本来就是竖屏则不转 */
-export function portraitLockAngle(allows: boolean, angle: OrientAngle): 90 | 270 | null {
-  if (allows) return null;
-  if (angle === 90 || angle === 270) return angle;
-  return null;
 }

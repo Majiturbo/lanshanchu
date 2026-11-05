@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { allowsLandscape, portraitLockAngle, viewportAngle, type OrientSurface } from "./portrait.ts";
+import { allowsLandscape, orientationMode, type OrientSurface } from "./portrait.ts";
 
 const canvas = (): OrientSurface => ({
   mobile: true,
@@ -40,13 +40,9 @@ test("详情、阅读、角标和菜单把横屏收回竖屏", () => {
   }
 });
 
-test("竖屏不转；横屏只在不允许横屏时按设备角转回", () => {
-  assert.equal(portraitLockAngle(true, 90), null);
-  assert.equal(portraitLockAngle(false, 0), null);
-  assert.equal(portraitLockAngle(false, 180), null);
-  assert.equal(portraitLockAngle(false, 90), 90);
-  assert.equal(portraitLockAngle(false, 270), 270);
-  assert.equal(viewportAngle(undefined, 800, 400), 90);
-  assert.equal(viewportAngle(undefined, 400, 800), 0);
-  assert.equal(viewportAngle(270, 800, 400), 270);
+test("方向锁优先；没锁时画布跟随，其它界面只要正向竖屏", () => {
+  assert.equal(orientationMode(true, true), "locked");
+  assert.equal(orientationMode(true, false), "locked");
+  assert.equal(orientationMode(false, true), "free");
+  assert.equal(orientationMode(false, false), "portrait");
 });

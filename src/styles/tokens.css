@@ -222,6 +222,10 @@
     --path-pop-line: color-mix(in srgb, #fff 8%, transparent);
     --path-pop-rail: color-mix(in srgb, #fff 15%, transparent);
     --path-pop-current: color-mix(in srgb, #fff 5%, transparent);
+    /* 深色不用浅色朱砂；有配色方案时跟强调色，默认墨色在后面改成蓝 */
+    --seal: var(--accent);
+    --seal-strong: var(--accent);
+    --seal-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 }
 :root[data-theme="dark"] {
@@ -275,6 +279,9 @@
   --path-pop-line: color-mix(in srgb, #fff 8%, transparent);
   --path-pop-rail: color-mix(in srgb, #fff 15%, transparent);
   --path-pop-current: color-mix(in srgb, #fff 5%, transparent);
+  --seal: var(--accent);
+  --seal-strong: var(--accent);
+  --seal-soft: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 /* 墨色深色：大底、输入框、卡片、对话框都用 indigo-2 偏黑蓝；悬停才用 indigo-3 */
 @media (prefers-color-scheme: dark) {
@@ -287,6 +294,9 @@
     --surface-sunken: #11131f;
     --surface-active: #182449;
     --scrim: color-mix(in srgb, var(--overlay) 50%, transparent);
+    --seal: #9eb1ff;
+    --seal-strong: #8ea2f5;
+    --seal-soft: color-mix(in srgb, #9eb1ff 18%, transparent);
   }
 }
 :root[data-theme="dark"]:not([data-palette]) {
@@ -298,6 +308,9 @@
   --surface-sunken: #11131f;
   --surface-active: #182449;
   --scrim: color-mix(in srgb, var(--overlay) 50%, transparent);
+  --seal: #9eb1ff;
+  --seal-strong: #8ea2f5;
+  --seal-soft: color-mix(in srgb, #9eb1ff 18%, transparent);
 }
 
 /* 其他配色方案的图表：单一系列用强调色，卡片底色用强调色阶的淡层（浅色 3 阶、深色 2 阶） */

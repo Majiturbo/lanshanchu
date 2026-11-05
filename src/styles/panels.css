@@ -328,6 +328,18 @@ html.is-mobile-app .dialog.leave .btn-primary:hover:not(:disabled),
 html.is-mobile-app .dialog.leave .btn-primary:active:not(:disabled) {
   background: var(--seal-strong); border-color: var(--seal-strong); color: #fff;
 }
+html.is-mobile-app[data-theme="dark"] .dialog.leave .btn-primary,
+html.is-mobile-app[data-theme="dark"] .dialog.leave .btn-primary:hover:not(:disabled),
+html.is-mobile-app[data-theme="dark"] .dialog.leave .btn-primary:active:not(:disabled) {
+  background: var(--solid); border-color: var(--solid); color: var(--on-solid-btn);
+}
+@media (prefers-color-scheme: dark) {
+  html.is-mobile-app:not([data-theme="light"]) .dialog.leave .btn-primary,
+  html.is-mobile-app:not([data-theme="light"]) .dialog.leave .btn-primary:hover:not(:disabled),
+  html.is-mobile-app:not([data-theme="light"]) .dialog.leave .btn-primary:active:not(:disabled) {
+    background: var(--solid); border-color: var(--solid); color: var(--on-solid-btn);
+  }
+}
 .leave-remember { display: flex; align-items: center; gap: 8px; margin-right: auto; font-size: var(--fs-sm); color: var(--ink-3); cursor: pointer; }
 .leave-remember input { margin: 0; accent-color: var(--ink); }
 

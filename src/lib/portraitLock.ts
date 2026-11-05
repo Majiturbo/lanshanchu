@@ -4,7 +4,7 @@ import { useHistory } from "../history/store.ts";
 import { useSettings } from "../settings/store.ts";
 import { useCite } from "../store/cite.ts";
 import { useGraph } from "../store/graph.ts";
-import { allowsLandscape, portraitLockAngle, viewportAngle, type OrientSurface } from "./portrait.ts";
+import { allowsLandscape, orientationMode, type OrientSurface } from "./portrait.ts";
 
 const OVERLAY = [
   ".viewer:not(.is-closing)",
@@ -41,16 +41,32 @@ function surface(): OrientSurface {
   };
 }
 
-function sync() {
-  const root = document.documentElement;
-  const angle = viewportAngle(screen.orientation?.angle, window.innerWidth, window.innerHeight);
-  const lock = portraitLockAngle(allowsLandscape(surface()), angle);
-  root.classList.toggle("is-portrait-locked", lock != null);
-  if (lock == null) delete root.dataset.orient;
-  else root.dataset.orient = String(lock);
+type OrientBridge = {
+  setOrientation?: (mode: string) => void;
+  rotationLocked?: () => boolean;
+};
+
+function bridge(): OrientBridge | undefined {
+  return (window as unknown as { LanshanApp?: OrientBridge }).LanshanApp;
 }
 
-/** 活动跟随传感器（不锁方向，系统才不会在左下角放横屏按钮）；非画布界面用转回竖屏的布局。 */
+function sync() {
+  const locked = (() => {
+    try {
+      return !!bridge()?.rotationLocked?.();
+    } catch {
+      return false;
+    }
+  })();
+  const mode = orientationMode(locked, allowsLandscape(surface()));
+  try {
+    bridge()?.setOrientation?.(mode);
+  } catch {
+    /* 桥未就绪 */
+  }
+}
+
+/** 交给系统方向：方向锁开着不转；没锁时只有画布可横屏，其它界面只要正向竖屏。 */
 export function startPortraitLock(): () => void {
   if (!IS_MOBILE_APP) return () => {};
   let frame = 0;
@@ -65,6 +81,7 @@ export function startPortraitLock(): () => void {
   const onOrient = () => schedule();
   screen.orientation?.addEventListener("change", onOrient);
   window.addEventListener("resize", onOrient);
+  document.addEventListener("lanshan:orient-ready", schedule);
   const obs = new MutationObserver(schedule);
   obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   const unsubs = [
@@ -76,10 +93,9 @@ export function startPortraitLock(): () => void {
   return () => {
     screen.orientation?.removeEventListener("change", onOrient);
     window.removeEventListener("resize", onOrient);
+    document.removeEventListener("lanshan:orient-ready", schedule);
     obs.disconnect();
     unsubs.forEach((u) => u());
     if (frame) cancelAnimationFrame(frame);
-    document.documentElement.classList.remove("is-portrait-locked");
-    delete document.documentElement.dataset.orient;
   };
 }

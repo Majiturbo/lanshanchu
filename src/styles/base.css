@@ -440,7 +440,7 @@ html.is-mobile-app :is(
   .icon-btn, .toggle, .wc, .crumb, .zoom-value, .slot-send, .topbar-current,
   .followup, .reader-back, .hist-del, .hist-open, .hist-row, .preset, .ctx-item, .path-pop-list button,
   .source:is(a, button), .research-queries li, a.dropped-row,
-  .mset-account, .mset-row, .mobile-sheet-item, .mobile-switch, .phone-bind-leave
+  .mobile-sheet-item, .mobile-switch, .phone-bind-leave
 ):is(:hover, :focus, :focus-visible):not([aria-selected="true"]):not([aria-pressed="true"]):not([aria-expanded="true"]) {
   background: transparent;
   outline: none;
@@ -449,8 +449,15 @@ html.is-mobile-app :is(
   .icon-btn, .toggle, .wc, .crumb, .zoom-value, .slot-send, .topbar-current,
   .followup, .reader-back, .hist-del, .hist-open, .hist-row, .preset, .ctx-item, .path-pop-list button,
   .source:is(a, button), .research-queries li, a.dropped-row,
-  .mset-account, .mset-row, .mobile-sheet-item, .mobile-switch, .phone-bind-leave
+  .mobile-sheet-item, .mobile-switch, .phone-bind-leave
 ):active:not([aria-selected="true"]):not([aria-pressed="true"]) {
+  background: transparent;
+}
+/* 设置卡片本身有底色。点按不能把底色清成透明，否则悬停会粘住、卡片像没了 */
+html.is-mobile-app :is(.mset-card, .mset-phone-card, .mset-logout-card):is(:hover, :focus, :focus-visible, :active) {
+  background: var(--ask-fill);
+}
+html.is-mobile-app .mset-group .mset-row:is(:hover, :focus, :focus-visible, :active) {
   background: transparent;
 }
 /* 触屏：取消次按钮粘住 hover；主按钮任何伪类都保持实底（按下才加深） */
@@ -527,28 +534,4 @@ html.is-mobile-app .ask textarea,
 html.is-mobile-app .slot input,
 html.is-mobile-app .command-input input {
   font-size: 16px;
-}
-/* 非画布界面：活动可以跟着传感器转（这样系统不会在左下角放横屏按钮），布局再转回竖屏。
-   90° 听筒在左，270° 听筒在右，内容的「上」始终朝向听筒。 */
-html.is-mobile-app.is-portrait-locked {
-  overflow: hidden;
-  background: var(--bg);
-}
-html.is-mobile-app.is-portrait-locked[data-orient="90"] body {
-  inset: auto;
-  top: 0;
-  left: 100%;
-  width: 100vh;
-  height: 100vw;
-  transform-origin: top left;
-  transform: rotate(90deg);
-}
-html.is-mobile-app.is-portrait-locked[data-orient="270"] body {
-  inset: auto;
-  top: 100%;
-  left: 0;
-  width: 100vh;
-  height: 100vw;
-  transform-origin: top left;
-  transform: rotate(-90deg);
 }

@@ -63,9 +63,9 @@ html.is-mobile-app .drawer {
   border-left: 0;
   background: var(--bg);
 }
-/* 原型 04：顶栏白底；正文标题 15 粗 */
+/* 详情标题与页面同一底色；这一页只有追问输入框是白的 */
 html.is-mobile-app .drawer-head {
-  background: var(--ask-fill);
+  background: transparent;
   padding: 10px 12px 10px 8px;
   padding-top: calc(10px + env(safe-area-inset-top, 0px));
 }

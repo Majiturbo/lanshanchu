@@ -193,8 +193,12 @@ function AskHere({ at, onDone }: { at: MenuAt; onDone: () => void }) {
   }, []);
   useEffect(() => {
     const dismiss = () => onDone();
+    document.addEventListener("lanshan:dismiss-top", dismiss);
     addEventListener("lanshan:dismiss-menu", dismiss);
-    return () => removeEventListener("lanshan:dismiss-menu", dismiss);
+    return () => {
+      document.removeEventListener("lanshan:dismiss-top", dismiss);
+      removeEventListener("lanshan:dismiss-menu", dismiss);
+    };
   }, [onDone]);
   const submit = () => {
     const q = text.trim();
@@ -233,9 +237,11 @@ function ConnectPick({ from, onDone }: { from: string; onDone: () => void }) {
     dispatchEvent(new CustomEvent("lanshan:trap-back"));
     const dismiss = () => onDone();
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onDone(); };
+    document.addEventListener("lanshan:dismiss-top", dismiss);
     addEventListener("lanshan:dismiss-menu", dismiss);
     addEventListener("keydown", key);
     return () => {
+      document.removeEventListener("lanshan:dismiss-top", dismiss);
       removeEventListener("lanshan:dismiss-menu", dismiss);
       removeEventListener("keydown", key);
     };

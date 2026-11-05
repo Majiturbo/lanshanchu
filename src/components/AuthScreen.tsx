@@ -1,5 +1,5 @@
 import { ArrowLeft, Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IS_MOBILE_APP } from "../core/device.ts";
 import {
   login,
@@ -11,6 +11,7 @@ import {
 } from "../core/platform.ts";
 import { ProviderError } from "../core/providers/types.ts";
 import { track } from "../analytics/index.ts";
+import { bindLoginBack } from "../lib/backStack.ts";
 import { loginFrom, settingsActions, useSettings } from "../settings/store.ts";
 import { noticePlansSoon, openMobileSettingsPage } from "./MobileSettings.tsx";
 import { NAV_MS, useNavCover } from "./navMotion.ts";
@@ -140,6 +141,23 @@ function LoginFlow() {
   }, [left]);
 
   const session = useSettings((s) => s.session);
+  const paneRef = useRef(pane);
+  paneRef.current = pane;
+  useEffect(() => bindLoginBack(() => {
+    if (paneRef.current !== "register" && paneRef.current !== "reset") return false;
+    setPane("password");
+    setCode("");
+    setError("");
+    return true;
+  }), []);
+  useEffect(() => {
+    const el = document.querySelector(".auth-screen");
+    if (!el) return;
+    if (pane === "register" || pane === "reset") el.setAttribute("data-login-sub", "");
+    else el.removeAttribute("data-login-sub");
+    dispatchEvent(new CustomEvent("lanshan:trap-back"));
+    return () => el.removeAttribute("data-login-sub");
+  }, [pane]);
   const back = () => {
     setError("");
     if (pane === "register" || pane === "reset") {
@@ -252,7 +270,7 @@ function LoginFlow() {
           {showMark ? (
             <img
               className="auth-mark"
-              src={darkMark ? "./favicon.png" : "./favicon-light.png"}
+              src={darkMark ? "./favicon.png" : "./favicon-light.png?v=lantern-plain"}
               alt=""
               width={44}
               height={44}

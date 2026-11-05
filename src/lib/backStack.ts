@@ -6,6 +6,7 @@ import { needsPhoneBind } from "../components/PhoneBindGate.tsx";
 import { settingsActions, useSettings } from "../settings/store.ts";
 import { closeCite, useCite } from "../store/cite.ts";
 import { actions, useGraph } from "../store/graph.ts";
+import { toast } from "../store/toast.ts";
 import { swapScreen } from "./transition.ts";
 
 /**
@@ -23,8 +24,17 @@ import { swapScreen } from "./transition.ts";
 
 let settingsPop: ((fromSwipe: boolean) => boolean) | null = null;
 let settingsDepth: (() => number) | null = null;
+/** 登录注册/重置是登录页的下一层；返回先回到登录，而不是直接离开应用 */
+let loginPop: (() => boolean) | null = null;
 /** beginSwipeDismiss 期间为 true，设置栈走瞬时 pop，避免再播推出动画闪两页 */
 let swipeDismissing = false;
+
+export function bindLoginBack(fn: () => boolean) {
+  loginPop = fn;
+  return () => {
+    if (loginPop === fn) loginPop = null;
+  };
+}
 
 export function bindSettingsBack(fn: (fromSwipe: boolean) => boolean, depth?: () => number) {
   settingsPop = fn;
@@ -45,6 +55,20 @@ const isAndroid =
   || (tauriPlatform !== "ios" && /Android/i.test(navigator.userAgent));
 
 type AppBridge = { moveToBack: () => void };
+
+let exitUntil = 0;
+
+/** 根页面（首页，或未登录时的登录页）再按一次才回桌面，避免一次返回就离开 */
+function exitOrHint() {
+  const now = Date.now();
+  if (now < exitUntil) {
+    exitUntil = 0;
+    leaveToBackground();
+    return;
+  }
+  exitUntil = now + 2000;
+  toast("再按一次退出");
+}
 
 function leaveToBackground() {
   if (!isAndroid) return;
@@ -70,6 +94,15 @@ export function dismissOne(): boolean {
     viewer.click();
     return true;
   }
+  if (document.querySelector(".ctx-ask, .ctx-pick")) {
+    document.dispatchEvent(new CustomEvent("lanshan:dismiss-top", { bubbles: true }));
+    return true;
+  }
+  if (document.querySelector(".mobile-sheet:not(.is-closing), .path-pop:not(.is-closing)")) {
+    const ev = new CustomEvent("lanshan:overlay-back", { cancelable: true, bubbles: true });
+    document.dispatchEvent(ev);
+    if (ev.defaultPrevented) return true;
+  }
   if (document.querySelector(SHEET_SEL)) {
     if (useCite.getState().open) closeCite({ force: true });
     document.dispatchEvent(new CustomEvent("lanshan:dismiss-menu"));
@@ -89,7 +122,10 @@ export function dismissOne(): boolean {
     return true;
   }
   if (useSettings.getState().gate) {
-    if (useSettings.getState().gate === "login" && !useSettings.getState().session) return true;
+    if (useSettings.getState().gate === "login" && !useSettings.getState().session) {
+      if (loginPop?.()) return true;
+      return false;
+    }
     settingsActions.closeGate();
     return true;
   }
@@ -131,7 +167,9 @@ function canSwipeBack(): boolean {
   if (needsPhoneBind(useSettings.getState().account)) return false;
   const g = useGraph.getState();
   const settings = useSettings.getState();
-  if (settings.gate === "login" && !settings.session) return false;
+  if (settings.gate === "login" && !settings.session) {
+    return !!document.querySelector(".auth-screen[data-login-sub]");
+  }
   if (document.querySelector(".viewer:not(.is-closing)")) return true;
   if (document.querySelector(SHEET_SEL)) return true;
   if (document.querySelector(".prefs-pop:not(.is-closing), .topbar-overflow:not(.is-closing)")) return true;
@@ -435,14 +473,15 @@ function startHistorySentinel(): () => void {
   const onPop = () => {
     if (ignoring) return;
     if (dismissOne()) {
+      exitUntil = 0;
       queueMicrotask(sync);
       return;
     }
     ignoring = true;
-    window.history.replaceState({ lanshan: 0 }, "");
+    window.history.pushState({ lanshan: 0 }, "");
     ignoring = false;
     armed = false;
-    leaveToBackground();
+    exitOrHint();
   };
   sync();
   addEventListener("popstate", onPop);
@@ -472,11 +511,12 @@ export function startBackStack(): () => void {
 
   void onBackButtonPress(() => {
     if (dismissOne()) {
+      exitUntil = 0;
       lastDismissAt = Date.now();
       return;
     }
     if (Date.now() - lastDismissAt < 450) return;
-    leaveToBackground();
+    exitOrHint();
   }).then((listener) => {
     if (cancelled) {
       void listener.unregister();

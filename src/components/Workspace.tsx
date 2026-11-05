@@ -37,13 +37,23 @@ function Topbar() {
     if (!sheet) return;
     dispatchEvent(new CustomEvent("lanshan:trap-back"));
     const dismiss = () => setSheet(null);
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSheet(null); };
+    const backOne = () => {
+      if (sheet === "prefs") setSheet("menu");
+      else setSheet(null);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") backOne(); };
+    const onOverlay = (e: Event) => {
+      e.preventDefault();
+      backOne();
+    };
     addEventListener("lanshan:dismiss-overflow", dismiss);
     addEventListener("lanshan:dismiss-menu", dismiss);
+    document.addEventListener("lanshan:overlay-back", onOverlay);
     addEventListener("keydown", onKey);
     return () => {
       removeEventListener("lanshan:dismiss-overflow", dismiss);
       removeEventListener("lanshan:dismiss-menu", dismiss);
+      document.removeEventListener("lanshan:overlay-back", onOverlay);
       removeEventListener("keydown", onKey);
     };
   }, [sheet]);
@@ -124,7 +134,7 @@ function Topbar() {
                     <div className="mobile-sheet-prefs">
                       <PrefsFields onDone={() => setSheet(null)} />
                     </div>
-                    <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet(null)}>完成</button>
+                    <button type="button" className="mobile-sheet-item mobile-sheet-cancel" onClick={() => setSheet("menu")}>返回</button>
                   </>
                 ) : (
                   <>

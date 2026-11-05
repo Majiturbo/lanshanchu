@@ -19,6 +19,7 @@ import { IN_APP } from "./core/http.ts";
 import { refreshAccount } from "./core/platform.ts";
 import { startAutosave } from "./history/store.ts";
 import { startBackStack } from "./lib/backStack.ts";
+import { startPortraitLock } from "./lib/portraitLock.ts";
 import { startKeyboardInset } from "./lib/keyboardInset.ts";
 import { startMemory } from "./memory/run.ts";
 import { useGraph } from "./store/graph.ts";
@@ -46,6 +47,7 @@ startAutosave();
 startMemory(() => useGraph.getState().map?.id ?? null);
 startKeyboardInset();
 startBackStack();
+startPortraitLock();
 trackAppOpened();
 
 function openMobileLoginIfNeeded() {
@@ -84,7 +86,7 @@ delete document.documentElement.dataset.palette;
 const isDarkTheme = (t: Theme) => t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
 const applyFavicon = (dark: boolean) => {
   const base = import.meta.env.BASE_URL || "./";
-  const href = `${base}${dark ? "favicon.png?v=lantern-night" : "favicon-light.png?v=lantern-day"}`;
+  const href = `${base}${dark ? "favicon.png?v=lantern-night" : "favicon-light.png?v=lantern-plain"}`;
   document.querySelectorAll('link[rel="icon"]').forEach((node) => node.remove());
   const link = document.createElement("link");
   link.rel = "icon";

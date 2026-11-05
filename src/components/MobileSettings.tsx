@@ -389,7 +389,7 @@ function UpdatePage() {
       <div className="mset-update-brand">
         <img
           className="mset-update-mark"
-          src={darkMark ? "./favicon.png" : "./favicon-light.png"}
+          src={darkMark ? "./favicon.png" : "./favicon-light.png?v=lantern-plain"}
           alt=""
           width={64}
           height={64}

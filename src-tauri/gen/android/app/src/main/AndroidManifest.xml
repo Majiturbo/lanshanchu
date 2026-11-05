@@ -16,7 +16,7 @@
             android:label="@string/main_activity_title"
             android:name=".MainActivity"
             android:resizeableActivity="true"
-            android:screenOrientation="fullUser"
+            android:screenOrientation="fullSensor"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

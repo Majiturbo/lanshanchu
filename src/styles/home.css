@@ -132,6 +132,21 @@ html.is-mobile-app .ask-tools .toggle.is-compact,
 html.is-mobile-app .ask-tools .icon-btn {
   width: 36px; height: 36px; min-width: 44px; min-height: 44px;
 }
+/* 图片按钮：悬停/焦点会在触屏上粘住。静止保持灰，只有按下那一下变深 */
+html.is-mobile-app .ask-tools .icon-btn,
+html.is-mobile-app .ask-tools .icon-btn:hover,
+html.is-mobile-app .ask-tools .icon-btn:focus,
+html.is-mobile-app .ask-tools .icon-btn:focus-visible,
+html.is-mobile-app .ask-tools .icon-btn:active {
+  color: var(--ink-4);
+  background: transparent;
+}
+html.is-mobile-app .ask-tools .icon-btn.is-press,
+html.is-mobile-app .ask-tools .icon-btn.is-press:hover,
+html.is-mobile-app .ask-tools .icon-btn.is-press:active {
+  color: var(--ink);
+  background: transparent;
+}
 /* 钉死提问框底色，避免被页面底或粘住态洗成灰 */
 html.is-mobile-app .ask {
   background: var(--ask-fill);

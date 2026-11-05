@@ -21,6 +21,18 @@ export function Home() {
   const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
+  const picBtn = useRef<HTMLButtonElement>(null);
+  const picTimer = useRef(0);
+  const [picDown, setPicDown] = useState(false);
+  const flashPic = () => {
+    setPicDown(true);
+    window.clearTimeout(picTimer.current);
+    picTimer.current = window.setTimeout(() => {
+      setPicDown(false);
+      picBtn.current?.blur();
+    }, 160);
+  };
+  useEffect(() => () => window.clearTimeout(picTimer.current), []);
   const att = useAttachments();
   const [drop, setDrop] = useState(false);
   const canAsk = useSettings((s) => s.canAsk);
@@ -169,7 +181,15 @@ export function Home() {
                 {/* 输入框工具栏：图标即可；底栏菜单才用「图标+文字」整行 */}
                 <SearchToggle compact />
                 <PrefsMenu compact />
-                <button type="button" className="icon-btn" aria-label="添加图片" disabled={att.full} onClick={() => file.current?.click()}>
+                <button
+                  ref={picBtn}
+                  type="button"
+                  className={`icon-btn${picDown ? " is-press" : ""}`}
+                  aria-label="添加图片"
+                  disabled={att.full}
+                  onPointerDown={flashPic}
+                  onClick={() => file.current?.click()}
+                >
                   <ImagePlus size={16} strokeWidth={1.6} />
                 </button>
                 <input ref={file} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden

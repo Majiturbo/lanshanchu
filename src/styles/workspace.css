@@ -477,7 +477,7 @@ html.is-mobile-app .auth-submit.btn.btn-primary:disabled {
 .auth-foot button { margin-left: 4px; color: var(--auth-link); font-weight: 600; }
 /* 设置一级：分卡片（原型 10：浅色白底 #fcfcfd、无描边；分组分割线从图标后起） */
 .mset-card {
-  margin-top: 12px; padding: 0 16px;
+  margin-top: 12px; padding: 0 14px 0 16px;
   background: var(--ask-fill);
   border: none;
   border-radius: 12px;
@@ -486,32 +486,40 @@ html.is-mobile-app .auth-submit.btn.btn-primary:disabled {
 /* 原型：账号→购买 12；购买→分组 / 分组→更新 20 */
 .mset-card + .mset-group,
 .mset-group + .mset-card { margin-top: 20px; }
+/* 原型 10：行高 52、字行 18；图标到文字 12。不用正文 1.6 行高，否则内边距被行盒撑乱 */
 .mset-account, .mset-row {
   display: flex; align-items: center; gap: 12px;
-  width: 100%; min-height: 52px; padding: 12px 0; text-align: left;
+  width: 100%; min-height: 52px; height: 52px; padding: 0;
+  text-align: left; line-height: 18px;
 }
-.mset-card.mset-account { min-height: 76px; padding-top: 16px; padding-bottom: 16px; }
-/* 购买套餐行按原型略矮、无箭头 */
-.mset-card.mset-row:has(.mset-soon) { min-height: 44px; padding-top: 12px; padding-bottom: 12px; }
+.mset-card.mset-row { height: 52px; padding: 0 14px 0 16px; }
+.mset-card.mset-account {
+  height: auto; min-height: 76px;
+  padding: 16px 14px 16px 16px;
+}
+/* 购买套餐行按原型 44 高、无箭头；购物车 16，其余图标 20，都左对齐、距文字 12 */
+.mset-card.mset-row:has(.mset-soon) { height: 44px; min-height: 44px; }
 .mset-account { align-items: center; }
 .mset-account-copy { flex: 1; min-width: 0; }
-.mset-account-name { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 17px; }
-.mset-account-status { display: block; margin-top: 6px; color: var(--ink-3); font-size: 12px; font-weight: 400; }
+.mset-account-name { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 17px; line-height: 20px; }
+.mset-account-status { display: block; margin-top: 10px; color: var(--ink-3); font-size: 12px; font-weight: 400; line-height: 14px; }
 .mset-plan-label { font-weight: 500; color: var(--ink-2); font-size: 17px; }
 .mset-account-name .plan-mark {
-  display: block; flex-shrink: 0; width: 18px; height: 18px; margin: 0;
+  display: block; flex-shrink: 0; width: 18px; height: 18px; margin: 0 0 0 2px;
   object-fit: contain; user-select: none; pointer-events: none;
 }
-.mset-row > span { flex: 1; min-width: 0; text-align: left; font-size: 15px; }
-.mset-row em { flex: none; font-style: normal; color: var(--ink-3); font-size: 13px; }
+.mset-row > span { flex: 1; min-width: 0; text-align: left; font-size: 15px; line-height: 18px; }
+.mset-row em { flex: none; font-style: normal; color: var(--ink-3); font-size: 13px; line-height: 16px; }
+/* 原型：说明到箭头 6，行间距是 12，收回 6 */
+.mset-row > em + .lucide { margin-left: -6px; }
 .mset-row em.mset-soon { color: var(--seal); font-weight: 400; }
 .mset-row .lucide, .mset-account .lucide { color: var(--ink-3); flex: none; }
-.mset-group { padding: 0 16px; }
-/* 原型 10：分割线从文字列起（卡内 16+20+12=48） */
-.mset-group .mset-row { position: relative; padding-left: 0; padding-right: 0; }
+.mset-group { padding: 0 14px 0 16px; }
+/* 原型 10：分割线从文字（图标 20 + 间距 12）起到卡片右缘 */
+.mset-group .mset-row { position: relative; height: 52px; padding: 0; }
 .mset-group .mset-row + .mset-row { border-top: none; }
 .mset-group .mset-row + .mset-row::before {
-  content: ""; position: absolute; left: 32px; right: 0; top: 0;
+  content: ""; position: absolute; left: 32px; right: -14px; top: 0;
   height: 1px; background: rgba(0, 0, 0, 0.06);
 }
 html.is-mobile-app[data-theme="dark"] .mset-group .mset-row + .mset-row::before {

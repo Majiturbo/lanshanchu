@@ -11,6 +11,7 @@ export function ImageViewer({ images, index, onChange, onClose }: { images: stri
   useEffect(() => {
     if (index === null) return;
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector(".dialog-layer.is-phone-bind, .phone-bind-gate:not(.is-closing)")) return;
       if (e.key === "Escape") { e.stopPropagation(); onClose(); }
       else if (e.key === "ArrowRight" && images.length > 1) onChange((index + 1) % images.length);
       else if (e.key === "ArrowLeft" && images.length > 1) onChange((index - 1 + images.length) % images.length);

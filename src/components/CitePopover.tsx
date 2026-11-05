@@ -35,7 +35,11 @@ export function CitePopover() {
       if (!(e.target instanceof Element && e.target.closest(".cite-pop, .cite-sheet"))) closeCite();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); closeCite({ force: true }); }
+      if (e.key === "Escape") {
+        if (document.querySelector(".dialog-layer.is-phone-bind, .phone-bind-gate:not(.is-closing)")) return;
+        e.stopPropagation();
+        closeCite({ force: true });
+      }
     };
     const onDown = (e: PointerEvent) => {
       if (citeOpenedRecently(400)) return;

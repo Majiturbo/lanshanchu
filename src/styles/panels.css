@@ -407,6 +407,17 @@ html.is-mobile-app[data-theme="dark"] .usage-meter-fill:not(.is-hot) { backgroun
 .usage-reset-count { font-size: var(--fs-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .account-usage.is-error { color: var(--danger); }
 .account-form { display: grid; gap: 16px; }
+.account-extra { display: grid; gap: 16px; margin-top: 16px; }
+.account-links { justify-content: flex-end; }
+.account-links > .link-btn { margin-right: auto; }
+.key-input .key-code {
+  flex: none; height: 28px; padding: 0 8px; border: 0; background: none;
+  color: var(--accent); font-size: var(--fs-sm); font-weight: 500;
+}
+.key-input .key-code:disabled { color: var(--ink-4); }
+.dialog-layer.is-update { z-index: 50; }
+.dialog-layer.is-phone-bind { z-index: 70; }
+.update-current { margin: 0; padding: 4px 28px 0; font-size: var(--fs-sm); color: var(--ink-3); }
 .account-form .field + .field { margin-top: 0; }
 /* 宽窗口分两栏：左边账号，右边画布与来源；窄窗口叠成一栏，面板高度不超过可视区域，内容在面板里滚动 */
 .dialog.settings { max-width: 920px; }

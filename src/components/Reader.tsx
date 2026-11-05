@@ -47,6 +47,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof Element && e.target.matches("input, textarea")) return;
+      if (document.querySelector(".dialog-layer.is-phone-bind, .phone-bind-gate:not(.is-closing), .dialog-layer.is-update:not(.is-closing)")) return;
       if (e.key === "Escape") { e.stopPropagation(); actions.closeReader(); }
       else if (e.key === "ArrowLeft") { e.preventDefault(); actions.stepSource(-1); }
       else if (e.key === "ArrowRight") { e.preventDefault(); actions.stepSource(1); }

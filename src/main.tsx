@@ -8,6 +8,7 @@ import { Home } from "./components/Home.tsx";
 import { IS_MOBILE_APP } from "./core/device.ts";
 import { MobileSettingsHost } from "./components/MobileSettings.tsx";
 import { PhoneBindGate } from "./components/PhoneBindGate.tsx";
+import { UpdatePrompt } from "./components/UpdatePrompt.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { LeaveDialog } from "./components/LeaveDialog.tsx";
 import { useWindowFocus } from "./components/TitleBar.tsx";
@@ -70,10 +71,11 @@ function App() {
     <>
       {screen === "home" ? <Home /> : <Workspace />}
       <AuthScreen />
-      {IS_MOBILE_APP ? <PhoneBindGate /> : null}
       <HistoryPanel />
       {IS_MOBILE_APP ? <MobileSettingsHost /> : <SettingsDialog />}
       <LeaveDialog />
+      <UpdatePrompt />
+      <PhoneBindGate />
       {IS_MOBILE_APP ? <ExportPreview /> : null}
       <Toast />
       <Tooltip />

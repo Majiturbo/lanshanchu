@@ -6,7 +6,9 @@ import { CAN_FETCH, IN_APP } from "../core/http.ts";
 import { VISIBLE_MODELS } from "../core/models.ts";
 import { fetchUsage, login, logout, redeemReset, type UsagePayload } from "../core/platform.ts";
 import { ProviderError } from "../core/providers/types.ts";
+import { DesktopAccountExtras, DesktopLogin } from "./DesktopAccount.tsx";
 import { DialogCloseIcon, DialogDone, scrimClose } from "./DialogChrome.tsx";
+import { UpdateSection } from "./UpdatePrompt.tsx";
 import { usePresence } from "./presence.ts";
 import { MemorySection } from "./MemorySection.tsx";
 import { PlanMark } from "./PlanMark.tsx";
@@ -95,6 +97,7 @@ function Dialog({ closing }: { closing: boolean }) {
             <section className="settings-section">
               <h3>账号</h3>
               <AccountSection inputRef={first} />
+              {!IS_MOBILE_APP ? <DesktopAccountExtras /> : null}
               {VISIBLE_MODELS.length > 1 && (
                 <div className="field">
                   <span className="field-label" id="model-label">模型</span>
@@ -180,6 +183,7 @@ function Dialog({ closing }: { closing: boolean }) {
                 </div>
               </div>
             </section>
+            {!IS_MOBILE_APP ? <UpdateSection /> : null}
             </div>
           </div>
         </div>
@@ -289,8 +293,13 @@ export function AccountSection({ inputRef, hideLogout, onPlans }: { inputRef?: R
                   type="button"
                   className="btn btn-sm"
                   disabled={resetBusy}
-                  aria-disabled={!canUseReset || resetBusy}
-                  onClick={() => { void onRedeemReset(); }}
+                  onClick={() => {
+                    if (!canUseReset) {
+                      setResetError("目前无需重置");
+                      return;
+                    }
+                    void onRedeemReset();
+                  }}
                 >
                   {resetBusy ? "正在重置" : "使用重置"}
                 </button>
@@ -325,6 +334,8 @@ export function AccountSection({ inputRef, hideLogout, onPlans }: { inputRef?: R
       setBusy(false);
     }
   };
+
+  if (!IS_MOBILE_APP) return <DesktopLogin inputRef={inputRef} />;
 
   return (
     <form className="account-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>

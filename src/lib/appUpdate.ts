@@ -9,7 +9,7 @@ import {
   type UpdatePackageKind,
 } from "./releaseAsset.ts";
 
-export const APP_VERSION = "1.1.8";
+export const APP_VERSION = "1.1.9";
 export type { UpdatePackageKind } from "./releaseAsset.ts";
 
 const RELEASES_LATEST = "https://api.github.com/repos/Majiturbo/lanshanchu/releases/latest";

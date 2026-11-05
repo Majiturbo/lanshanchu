@@ -41,7 +41,11 @@ export function CitePopover() {
       if (citeOpenedRecently(400)) return;
       if (!(e.target as HTMLElement).closest(".cite-pop, .cite-sheet-panel, .cite-sheet-scrim, [data-act=cite]")) closeCite();
     };
-    const onResize = () => closeCite({ force: true });
+    // 移动端角标是底栏 sheet。横屏切正向竖屏会触发 resize，不能因此把刚打开的引用关掉，否则会闪回横屏且内容不出现。
+    const onResize = () => {
+      if (IS_MOBILE_APP || citeOpenedRecently(1200)) return;
+      closeCite({ force: true });
+    };
     addEventListener("keydown", onKey, true);
     addEventListener("pointerdown", onDown, true);
     addEventListener("resize", onResize);

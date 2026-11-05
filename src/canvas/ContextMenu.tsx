@@ -90,13 +90,14 @@ export function ContextMenu({ at, onClose, externalAsk = null, onExternalAskDone
     document.addEventListener("pointerdown", down, true);
     document.addEventListener("keydown", key);
     addEventListener("blur", dismiss);
-    addEventListener("resize", dismiss);
+    const onResize = () => { if (!IS_MOBILE_APP) dismiss(); };
+    addEventListener("resize", onResize);
     addEventListener("lanshan:dismiss-menu", dismiss);
     return () => {
       document.removeEventListener("pointerdown", down, true);
       document.removeEventListener("keydown", key);
       removeEventListener("blur", dismiss);
-      removeEventListener("resize", dismiss);
+      removeEventListener("resize", onResize);
       removeEventListener("lanshan:dismiss-menu", dismiss);
     };
   }, [at, onClose]);

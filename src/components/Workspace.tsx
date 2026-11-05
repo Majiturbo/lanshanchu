@@ -7,7 +7,7 @@ import { history, useHistory } from "../history/store.ts";
 import { short } from "../lib/format.ts";
 import { screenTransition, swapScreen } from "../lib/transition.ts";
 import { drawerCss, settingsActions, useSettings } from "../settings/store.ts";
-import { actions, fit, isReady, useGraph, zoomAt } from "../store/graph.ts";
+import { actions, chain, fit, isReady, useGraph, zoomAt } from "../store/graph.ts";
 import { CitePopover } from "./CitePopover.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { MobileSearchSwitch, SearchToggle } from "./common.tsx";
@@ -23,10 +23,20 @@ type MobileSheet = "menu" | "prefs" | "path" | null;
 
 function Topbar() {
   const crumbs = useCrumbs();
+  const nodes = useGraph((s) => s.nodes);
+  const activeId = useGraph((s) => s.activeId);
+  /** 打开时记下整条路径。点到前面的节点只切换当前位置，后面的路径留在列表里，方便再跳回去。 */
+  const [pathIds, setPathIds] = useState<string[]>([]);
   const hasAnswers = useGraph((s) => Object.values(s.nodes).some(isReady));
   const drawerId = useGraph((s) => s.drawerId);
   const reading = useGraph((s) => s.reading);
   const [sheet, setSheet] = useState<MobileSheet>(null);
+  useEffect(() => {
+    if (sheet !== "path") return;
+    const g = useGraph.getState();
+    const id = g.spineId && g.nodes[g.spineId] ? g.spineId : g.activeId;
+    setPathIds(id && g.nodes[id] ? chain(g.nodes, id).map((n) => n.id) : []);
+  }, [sheet]);
   const sheetP = usePresence(!!sheet);
   /** 关闭动画期间 sheet 已是 null，必须记住刚关的是哪一种，否则 path 关时会错挂画布⋯菜单 */
   const shownSheet = useRef<Exclude<MobileSheet, null>>("menu");
@@ -107,11 +117,11 @@ function Topbar() {
               <div className="path-pop-panel">
                 <p className="path-pop-label">当前路径</p>
                 <ul className="path-pop-list">
-                  {crumbs.map((n, i) => {
-                    const current = i === crumbs.length - 1;
+                  {(pathIds.length ? pathIds.map((id) => nodes[id]).filter((n) => !!n) : crumbs).map((n) => {
+                    const current = n.id === activeId;
                     return (
                       <li key={n.id} className={current ? "is-current" : undefined}>
-                        <button type="button" onClick={() => { setSheet(null); actions.activate(n.id); }}>
+                        <button type="button" onClick={() => actions.activate(n.id)}>
                           <span>{n.q}</span>
                           {current ? <Check size={16} strokeWidth={1.8} aria-hidden="true" /> : null}
                         </button>

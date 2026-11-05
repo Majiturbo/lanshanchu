@@ -4,7 +4,7 @@
 
 市面上的 AI 很多，这种一层层问到明白的方式却不多见。你提出一个问题，或只写一句还没想清楚的纠结，先得到有来源、标明时效的答案。软件再替你列出值得继续问的方向。点开其中一条，就接着检索、接着回答，在一张无限画布上长成一棵知识树。问到哪，树就长到哪；没点开的方向先只是一个问题，不会提前消耗额度。
 
-[下载安装](#安装) · [一次探索](#一次探索是怎样的) · [手机和电脑](#手机和电脑) · [从源码构建](#从源码构建) · [Issues](https://github.com/Majiturbo/lanshanchu/issues)
+[下载安装](#安装) · [一次探索](#一次探索是怎样的) · [手机界面](#手机界面) · [从源码构建](#从源码构建) · [Issues](https://github.com/Majiturbo/lanshanchu/issues)
 
 <p align="center">
   <img src="docs/promo-assets/01-home-lanterns.png" alt="阑珊处首页：提问框与孔明灯" width="720" />
@@ -15,6 +15,55 @@
   &nbsp;
   <img src="docs/promo-assets/03-knowledge-tree.png" alt="知识树在画布上逐层展开" width="360" />
 </p>
+
+## 手机界面
+
+上面三张是电脑上的样子。手机是另一套界面，下面是浅色原型，按使用顺序排。购买套餐的下单页还没上线，没有放进来。
+
+<table>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/01-home.png" alt="首页" width="168" /><br/>首页</td>
+<td align="center"><img src="docs/promo-assets/mobile/02-map.png" alt="知识地图" width="168" /><br/>知识地图</td>
+<td align="center"><img src="docs/promo-assets/mobile/16-map-detail.png" alt="回到全图" width="168" /><br/>回到全图</td>
+<td align="center"><img src="docs/promo-assets/mobile/04-detail.png" alt="详情" width="168" /><br/>详情</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/08-cite.png" alt="引用" width="168" /><br/>引用</td>
+<td align="center"><img src="docs/promo-assets/mobile/05-reader.png" alt="来源阅读" width="168" /><br/>来源阅读</td>
+<td align="center"><img src="docs/promo-assets/mobile/17-path.png" alt="当前路径" width="168" /><br/>当前路径</td>
+<td align="center"><img src="docs/promo-assets/mobile/03-menu.png" alt="画布菜单" width="168" /><br/>画布菜单</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/06-prefs.png" alt="回答偏好" width="168" /><br/>回答偏好</td>
+<td align="center"><img src="docs/promo-assets/mobile/19-card-more.png" alt="卡片更多操作" width="168" /><br/>卡片更多</td>
+<td align="center"><img src="docs/promo-assets/mobile/09-leave.png" alt="离开确认" width="168" /><br/>离开确认</td>
+<td align="center"><img src="docs/promo-assets/mobile/07-history.png" alt="历史记录" width="168" /><br/>历史记录</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/10-settings.png" alt="设置" width="168" /><br/>设置</td>
+<td align="center"><img src="docs/promo-assets/mobile/10b-purchase.png" alt="购买套餐即将开放" width="168" /><br/>购买提示</td>
+<td align="center"><img src="docs/promo-assets/mobile/11-account.png" alt="账号与用量" width="168" /><br/>账号与用量</td>
+<td align="center"><img src="docs/promo-assets/mobile/12-memory.png" alt="记忆" width="168" /><br/>记忆</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/13-appearance.png" alt="外观" width="168" /><br/>外观</td>
+<td align="center"><img src="docs/promo-assets/mobile/14-canvas.png" alt="画布与来源" width="168" /><br/>画布与来源</td>
+<td align="center"><img src="docs/promo-assets/mobile/15-update.png" alt="检查更新" width="168" /><br/>检查更新</td>
+<td align="center"><img src="docs/promo-assets/mobile/26-quota.png" alt="额度不足" width="168" /><br/>额度不足</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/20-login.png" alt="密码登录" width="168" /><br/>密码登录</td>
+<td align="center"><img src="docs/promo-assets/mobile/21-login-code.png" alt="验证码登录" width="168" /><br/>验证码登录</td>
+<td align="center"><img src="docs/promo-assets/mobile/22-register.png" alt="注册" width="168" /><br/>注册</td>
+<td align="center"><img src="docs/promo-assets/mobile/23-reset.png" alt="忘记密码" width="168" /><br/>忘记密码</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/promo-assets/mobile/27-bind.png" alt="绑定手机号" width="168" /><br/>绑定手机号</td>
+<td align="center"><img src="docs/promo-assets/mobile/28-change-phone.png" alt="更换手机号" width="168" /><br/>更换手机号</td>
+<td align="center"><img src="docs/promo-assets/mobile/29-delete.png" alt="注销账号" width="168" /><br/>注销账号</td>
+<td></td>
+</tr>
+</table>
 
 ## 它做什么
 

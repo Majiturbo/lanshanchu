@@ -1,0 +1,29 @@
+{
+  "note": "阑珊处客户端与 www.tgcsm.site 账号/额度分离。改配额或 /api/lanshan/* 属于 AudioFlow 仓库的部署单元，不在本清单。",
+  "units": [
+    {
+      "id": "desktop_release",
+      "kind": "github_release",
+      "verify": "GitHub Release tag / artifact 与 git tag 一致；macOS pkg / Windows NSIS 齐",
+      "note": ".github/workflows/release.yml；npm run app:build / app:pkg:mac"
+    },
+    {
+      "id": "ios_build",
+      "kind": "mobile_artifact",
+      "verify": "Xcode archive / TestFlight 构建号与本次提交对应",
+      "note": "npm run app:ios:build；未跑过不算移动端已发"
+    },
+    {
+      "id": "android_build",
+      "kind": "mobile_artifact",
+      "verify": "APK/AAB 版本号与本次提交对应",
+      "note": "npm run app:android:build"
+    },
+    {
+      "id": "backend_lanshan_api",
+      "kind": "external_repo",
+      "verify": "在 AudioFlow 仓库按 deploy-units.json 核验 api_image + production_ui_static",
+      "note": "客户端登录与额度走 https://www.tgcsm.site/api/lanshan/*。只打包桌面端不会更新服务端"
+    }
+  ]
+}

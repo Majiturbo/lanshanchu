@@ -43,6 +43,7 @@ export const history = {
       actions.openDrawer(nodeId);
       const index = useGraph.getState().nodes[nodeId].sources.findIndex((s) => s.id === sourceId);
       if (sourceId && index >= 0) actions.readSource(nodeId, index + 1);
+      else if (sourceId) toast("原来的来源已不存在");
       return;
     }
     // 后台回答中的地图可能还没存过档（第一个回答没完成），直接用内存里的
@@ -59,8 +60,8 @@ export const history = {
         actions.openDrawer(nodeId);
         const index = r.nodes[nodeId].sources.findIndex((s) => s.id === sourceId);
         if (sourceId && index >= 0) actions.readSource(nodeId, index + 1);
-      }
-      else if (nodeId) toast("原来的回答已不存在");
+        else if (sourceId) toast("原来的来源已不存在");
+      } else if (nodeId) toast("原来的回答已不存在");
     }));
   },
 

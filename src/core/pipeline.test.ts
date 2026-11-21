@@ -21,6 +21,14 @@ test("合并来源时去重并改写各节点角标", () => {
   assert.deepEqual(m.nodes[1].points[0].cites, [2, 3]); // 越界角标被丢弃
 });
 
+test("旧版历史召回来源不进入新的综合和总结证据", () => {
+  const old: Source = { ...src(""), id: "local:m1:n2", localRef: { mapId: "m1", nodeId: "n2" } };
+  const m = mergeSources([{ q: "旧问题", summary: "旧结论[1]，仍可引用原网页[2]", sources: [old, src("https://a.cn")], points: [{ text: "旧要点", cites: [1, 2] }] }]);
+  assert.deepEqual(m.sources.map((s) => s.url), ["https://a.cn"]);
+  assert.equal(m.nodes[0].summary, "");
+  assert.deepEqual(m.nodes[0].points, []);
+});
+
 test("解析元宝搜索结果：跳过损坏条目、去重、补全站点名", () => {
   const pages = [
     JSON.stringify({ title: "标题一", url: "https://www.example.com/a", passage: "摘要", date: "2026-10-01" }),

@@ -244,8 +244,8 @@ export function runAnswer(id: string, more?: AnswerRequest["more"]) {
     ...(n.since && n.parent ? get().nodes[n.parent]?.sources.flatMap(articleKeys) ?? [] : []),
     ...(more ? n.dropped.map((d) => d.id) : []),
   ];
-  const req: AnswerRequest = { question: n.q, mapId: map, path: pathOf(id), existing: relatedQuestions([id]).filter((q) => q !== n.q), search, images: n.images, imageNote: n.imageNote || undefined, more, since: n.since ?? undefined, exclude: exclude.length ? exclude : undefined, prefs: prefs() };
-  // 先从记忆和历史地图里取这次用得上的（读本机数据库，很快），再发请求
+  const req: AnswerRequest = { question: n.q, path: pathOf(id), existing: relatedQuestions([id]).filter((q) => q !== n.q), search, images: n.images, imageNote: n.imageNote || undefined, more, since: n.since ?? undefined, exclude: exclude.length ? exclude : undefined, prefs: prefs() };
+  // 先取本机记忆偏好，再发请求
   void buildMemory(n.q, map).catch(() => null).then((mem) => {
     if (ctrl.signal.aborted) {
       if (askRuns.get(full(id, map))?.gen === gen) finishAsk(map, id, "cancelled");

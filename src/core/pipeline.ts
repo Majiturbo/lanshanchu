@@ -1,4 +1,4 @@
-import { articleKeys, SOURCES_CAP, type AnswerRequest, type DetailRequest, type NodeContext, type Prefs, type Source, type StreamEvent, type SummaryRequest, type SynthesizeRequest } from "./protocol.ts";
+import { articleKeys, type AnswerRequest, type DetailRequest, type NodeContext, type Prefs, type Source, type StreamEvent, type SummaryRequest, type SynthesizeRequest } from "./protocol.ts";
 import { ProviderError, type LLMProvider } from "./providers/types.ts";
 import { AnswerParser } from "./format.ts";
 import { answerPrompt, detailPrompt, summaryPrompt, synthesizePrompt, today, visionPrompt } from "./prompts.ts";
@@ -9,7 +9,7 @@ import { candidatePics } from "../lib/pics.ts";
 // 输入框路由在 router.ts。
 
 /** 编排依赖：模型、搜索与日志（研究 Agent 用到的同一组） */
-export type Deps = ResearchDeps & { localSearch?: (question: string, mapId: string, signal: AbortSignal) => Promise<Source[]> };
+export type Deps = ResearchDeps;
 
 /** 用户选的时间范围（近一周 / 近一个月）；自动时交给研究 Agent 按问题判断 */
 const prefsFreshness = (prefs?: Prefs) => (prefs && prefs.time !== "auto" ? prefs.time : undefined);
@@ -50,21 +50,9 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
   const freshness = req.since ? `${req.since},${today()}` : prefsFreshness(req.prefs);
   const official = req.prefs?.sources === "official";
   let quick = false;
-  const local = req.mapId && !req.since && !req.more
-    ? deps.localSearch?.(req.question, req.mapId, signal).catch((error) => {
-      deps.log("local retrieval failed", error instanceof Error ? error.name : "unknown");
-      return [];
-    })
-    : undefined;
   if (req.search) {
     ({ sources, quick } = yield* research(deps, req.question, req.path, signal, { note, images, known: req.more?.sources.filter((s) => !s.localRef), searched: req.more?.queries, freshness, exclude: req.exclude, official, memory: req.memory?.research }));
     yield { type: "stage", stage: "read", detail: { count: sources.length } };
-  }
-  if (signal.aborted) return;
-  const localSources = req.more?.sources.filter((s) => !!s.localRef) ?? await local ?? [];
-  if (localSources.length) {
-    sources = [...(sources ?? []), ...localSources].slice(0, SOURCES_CAP);
-    yield { type: "sources", sources };
   }
   yield { type: "stage", stage: "compose" };
   // 看看新进展没查到新内容时也按「只用来源」回答，让模型如实说没有新进展，而不是凭记忆补
@@ -79,6 +67,7 @@ export function mergeSources(nodes: NodeContext[]) {
   const index = new Map<string, number>();
   const remapped = nodes.map((n) => {
     const local = n.sources.map((s) => {
+      if (s.localRef) return undefined;
       const keys = articleKeys(s);
       let at = keys.map((k) => index.get(k)).find((i) => i !== undefined);
       if (at === undefined) {
@@ -88,7 +77,13 @@ export function mergeSources(nodes: NodeContext[]) {
       for (const k of keys) if (!index.has(k)) index.set(k, at);
       return at;
     });
-    return { ...n, points: n.points.map((p) => ({ ...p, cites: [...new Set(p.cites.map((c) => local[c - 1]).filter(Boolean))] })) };
+    // 旧结论可能只由已停用的历史召回支撑，整段不带进新的综合或总结。
+    const hasLegacyRecall = n.sources.some((s) => s.localRef);
+    return {
+      ...n,
+      summary: hasLegacyRecall ? "" : n.summary.replace(/\[(\d+)\]/g, (_, raw: string) => local[Number(raw) - 1] ? `[${local[Number(raw) - 1]}]` : ""),
+      points: hasLegacyRecall ? [] : n.points.map((p) => ({ ...p, cites: [...new Set(p.cites.map((c) => local[c - 1]).filter((c): c is number => c !== undefined))] })),
+    };
   });
   return { sources, nodes: remapped };
 }
@@ -121,6 +116,9 @@ export async function* summarize(deps: Deps, req: SummaryRequest, signal: AbortS
 
 /** 详解：主模型按 Markdown 子集流式输出，引用节点已有的来源序号 */
 export async function* detail(deps: Deps, req: DetailRequest, signal: AbortSignal): AsyncGenerator<StreamEvent> {
+  if (req.node.sources.some((s) => s.localRef)) {
+    throw new ProviderError("tokenhub", "这条回答含已停用的历史来源，请重新回答后生成详解", undefined, "other");
+  }
   yield { type: "stage", stage: "compose" };
   for await (const d of deps.llm.stream(detailPrompt(req.question, req.path, req.node, candidatePics(req.node.sources), req.prefs), { signal })) {
     if (d.reasoning) yield { type: "thinking", delta: d.reasoning };

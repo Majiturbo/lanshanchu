@@ -387,10 +387,9 @@ export const actions = {
    * 没有链接的权威卡片只能在阅读视图里看。
    */
   openSource(nodeId: string | null, n: number, url: string, via: "list" | "cite" | "reader" = "list") {
-    const local = nodeId && get().nodes[nodeId]?.sources[n - 1]?.localRef;
-    if (local) {
-      track("source_opened", { via, open_mode: "reader" });
-      void import("../history/store.ts").then(({ history }) => history.open(local.mapId, local.nodeId, local.sourceId));
+    const legacy = nodeId && get().nodes[nodeId]?.sources[n - 1]?.localRef;
+    if (legacy) {
+      void import("../history/store.ts").then(({ history }) => history.open(legacy.mapId, legacy.nodeId, legacy.sourceId));
       return;
     }
     const mode = useSettings.getState().openSource;

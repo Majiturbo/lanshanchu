@@ -9,7 +9,6 @@ import { createPageReader } from "../core/providers/web.ts";
 import { ProviderError, type ChatMessage } from "../core/providers/types.ts";
 import { fetchUsage, startRun } from "../core/platform.ts";
 import { MOCK_MODE, useSettings } from "../settings/store.ts";
-import { searchLocal } from "../history/local-search.ts";
 
 // 编排在应用内执行；这里负责按当前设置创建供应商，并把异常统一转成 error 事件。
 
@@ -95,7 +94,7 @@ async function run<T>(kind: string, fn: Run<T>, req: T, onEvent: (e: StreamEvent
     const runId = MOCK_MODE ? "mock" : await startRun(kind);
     const { llm, search, reader } = createProviders({ session: s.session, runId, model: s.model, mock: MOCK_MODE, fetch: tracedFetch(httpFetch, id), pageFetch: httpFetch });
     const deps: Deps = {
-      llm, search, reader, localSearch: searchLocal,
+      llm, search, reader,
       log: (m, x) => { console.info(`[${id}] ${m}`, x ?? ""); debugLog({ run: id, type: "run.note", message: m, extra: x }); },
     };
     for await (const ev of fn(deps, req, signal)) {

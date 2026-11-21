@@ -132,7 +132,7 @@ function Pop({ t }: { t: CiteTarget }) {
       <header className="cite-pop-head">
         <span className="cite-pop-n">{t.n}</span>
         <SourceIcon source={s} />
-        <MetaParts className="cite-pop-meta" items={[s.site, relativeTime(s.date)]} />
+        <MetaParts className="cite-pop-meta" items={[s.localRef ? "旧地图引用" : "", s.site, relativeTime(s.date)]} />
         <button type="button" className="icon-btn cite-pop-close" aria-label="关闭" onClick={() => closeCite({ force: true })}><X size={14} strokeWidth={1.8} /></button>
       </header>
       <h4 className="cite-pop-title">{s.title}</h4>

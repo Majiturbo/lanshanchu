@@ -6,7 +6,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 // - pending：第一次回答的提问、手动生成详解（反映是否偏好深入），攒够了整理一次
 // - sites：点开、阅读过的来源网站计数
 // - angles：延伸问题各角度出现、被点的次数
-// 已探索过的问题不写进记忆：直接从历史地图里找（brief.ts 的 recall）。
+// 已探索过的问题不写进记忆；历史地图不作为本地事实索引。
 // 记录与使用都受总开关 enabled 与单张地图的 offMaps 控制。
 
 /** 等待整理的信号 */

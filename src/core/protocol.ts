@@ -32,6 +32,8 @@ export const queryKey = (p: SearchPlan) => (p.site ? `${p.q} site:${p.site}` : p
 export const SOURCES_CAP = 40;
 
 export interface Source {
+  /** 本机历史证据的定位；缺省为联网来源。 */
+  localRef?: { mapId: string; nodeId: string; sourceId?: string };
   /** 去重用的唯一标识：网页为 URL；没有链接的权威卡片为「card:标题」 */
   id: string;
   title: string;
@@ -146,6 +148,8 @@ export interface MemoryBrief {
 }
 
 export interface AnswerRequest {
+  /** 当前地图：本地检索时读取已完成的节点。 */
+  mapId?: string;
   question: string;
   /** 从根到父节点的路径，帮助模型理解追问语境 */
   path: { q: string; summary: string }[];

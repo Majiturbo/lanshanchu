@@ -115,6 +115,11 @@ function Pop({ t }: { t: CiteTarget }) {
   const openReader = () => {
     closeCite({ force: true });
     track("source_opened", { via: "cite", open_mode: "reader" });
+    if (s.localRef) {
+      const ref = s.localRef;
+      void import("../history/store.ts").then(({ history }) => history.open(ref.mapId, ref.nodeId, ref.sourceId));
+      return;
+    }
     actions.readSource(t.nodeId!, t.n);
   };
   const openBrowser = () => {
@@ -155,9 +160,9 @@ function Pop({ t }: { t: CiteTarget }) {
         {!hits.length && sentences.length > 0 && <span className="cite-pop-note">没有找到对应原文</span>}
         {sheet ? (
           <span className="cite-pop-btns">
-            {t.nodeId && (
+            {(t.nodeId || s.localRef) && (
               <button type="button" className="btn btn-primary" onClick={openReader}>
-                <PanelRightOpen size={14} strokeWidth={1.8} />在应用内阅读
+                <PanelRightOpen size={14} strokeWidth={1.8} />{s.localRef ? "回到原地图" : "在应用内阅读"}
               </button>
             )}
             {s.url && (
@@ -168,9 +173,9 @@ function Pop({ t }: { t: CiteTarget }) {
           </span>
         ) : (
           <span className="cite-pop-actions">
-            {t.nodeId && (
+            {(t.nodeId || s.localRef) && (
               <button type="button" className={`cite-pop-act${prefer === "reader" ? " is-primary" : ""}`} onClick={openReader}>
-                <PanelRightOpen size={12} strokeWidth={1.8} />在侧边栏阅读
+                <PanelRightOpen size={12} strokeWidth={1.8} />{s.localRef ? "回到原地图" : "在侧边栏阅读"}
               </button>
             )}
             {s.url && (

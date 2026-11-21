@@ -123,6 +123,7 @@ export function SourceItem({ s, n, detail = false, nodeId }: { s: Source; n: num
       <span className="source-main">
         <span className="source-title">{s.title}</span>
         <MetaParts className="meta" items={[
+          s.localRef && <span className="source-badge">本地地图</span>,
           s.card && <span className="source-badge">{cardLabel(s)}</span>,
           !s.card && (s.authority ?? 0) >= 4 && <span className="source-badge">权威</span>,
           s.text && <span className="source-badge is-read">已读全文</span>,
@@ -135,7 +136,12 @@ export function SourceItem({ s, n, detail = false, nodeId }: { s: Source; n: num
   );
   return (
     <li>
-      {s.url ? (
+      {s.localRef ? (
+        <button type="button" className="source" onClick={() => {
+          const ref = s.localRef!;
+          void import("../history/store.ts").then(({ history }) => history.open(ref.mapId, ref.nodeId, ref.sourceId));
+        }}>{body}</button>
+      ) : s.url ? (
         <a className="source" href={s.url} target="_blank" rel="noopener noreferrer" onClick={(e) => {
           e.preventDefault();
           actions.openSource(nodeId ?? null, n, s.url, "list");

@@ -387,6 +387,12 @@ export const actions = {
    * 没有链接的权威卡片只能在阅读视图里看。
    */
   openSource(nodeId: string | null, n: number, url: string, via: "list" | "cite" | "reader" = "list") {
+    const local = nodeId && get().nodes[nodeId]?.sources[n - 1]?.localRef;
+    if (local) {
+      track("source_opened", { via, open_mode: "reader" });
+      void import("../history/store.ts").then(({ history }) => history.open(local.mapId, local.nodeId, local.sourceId));
+      return;
+    }
     const mode = useSettings.getState().openSource;
     if (nodeId && (mode === "reader" || !url)) {
       track("source_opened", { via, open_mode: "reader" });
@@ -401,6 +407,7 @@ export const actions = {
   readSource(nodeId: string, n: number) {
     const s = get().nodes[nodeId]?.sources[n - 1];
     if (!s) return;
+    if (s.localRef) return actions.openSource(nodeId, n, "", "reader");
     if (s.url) recordSite(s.url, get().map?.id);
     track("reader_opened", { had_fulltext: !!s.text });
     // 详情已开着：返回详情；地图角标直进：返回地图。

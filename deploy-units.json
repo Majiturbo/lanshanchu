@@ -1,4 +1,5 @@
 {
+  "lang": "zh",
   "note": "阑珊处客户端与 www.tgcsm.site 账号/额度分离。改配额或 /api/lanshan/* 属于 AudioFlow 仓库的部署单元，不在本清单。",
   "units": [
     {

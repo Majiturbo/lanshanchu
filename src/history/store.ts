@@ -37,8 +37,14 @@ export const history = {
     }
   },
 
-  async open(id: string) {
+  async open(id: string, nodeId?: string, sourceId?: string) {
     setH({ open: false });
+    if (useGraph.getState().map?.id === id && nodeId && useGraph.getState().nodes[nodeId]) {
+      actions.openDrawer(nodeId);
+      const index = useGraph.getState().nodes[nodeId].sources.findIndex((s) => s.id === sourceId);
+      if (sourceId && index >= 0) actions.readSource(nodeId, index + 1);
+      return;
+    }
     // 后台回答中的地图可能还没存过档（第一个回答没完成），直接用内存里的
     const live = parked.get(id);
     const r = live ? toRecord(live.map.id, live.map.createdAt, live.map.updatedAt, live.nodes, live.view, live.opened) : await getMap(id).catch(() => undefined);
@@ -47,7 +53,15 @@ export const history = {
       return void history.refresh();
     }
     // 从画布里打开别的地图：当前地图还有节点在回答时先按设置处理（可能弹出确认）
-    actions.leave(() => swapScreen(() => actions.openMap(r)));
+    actions.leave(() => swapScreen(() => {
+      actions.openMap(r);
+      if (nodeId && r.nodes[nodeId]) {
+        actions.openDrawer(nodeId);
+        const index = r.nodes[nodeId].sources.findIndex((s) => s.id === sourceId);
+        if (sourceId && index >= 0) actions.readSource(nodeId, index + 1);
+      }
+      else if (nodeId) toast("原来的回答已不存在");
+    }));
   },
 
   /**

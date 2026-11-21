@@ -57,9 +57,9 @@
 
 ## 部署核对（多工具共用）
 
-完整条文见外部手册；若本机有 premiseguard 仓库，以该文件为准：
+完整条文见 deploy-check 项目的 `docs/rules/deploy-check.md`（clone / npm 包均可）。本地校验：
 
-`/Users/mazekun/premiseguard/docs/rules/deploy-check.md`
+`npx deploy-check --cwd . --shadow` 或 `node /path/to/deploy-check/bin/check-deploy.mjs --cwd . --shadow`
 
 硬约束摘要：
 
@@ -67,6 +67,6 @@
 2. 只部署**已推送的明确 SHA**，不部署「当前工作区」。
 3. 「已上线」必须按仓库根目录 `deploy-units.json` 逐项核验；只完成部分单元时，回复里写清单元清单，禁止统称已上线。
 4. 进度阶梯：`本地改动 → 已提交(SHA) → 已推送 → 已部署(单元) → 已核验(证据)`。
-5. 部署前尽量运行：`node /Users/mazekun/premiseguard/bin/check-deploy.mjs --cwd . --shadow`。
+5. 部署前尽量运行：`npx deploy-check --cwd . --shadow`。
 
 多工具并行时优先各自 git worktree；钩子与本规则是兜底，不能替代隔离目录。

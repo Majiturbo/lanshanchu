@@ -4,7 +4,7 @@
 
 市面上的 AI 很多，这种一层层问到明白的方式却不多见。你提出一个问题，或只写一句还没想清楚的纠结，先得到有来源、标明时效的答案。软件再替你列出值得继续问的方向。点开其中一条，就接着检索、接着回答，在一张无限画布上长成一棵知识树。问到哪，树就长到哪；没点开的方向先只是一个问题，不会提前消耗额度。
 
-[下载安装](#安装) · [一次探索](#一次探索是怎样的) · [手机界面](#手机界面) · [从源码构建](#从源码构建) · [Issues](https://github.com/Majiturbo/lanshanchu/issues)
+[产品案例](docs/product-case.md) · [下载安装](#安装) · [一次探索](#一次探索是怎样的) · [手机界面](#手机界面) · [从源码构建](#从源码构建) · [Issues](https://github.com/Majiturbo/lanshanchu/issues)
 
 <p align="center">
   <img src="docs/promo-assets/01-home-lanterns.png" alt="阑珊处首页：提问框与孔明灯" width="720" />

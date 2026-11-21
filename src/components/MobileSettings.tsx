@@ -1,4 +1,4 @@
-import { ArrowLeft, Brain, ChevronRight, LoaderCircle, LogOut, Map, Palette, RefreshCw, ShoppingCart } from "lucide-react";
+import { ArrowLeft, BookOpen, Brain, ChevronRight, LoaderCircle, LogOut, Map, Palette, RefreshCw, ShoppingCart } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useMemory } from "../memory/store.ts";
 import { bindSettingsBack } from "../lib/backStack.ts";
@@ -15,6 +15,7 @@ import { APP_VERSION, checkAppUpdate, type UpdateInfo } from "../lib/appUpdate.t
 import { openExternal } from "../lib/external.ts";
 import { AccountSection } from "./SettingsDialog.tsx";
 import { MemorySection } from "./MemorySection.tsx";
+import { LocalLibrarySection } from "./LocalLibrarySection.tsx";
 import { NAV_MS, useNavCover, useStackNav } from "./navMotion.ts";
 import { PlanMark } from "./PlanMark.tsx";
 import { usePresence } from "./presence.ts";
@@ -23,12 +24,13 @@ import { toast } from "../store/toast.ts";
 
 const PHONE = /^1\d{10}$/;
 
-type Page = "root" | "account" | "memory" | "look" | "canvas" | "update" | "bind" | "change" | "delete";
+type Page = "root" | "account" | "memory" | "library" | "look" | "canvas" | "update" | "bind" | "change" | "delete";
 
 const TITLES: Record<Page, string> = {
   root: "设置",
   account: "账号与用量",
   memory: "记忆",
+  library: "本地资料",
   look: "外观",
   canvas: "画布与来源",
   update: "检查更新",
@@ -132,6 +134,7 @@ function MobileSettings({ closing }: { closing: boolean }) {
     if (id === "root") return <RootPage push={push} />;
     if (id === "account") return <AccountPage push={push} />;
     if (id === "memory") return <MemorySection />;
+    if (id === "library") return <LocalLibrarySection />;
     if (id === "look") return <LookPage />;
     if (id === "canvas") return <CanvasPage />;
     if (id === "update") return <UpdatePage />;
@@ -227,6 +230,11 @@ function RootPage({ push }: { push: (page: Page) => void }) {
           <Brain size={20} strokeWidth={1.6} aria-hidden="true" />
           <span>记忆</span>
           <em>{memoryOn ? "已开启" : "已关闭"}</em>
+          <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
+        </button>
+        <button type="button" className="mset-row" onClick={() => push("library")}>
+          <BookOpen size={20} strokeWidth={1.6} aria-hidden="true" />
+          <span>本地资料</span>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
         <button type="button" className="mset-row" onClick={() => push("look")}>

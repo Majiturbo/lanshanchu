@@ -124,9 +124,10 @@ export function SourceItem({ s, n, detail = false, nodeId }: { s: Source; n: num
         <span className="source-title">{s.title}</span>
         <MetaParts className="meta" items={[
           s.localRef && <span className="source-badge">旧地图引用</span>,
+          s.localDocId && <span className="source-badge">本地资料</span>,
           s.card && <span className="source-badge">{cardLabel(s)}</span>,
           !s.card && (s.authority ?? 0) >= 4 && <span className="source-badge">权威</span>,
-          s.text && <span className="source-badge is-read">已读全文</span>,
+          s.text && !s.localDocId && <span className="source-badge is-read">已读全文</span>,
           s.site, relativeTime(s.date),
         ]} />
         {(!s.url || (detail && s.card)) && s.snippet && <span className={`source-snippet${s.card ? " is-card" : ""}`}>{s.snippet}</span>}

@@ -246,6 +246,7 @@ function AnswerCard({ n, active }: { n: GNode; active: boolean }) {
               </div>
             ) : (
               <>
+                {n.notice && <p className="card-notice" role="status">{n.notice}</p>}
                 {n.summary && (
                   <p className="card-a"><Revealed settled={summary.settled} fresh={summary.fresh} sources={n.sources} /></p>
                 )}

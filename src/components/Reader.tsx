@@ -107,7 +107,7 @@ export function Reader({ node, n }: { node: GNode; n: number }) {
         <div className="reader-status">
           {load.state === "loading" && <><LoaderCircle className="spin" size={13} strokeWidth={1.8} />正在读取网页全文，先显示搜索摘要</>}
           {load.state === "error" && <>没能读取全文（{load.reason}），下面是搜索摘要{s.url && <button type="button" className="reader-link" onClick={() => openExternal(s.url)}>在浏览器中打开</button>}</>}
-          {load.state === "done" && !IS_MOBILE_APP && (s.text ? "网页正文" : "搜索摘要")}
+          {load.state === "done" && !IS_MOBILE_APP && (s.localDocId ? "导入文件片段" : s.text ? "网页正文" : "搜索摘要")}
         </div>
 
         <article className="reader-text">

@@ -285,7 +285,7 @@ export function newsSince(n: GNode, now = Date.now()): string | null {
 }
 
 export function toContext(n: GNode): NodeContext {
-  return { q: n.q, summary: stripCites(n.summary), points: n.points, sources: n.sources };
+  return { q: n.q, summary: stripCites(n.summary), notice: n.notice, points: n.points, sources: n.sources };
 }
 
 /** 探索路径：从根到上一层里已完成的节点，交给模型理解追问语境 */

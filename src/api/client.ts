@@ -9,6 +9,7 @@ import { createPageReader } from "../core/providers/web.ts";
 import { ProviderError, type ChatMessage } from "../core/providers/types.ts";
 import { fetchUsage, startRun } from "../core/platform.ts";
 import { MOCK_MODE, useSettings } from "../settings/store.ts";
+import { searchLocalLibrary } from "../library/search.ts";
 
 // 编排在应用内执行；这里负责按当前设置创建供应商，并把异常统一转成 error 事件。
 
@@ -16,19 +17,13 @@ type Run<T> = (deps: Deps, req: T, signal: AbortSignal) => AsyncGenerator<Stream
 
 /** 调试日志里一次运行的汇总：模型解析后的结构化结果 */
 function collector() {
-  const r = { stages: [] as string[], queries: [] as string[], sources: [] as string[], title: "", summary: "", text: "", thinkingChars: 0, points: [] as unknown[], visual: null as unknown, followups: [] as unknown[] };
+  const r = { stages: [] as string[], sourceCount: 0, thinkingChars: 0 };
   return {
     add(ev: StreamEvent) {
       if (!DEBUG_LOG) return;
-      if (ev.type === "stage") { r.stages.push(ev.stage); if (ev.detail?.queries) r.queries = ev.detail.queries; }
-      else if (ev.type === "sources") r.sources = ev.sources.map((x) => `${x.site} | ${x.title} | ${x.url}`);
-      else if (ev.type === "title") r.title = ev.text;
-      else if (ev.type === "summary") r.summary += ev.delta;
-      else if (ev.type === "text") r.text += ev.delta;
+      if (ev.type === "stage") r.stages.push(ev.stage);
+      else if (ev.type === "sources") r.sourceCount = ev.sources.length;
       else if (ev.type === "thinking") r.thinkingChars += ev.delta.length;
-      else if (ev.type === "point") r.points.push(ev.point);
-      else if (ev.type === "visual") r.visual = ev.visual;
-      else if (ev.type === "followup") r.followups.push(ev.followup);
     },
     result: () => r,
   };
@@ -74,7 +69,7 @@ async function run<T>(kind: string, fn: Run<T>, req: T, onEvent: (e: StreamEvent
   const started = performance.now();
   const ms = () => Math.round(performance.now() - started);
   const out = collector();
-  debugLog({ run: id, type: "run.start", kind, request: req });
+  debugLog({ run: id, type: "run.start", kind });
   try {
     const s = useSettings.getState();
     // command / memory 不扣额度；其余若本地仍显示不可问，先拉一次用量（窗可能已重置）
@@ -95,7 +90,8 @@ async function run<T>(kind: string, fn: Run<T>, req: T, onEvent: (e: StreamEvent
     const { llm, search, reader } = createProviders({ session: s.session, runId, model: s.model, mock: MOCK_MODE, fetch: tracedFetch(httpFetch, id), pageFetch: httpFetch });
     const deps: Deps = {
       llm, search, reader,
-      log: (m, x) => { console.info(`[${id}] ${m}`, x ?? ""); debugLog({ run: id, type: "run.note", message: m, extra: x }); },
+      localSearch: searchLocalLibrary,
+      log: (m, x) => { console.info(`[${id}] ${m}`, x ?? ""); debugLog({ run: id, type: "run.note", message: m }); },
     };
     for await (const ev of fn(deps, req, signal)) {
       if (signal.aborted) return debugLog({ run: id, type: "run.cancelled", ms: ms() });
@@ -110,11 +106,11 @@ async function run<T>(kind: string, fn: Run<T>, req: T, onEvent: (e: StreamEvent
     if (signal.aborted) return debugLog({ run: id, type: "run.cancelled", ms: ms() });
     if (err instanceof ProviderError) {
       console.warn(`[${id}] ${err.provider} failed at ${stage ?? "start"}: ${err.message}`, err.detail ?? "");
-      debugLog({ run: id, type: "run.error", ms: ms(), stage, provider: err.provider, kind: err.kind, message: err.message, detail: err.detail, partial: out.result() });
+      debugLog({ run: id, type: "run.error", ms: ms(), stage, provider: err.provider, kind: err.kind, partial: out.result() });
       emit({ type: "error", stage, message: err.message, code: err.kind, hint: err.info?.hint });
     } else {
       console.error(`[${id}] unexpected error at ${stage ?? "start"}`, err);
-      debugLog({ run: id, type: "run.error", ms: ms(), stage, message: String(err), stack: (err as Error)?.stack, partial: out.result() });
+      debugLog({ run: id, type: "run.error", ms: ms(), stage, partial: out.result() });
       emit({ type: "error", stage, message: "出现了意外错误，请重试" });
     }
   }
@@ -131,18 +127,18 @@ export const api = {
 /** 后台的一次性小任务（整理记忆）：快速模型、不流式，失败返回 null，不打扰用户 */
 export async function completeFast(kind: string, messages: ChatMessage[]): Promise<string | null> {
   const id = `${kind}-${Date.now().toString(36)}`;
-  debugLog({ run: id, type: "run.start", kind, request: { messages } });
+  debugLog({ run: id, type: "run.start", kind });
   try {
     const s = useSettings.getState();
     if (!MOCK_MODE && !s.session) return null;
     const runId = MOCK_MODE ? "mock" : await startRun("memory");
     const { llm } = createProviders({ session: s.session, runId, model: s.model, mock: MOCK_MODE, fetch: tracedFetch(httpFetch, id), pageFetch: httpFetch });
     const text = await llm.complete(messages, { tier: "fast", temperature: 0.2 });
-    debugLog({ run: id, type: "run.done", result: { text } });
+    debugLog({ run: id, type: "run.done" });
     return text;
   } catch (err) {
     console.warn(`[${id}] failed`, err);
-    debugLog({ run: id, type: "run.error", message: String(err) });
+    debugLog({ run: id, type: "run.error" });
     return null;
   }
 }

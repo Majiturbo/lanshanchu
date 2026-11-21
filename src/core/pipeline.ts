@@ -1,4 +1,4 @@
-import { articleKeys, type AnswerRequest, type DetailRequest, type NodeContext, type Prefs, type Source, type StreamEvent, type SummaryRequest, type SynthesizeRequest } from "./protocol.ts";
+import { articleKeys, SOURCES_CAP, type AnswerRequest, type DetailRequest, type NodeContext, type Prefs, type Source, type StreamEvent, type SummaryRequest, type SynthesizeRequest } from "./protocol.ts";
 import { ProviderError, type LLMProvider } from "./providers/types.ts";
 import { AnswerParser } from "./format.ts";
 import { answerPrompt, detailPrompt, summaryPrompt, synthesizePrompt, today, visionPrompt } from "./prompts.ts";
@@ -9,7 +9,7 @@ import { candidatePics } from "../lib/pics.ts";
 // 输入框路由在 router.ts。
 
 /** 编排依赖：模型、搜索与日志（研究 Agent 用到的同一组） */
-export type Deps = ResearchDeps;
+export type Deps = ResearchDeps & { localSearch?: (question: string, signal: AbortSignal) => Promise<Source[]> };
 
 /** 用户选的时间范围（近一周 / 近一个月）；自动时交给研究 Agent 按问题判断 */
 const prefsFreshness = (prefs?: Prefs) => (prefs && prefs.time !== "auto" ? prefs.time : undefined);
@@ -50,14 +50,41 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
   const freshness = req.since ? `${req.since},${today()}` : prefsFreshness(req.prefs);
   const official = req.prefs?.sources === "official";
   let quick = false;
+  // 更新只比较新发布的网页；本地文件没有可用于新进展判断的发布时间。
+  const localPromise = !req.since && deps.localSearch
+    ? deps.localSearch(req.question, signal).then((sources) => ({ sources, error: null }), (error: unknown) => ({ sources: [] as Source[], error }))
+    : Promise.resolve({ sources: [] as Source[], error: null });
+  let webError: unknown;
   if (req.search) {
-    ({ sources, quick } = yield* research(deps, req.question, req.path, signal, { note, images, known: req.more?.sources.filter((s) => !s.localRef), searched: req.more?.queries, freshness, exclude: req.exclude, official, memory: req.memory?.research }));
-    yield { type: "stage", stage: "read", detail: { count: sources.length } };
+    try {
+      ({ sources, quick } = yield* research(deps, req.question, req.path, signal, { note, images, known: req.more?.sources.filter((s) => !s.localRef && !s.localDocId), searched: req.more?.queries, freshness, exclude: req.exclude, official, memory: req.memory?.research }));
+    } catch (err) {
+      if (signal.aborted) throw err;
+      webError = err;
+      deps.log("research: web unavailable", err instanceof Error ? err.message : String(err));
+      sources = [];
+    }
   }
+  const localResult = await localPromise;
+  const local = localResult.sources;
+  if (signal.aborted) return;
+  if (localResult.error) {
+    deps.log("local library: read failed", localResult.error instanceof Error ? localResult.error.message : String(localResult.error));
+    yield { type: "notice", text: "本地资料读取失败，本次未使用本地资料。" };
+  }
+  if (webError && (!local.length || !(webError instanceof ProviderError && webError.kind === "network"))) throw webError;
+  if (webError) yield { type: "notice", text: "联网检索失败，本次仅依据本地资料，当前状态尚未核验。" };
+  else if (!req.search && local.length) yield { type: "notice", text: "未联网，本次仅依据本地资料，当前状态尚未核验。" };
+  if (local.length) {
+    const web = sources ?? [];
+    sources = [...local, ...web].slice(0, SOURCES_CAP);
+    yield { type: "sources", sources };
+  }
+  if (sources) yield { type: "stage", stage: "read", detail: { count: sources.length } };
   yield { type: "stage", stage: "compose" };
   // 看看新进展没查到新内容时也按「只用来源」回答，让模型如实说没有新进展，而不是凭记忆补
   const material = sources?.length || (req.since && sources) ? sources : null;
-  yield* compose(deps, answerPrompt(req.question, req.path, req.existing, material, note, req.since, req.prefs, req.memory, images), sources?.length ?? 0, signal, !quick);
+  yield* compose(deps, answerPrompt(req.question, req.path, req.existing, material, note, req.since, req.prefs, req.memory, images, webError ? "failed" : !req.search && local.length ? "off" : undefined), sources?.length ?? 0, signal, !quick);
   yield { type: "done" };
 }
 
@@ -88,12 +115,26 @@ export function mergeSources(nodes: NodeContext[]) {
   return { sources, nodes: remapped };
 }
 
+/** 综合时已有角标保持原位；联网研究只向末尾补新来源。 */
+export function appendWebSources(existing: Source[], web: Source[]): Source[] {
+  const ids = new Set(existing.map((s) => s.id));
+  return [...existing, ...web.filter((s) => !ids.has(s.id))].slice(0, Math.max(existing.length, SOURCES_CAP));
+}
+
 export async function* synthesize(deps: Deps, req: SynthesizeRequest, signal: AbortSignal): AsyncGenerator<StreamEvent> {
   const merged = mergeSources(req.nodes);
   let sources = merged.sources;
   if (req.search && (req.op === "deepen" || req.op === "custom")) {
     const topic = req.op === "custom" && req.instruction ? `${req.instruction}（${req.nodes.map((n) => n.q).join("；")}）` : req.nodes.map((n) => n.q).join("；");
-    ({ sources } = yield* research(deps, topic, [], signal, { known: sources, freshness: prefsFreshness(req.prefs), official: req.prefs?.sources === "official" }));
+    const stream = research(deps, topic, [], signal, { known: sources.filter((s) => !s.localDocId), freshness: prefsFreshness(req.prefs), official: req.prefs?.sources === "official" });
+    let web: Source[] = [];
+    for (;;) {
+      const step = await stream.next();
+      if (step.done) { web = step.value.sources; break; }
+      if (step.value.type !== "sources") yield step.value;
+    }
+    sources = appendWebSources(sources, web);
+    yield { type: "sources", sources };
   } else {
     yield { type: "sources", sources };
   }

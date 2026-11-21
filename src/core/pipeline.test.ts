@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { keepFullText, type NodeContext, type Source, type StreamEvent } from "./protocol.ts";
-import { textOf, type ChatMessage, type ContentPart, type LLMProvider } from "./providers/types.ts";
+import { ProviderError, textOf, type ChatMessage, type ContentPart, type LLMProvider } from "./providers/types.ts";
 import { parsePages, requestBody } from "./providers/yuanbao.ts";
-import { answer, mergeSources } from "./pipeline.ts";
+import { answer, appendWebSources, mergeSources } from "./pipeline.ts";
 import { answerPrompt, READER_RULE, synthesizePrompt } from "./prompts.ts";
 import { parseDrop, parseRead, parseSearch, perQuery } from "./research.ts";
 import { command } from "./router.ts";
@@ -27,6 +27,22 @@ test("旧版历史召回来源不进入新的综合和总结证据", () => {
   assert.deepEqual(m.sources.map((s) => s.url), ["https://a.cn"]);
   assert.equal(m.nodes[0].summary, "");
   assert.deepEqual(m.nodes[0].points, []);
+});
+
+test("不同导入文件即使片段开头相同也保留各自引用", () => {
+  const snippet = "相同开头".repeat(30);
+  const a: Source = { ...src(""), id: "local:a:0", localDocId: "a", snippet };
+  const b: Source = { ...src(""), id: "local:b:0", localDocId: "b", snippet };
+  const merged = mergeSources([{ q: "比较", summary: "见[1][2]", sources: [a, b], points: [] }]);
+  assert.deepEqual(merged.sources.map((s) => s.id), ["local:a:0", "local:b:0"]);
+  assert.equal(merged.nodes[0].summary, "见[1][2]");
+});
+
+test("综合补搜保留已有网页和本地资料的角标位置", () => {
+  const web = src("https://a.cn");
+  const local: Source = { ...src(""), id: "local:d:0", localDocId: "d" };
+  const added = src("https://b.cn");
+  assert.deepEqual(appendWebSources([web, local], [web, added]).map((s) => s.id), [web.id, local.id, added.id]);
 });
 
 test("解析元宝搜索结果：跳过损坏条目、去重、补全站点名", () => {
@@ -59,6 +75,39 @@ function fakeLLM(reply: (tier: string) => string) {
 
 const collect = async (gen: AsyncGenerator<StreamEvent>) => { const out: StreamEvent[] = []; for await (const e of gen) out.push(e); return out; };
 const lastText = (m: ChatMessage[]) => textOf(m[m.length - 1].content);
+
+test("未联网时引用用户导入的原文片段", async () => {
+  const { llm, calls } = fakeLLM(() => "结论：支持。[1]");
+  const local = { id: "local:d:0", localDocId: "d", title: "说明.md · 第 1 段", url: "", site: "本地资料", snippet: "支持本地检索", text: "阑珊处支持本地检索。" };
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => [local] }, { question: "支持本地检索吗？", path: [], existing: [], search: false }, new AbortController().signal));
+  assert.ok(events.some((e) => e.type === "sources" && e.sources[0].localDocId === "d"));
+  assert.ok(events.some((e) => e.type === "notice" && /未联网/.test(e.text)));
+  assert.match(lastText(calls[0].messages), /阑珊处支持本地检索/);
+});
+
+test("本地资料读取失败时仍可回答，并明确告知本地证据缺失", async () => {
+  const { llm } = fakeLLM(() => "结论：暂不确定。");
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => { throw new Error("storage blocked"); } }, { question: "问题", path: [], existing: [], search: false }, new AbortController().signal));
+  assert.ok(events.some((e) => e.type === "notice" && /本地资料读取失败/.test(e.text)));
+  assert.equal(events.at(-1)?.type, "done");
+});
+
+test("联网网络故障但本地命中时继续回答，并保留未核验提示", async () => {
+  const base = fakeLLM(() => "结论：见本地资料。[1]");
+  const llm: LLMProvider = {
+    ...base.llm,
+    async *stream(messages, opts = {}) {
+      if (opts.tier === "fast") throw new ProviderError("search", "网络断开", undefined, "network");
+      yield* base.llm.stream(messages, opts);
+    },
+  };
+  const local: Source = { id: "local:d:0", localDocId: "d", title: "资料.md", url: "", site: "本地资料", snippet: "事实", text: "文件里的事实" };
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => [local] }, { question: "现在如何？", path: [], existing: [], search: true }, new AbortController().signal));
+  assert.ok(events.some((e) => e.type === "notice" && /联网检索失败/.test(e.text)));
+  assert.ok(events.some((e) => e.type === "sources" && e.sources[0].id === local.id));
+  assert.match(lastText(base.calls[0].messages), /文件里的事实/);
+  assert.equal(events.at(-1)?.type, "done");
+});
 
 test("附图提问：先由视觉模型看图，描述进入回答提示词；已有描述时不再看图", async () => {
   const { llm, calls } = fakeLLM((tier) => (tier === "vision" ? "一张内存条价格截图" : "结论：涨了。"));

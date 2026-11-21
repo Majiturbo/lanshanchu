@@ -132,6 +132,8 @@ export const isDetailRunning = (id: string) => controllers.has(full(detailKey(id
 function applyEvent(map: string, id: string, ev: StreamEvent) {
   const patch = (fn: Parameters<typeof patchAt>[2]) => patchAt(map, id, fn);
   switch (ev.type) {
+    case "notice":
+      return patch(() => ({ notice: ev.text }));
     case "stage":
       return patch((n) => ({
         // 换阶段时思考流接着往下滚、另起一行，不清空：清空会让卡片在思考流和骨架屏之间来回切换，看起来一闪一闪
@@ -206,7 +208,7 @@ function resetAnswer(id: string, keepQueries: boolean) {
   const n = nodes[id];
   for (const c of n.children) if (nodes[c].kind === "question") delete nodes[c];
   nodes[id] = {
-    ...n, kind: "answer", status: "loading", stage: null, stageDetail: null, summary: "", framed: false, settled: false, thinking: "", points: [], visual: null, memory: null, sources: [], error: null, errorCode: null, errorHint: null,
+    ...n, kind: "answer", status: "loading", stage: null, stageDetail: null, summary: "", notice: undefined, framed: false, settled: false, thinking: "", points: [], visual: null, memory: null, sources: [], error: null, errorCode: null, errorHint: null,
     detail: "", detailStatus: "idle",
     queries: keepQueries ? n.queries : [],
     searchResults: keepQueries ? n.searchResults : 0,

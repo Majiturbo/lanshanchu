@@ -11,6 +11,7 @@ import { DialogCloseIcon, DialogDone, scrimClose } from "./DialogChrome.tsx";
 import { UpdateSection } from "./UpdatePrompt.tsx";
 import { usePresence } from "./presence.ts";
 import { MemorySection } from "./MemorySection.tsx";
+import { LocalLibrarySection } from "./LocalLibrarySection.tsx";
 import { PlanMark } from "./PlanMark.tsx";
 import { loginFrom, MOCK_MODE, settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
 
@@ -112,6 +113,7 @@ function Dialog({ closing }: { closing: boolean }) {
               )}
             </section>
             <MemorySection />
+            <LocalLibrarySection />
             </div>
             <div className="settings-col">
             <section className="settings-section">

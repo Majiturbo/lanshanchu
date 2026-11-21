@@ -32,6 +32,8 @@ export const queryKey = (p: SearchPlan) => (p.site ? `${p.q} site:${p.site}` : p
 export const SOURCES_CAP = 40;
 
 export interface Source {
+  /** 用户主动导入的原文片段；与旧地图引用无关。 */
+  localDocId?: string;
   /** 旧版历史召回留下的引用定位；仅用于回看，不参与新答案的证据复用。 */
   localRef?: { mapId: string; nodeId: string; sourceId?: string };
   /** 去重用的唯一标识：网页为 URL；没有链接的权威卡片为「card:标题」 */
@@ -75,6 +77,7 @@ export function keepFullText(prev: Source[], next: Source[]): Source[] {
  * 摘要不足 60 字时开头相同说明不了什么，只用网址
  */
 export function articleKeys(s: Source): string[] {
+  if (s.localDocId) return [s.id];
   const head = s.snippet.replace(/[\s\p{P}\p{S}]/gu, "").slice(0, 120);
   return head.length >= 60 ? [s.id, `snippet:${head}`] : [s.id];
 }
@@ -125,6 +128,7 @@ export interface Followup {
 export interface NodeContext {
   q: string;
   summary: string;
+  notice?: string;
   points: Point[];
   sources: Source[];
 }
@@ -209,6 +213,7 @@ export interface StageDetail { queries?: string[]; count?: number; round?: numbe
 
 export type StreamEvent =
   | { type: "stage"; stage: Stage; detail?: StageDetail }
+  | { type: "notice"; text: string }
   /** 输入被判断为问题：界面据此新建追问节点并开始回答 */
   | { type: "ask"; question: string }
   | { type: "title"; text: string }

@@ -829,6 +829,16 @@ html.is-mobile-app .reader-status:empty { display: none; }
 .memory-text::placeholder { color: var(--ink-4); }
 .memory-text:focus { outline: 0; border-color: var(--accent-line); background: var(--surface); }
 .memory-hint { margin: 12px 0 0; font-size: 12px; color: var(--ink-3); }
+.local-library-add { margin-top: 14px; padding: 8px 12px; border: var(--hair) solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.local-library-add:disabled, .local-library-list button:disabled { opacity: .5; cursor: default; }
+.local-library-error { margin: 10px 0 0; color: var(--danger); font-size: 12px; }
+.card-notice { margin: 0 0 10px; font-size: 12px; color: var(--ink-3); }
+.local-library-list { list-style: none; padding: 0; margin: 14px 0 0; }
+.local-library-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: var(--hair) solid var(--line); }
+.local-library-list li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.local-library-list button { border: 0; background: none; color: var(--ink-3); cursor: pointer; }
+html.is-mobile-app .mset .local-library-section > h3 { display: none; }
+html.is-mobile-app .mset .local-library-section { padding-top: 0; }
 /* 原型 12：移动记忆页无重复「记忆」小标题；文本框 15/1.73、井色边 */
 html.is-mobile-app .mset .memory-section > h3 { display: none; }
 html.is-mobile-app .mset .memory-section { padding-top: 0; }

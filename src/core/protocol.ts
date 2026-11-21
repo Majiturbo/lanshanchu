@@ -60,6 +60,11 @@ export interface Source {
   text?: string;
 }
 
+export interface LocalSearchResult {
+  sources: Source[];
+  incomplete: boolean;
+}
+
 /** 读到的正文不比搜索摘要长时（登录页、脚本渲染出的空壳，或短文本身），全文没有多出内容，继续用摘要。返回不用的原因，能用时为 null */
 export function fullTextIssue(s: Source, text: string): string | null {
   return text.length > s.snippet.length ? null : `读到的正文只有 ${text.length} 字，不比搜索摘要长`;

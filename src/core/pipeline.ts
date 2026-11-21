@@ -1,4 +1,4 @@
-import { articleKeys, SOURCES_CAP, type AnswerRequest, type DetailRequest, type NodeContext, type Prefs, type Source, type StreamEvent, type SummaryRequest, type SynthesizeRequest } from "./protocol.ts";
+import { articleKeys, SOURCES_CAP, type AnswerRequest, type DetailRequest, type LocalSearchResult, type NodeContext, type Prefs, type Source, type StreamEvent, type SummaryRequest, type SynthesizeRequest } from "./protocol.ts";
 import { ProviderError, type LLMProvider } from "./providers/types.ts";
 import { AnswerParser } from "./format.ts";
 import { answerPrompt, detailPrompt, summaryPrompt, synthesizePrompt, today, visionPrompt } from "./prompts.ts";
@@ -9,7 +9,7 @@ import { candidatePics } from "../lib/pics.ts";
 // 输入框路由在 router.ts。
 
 /** 编排依赖：模型、搜索与日志（研究 Agent 用到的同一组） */
-export type Deps = ResearchDeps & { localSearch?: (question: string, signal: AbortSignal) => Promise<Source[]> };
+export type Deps = ResearchDeps & { localSearch?: (question: string, signal: AbortSignal) => Promise<LocalSearchResult> };
 
 /** 用户选的时间范围（近一周 / 近一个月）；自动时交给研究 Agent 按问题判断 */
 const prefsFreshness = (prefs?: Prefs) => (prefs && prefs.time !== "auto" ? prefs.time : undefined);
@@ -52,8 +52,8 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
   let quick = false;
   // 更新只比较新发布的网页；本地文件没有可用于新进展判断的发布时间。
   const localPromise = !req.since && deps.localSearch
-    ? deps.localSearch(req.question, signal).then((sources) => ({ sources, error: null }), (error: unknown) => ({ sources: [] as Source[], error }))
-    : Promise.resolve({ sources: [] as Source[], error: null });
+    ? deps.localSearch(req.question, signal).then((result) => ({ result, error: null }), (error: unknown) => ({ result: { sources: [] as Source[], incomplete: false }, error }))
+    : Promise.resolve({ result: { sources: [] as Source[], incomplete: false }, error: null });
   let webError: unknown;
   if (req.search) {
     try {
@@ -66,15 +66,18 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
     }
   }
   const localResult = await localPromise;
-  const local = localResult.sources;
+  const local = localResult.result.sources;
   if (signal.aborted) return;
+  const notices: string[] = [];
   if (localResult.error) {
     deps.log("local library: read failed", localResult.error instanceof Error ? localResult.error.message : String(localResult.error));
-    yield { type: "notice", text: "本地资料读取失败，本次未使用本地资料。" };
+    notices.push("本地资料读取失败，本次未使用本地资料。");
   }
+  if (localResult.result.incomplete) notices.push("部分本地资料尚未建成索引，本次仅检索已索引资料。");
   if (webError && (!local.length || !(webError instanceof ProviderError && webError.kind === "network"))) throw webError;
-  if (webError) yield { type: "notice", text: "联网检索失败，本次仅依据本地资料，当前状态尚未核验。" };
-  else if (!req.search && local.length) yield { type: "notice", text: "未联网，本次仅依据本地资料，当前状态尚未核验。" };
+  if (webError) notices.push("联网检索失败，本次仅依据本地资料，当前状态尚未核验。");
+  else if (!req.search && local.length) notices.push("未联网，本次仅依据本地资料，当前状态尚未核验。");
+  if (notices.length) yield { type: "notice", text: notices.join(" ") };
   if (local.length) {
     const web = sources ?? [];
     sources = [...local, ...web].slice(0, SOURCES_CAP);
@@ -84,7 +87,7 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
   yield { type: "stage", stage: "compose" };
   // 看看新进展没查到新内容时也按「只用来源」回答，让模型如实说没有新进展，而不是凭记忆补
   const material = sources?.length || (req.since && sources) ? sources : null;
-  yield* compose(deps, answerPrompt(req.question, req.path, req.existing, material, note, req.since, req.prefs, req.memory, images, webError ? "failed" : !req.search && local.length ? "off" : undefined), sources?.length ?? 0, signal, !quick);
+  yield* compose(deps, answerPrompt(req.question, req.path, req.existing, material, note, req.since, req.prefs, req.memory, images, webError ? "failed" : !req.search && local.length ? "off" : undefined, localResult.result.incomplete), sources?.length ?? 0, signal, !quick);
   yield { type: "done" };
 }
 

@@ -79,7 +79,7 @@ const lastText = (m: ChatMessage[]) => textOf(m[m.length - 1].content);
 test("未联网时引用用户导入的原文片段", async () => {
   const { llm, calls } = fakeLLM(() => "结论：支持。[1]");
   const local = { id: "local:d:0", localDocId: "d", title: "说明.md · 第 1 段", url: "", site: "本地资料", snippet: "支持本地检索", text: "阑珊处支持本地检索。" };
-  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => [local] }, { question: "支持本地检索吗？", path: [], existing: [], search: false }, new AbortController().signal));
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => ({ sources: [local], incomplete: false }) }, { question: "支持本地检索吗？", path: [], existing: [], search: false }, new AbortController().signal));
   assert.ok(events.some((e) => e.type === "sources" && e.sources[0].localDocId === "d"));
   assert.ok(events.some((e) => e.type === "notice" && /未联网/.test(e.text)));
   assert.match(lastText(calls[0].messages), /阑珊处支持本地检索/);
@@ -92,6 +92,14 @@ test("本地资料读取失败时仍可回答，并明确告知本地证据缺�
   assert.equal(events.at(-1)?.type, "done");
 });
 
+test("旧资料补建部分失败时仍使用已索引资料，并提示缺失范围", async () => {
+  const { llm } = fakeLLM(() => "结论：见资料。[1]");
+  const local: Source = { id: "local:d:0", localDocId: "d", title: "资料.md", url: "", site: "本地资料", snippet: "片段" };
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => ({ sources: [local], incomplete: true }) }, { question: "问题", path: [], existing: [], search: false }, new AbortController().signal));
+  assert.ok(events.some((e) => e.type === "notice" && /部分本地资料尚未建成索引/.test(e.text)));
+  assert.ok(events.some((e) => e.type === "sources" && e.sources[0].id === local.id));
+});
+
 test("联网网络故障但本地命中时继续回答，并保留未核验提示", async () => {
   const base = fakeLLM(() => "结论：见本地资料。[1]");
   const llm: LLMProvider = {
@@ -102,7 +110,7 @@ test("联网网络故障但本地命中时继续回答，并保留未核验提�
     },
   };
   const local: Source = { id: "local:d:0", localDocId: "d", title: "资料.md", url: "", site: "本地资料", snippet: "事实", text: "文件里的事实" };
-  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => [local] }, { question: "现在如何？", path: [], existing: [], search: true }, new AbortController().signal));
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => ({ sources: [local], incomplete: false }) }, { question: "现在如何？", path: [], existing: [], search: true }, new AbortController().signal));
   assert.ok(events.some((e) => e.type === "notice" && /联网检索失败/.test(e.text)));
   assert.ok(events.some((e) => e.type === "sources" && e.sources[0].id === local.id));
   assert.match(lastText(base.calls[0].messages), /文件里的事实/);

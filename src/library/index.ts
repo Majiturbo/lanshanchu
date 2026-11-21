@@ -1,0 +1,78 @@
+import type { LocalDocument } from "./db.ts";
+
+export interface DocumentIndex {
+  id: string;
+  bucket: number;
+  terms: string[];
+  postings: Record<string, number[]>;
+}
+
+export interface IndexMatch {
+  id: string;
+  start: number;
+  score: number;
+}
+
+export const CHUNK_SIZE = 1200;
+export const CHUNK_STEP = CHUNK_SIZE - 160;
+const MAX_HITS = 5;
+const BUCKETS = 128;
+
+export function terms(text: string): string[] {
+  const normalized = text.toLowerCase();
+  const words = normalized.match(/[a-z0-9]{2,}/g) ?? [];
+  const han = normalized.match(/[\p{Script=Han}]+/gu) ?? [];
+  const parts = words.flatMap((word) => [word, ...Array.from({ length: Math.max(0, word.length - 1) }, (_, i) => word.slice(i, i + 2)), ...Array.from({ length: Math.max(0, word.length - 2) }, (_, i) => word.slice(i, i + 3))]);
+  const characters = han.flatMap((run) => [...run, ...Array.from({ length: Math.max(0, run.length - 1) }, (_, i) => run.slice(i, i + 2))]);
+  return [...new Set([...parts, ...characters])];
+}
+
+export function bucketOf(term: string): number {
+  let hash = 2166136261;
+  for (const char of term) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619);
+  return (hash >>> 0) % BUCKETS;
+}
+
+/** 索引只包含词项到原文片段起点的映射，不把模型输出或搜索结果作为输入。 */
+export function buildIndex(doc: LocalDocument): DocumentIndex[] {
+  const buckets = new Map<number, DocumentIndex>();
+  const content = doc.content.trim();
+  for (let start = 0; start < content.length; start += CHUNK_STEP) {
+    for (const term of terms(content.slice(start, start + CHUNK_SIZE))) {
+      const bucket = bucketOf(term);
+      let index = buckets.get(bucket);
+      if (!index) { index = { id: doc.id, bucket, terms: [], postings: Object.create(null) }; buckets.set(bucket, index); }
+      (index.postings[term] ??= []).push(start);
+    }
+  }
+  for (const index of buckets.values()) index.terms = Object.keys(index.postings);
+  return [...buckets.values()];
+}
+
+export function rankIndexes(indexes: DocumentIndex[], question: string): IndexMatch[] {
+  const query = terms(question);
+  if (!query.length) return [];
+  const hits = new Map<string, IndexMatch>();
+  for (const index of indexes) {
+    for (const term of query) {
+      for (const start of index.postings[term] ?? []) {
+        const key = `${index.id}:${start}`;
+        const hit = hits.get(key) ?? { id: index.id, start, score: 0 };
+        hit.score += term.length > 1 ? 2 : 1;
+        hits.set(key, hit);
+      }
+    }
+  }
+  const chosen: IndexMatch[] = [];
+  const perDocument = new Map<string, number>();
+  const ranked = [...hits.values()].sort((a, b) => b.score - a.score);
+  const minimum = query.length === 1 ? 1 : Math.max(2, (ranked[0]?.score ?? 0) * 0.45);
+  for (const hit of ranked) {
+    if (hit.score < minimum) break;
+    if ((perDocument.get(hit.id) ?? 0) >= 2) continue;
+    chosen.push(hit);
+    perDocument.set(hit.id, (perDocument.get(hit.id) ?? 0) + 1);
+    if (chosen.length === MAX_HITS) break;
+  }
+  return chosen;
+}

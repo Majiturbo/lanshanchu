@@ -246,14 +246,14 @@ export function readObservation(results: { n: number; title: string; text?: stri
 /** 看看新进展：只讲 since 以来的变化，并和上一层的结论对照；没查到就如实说，不凭记忆补 */
 const updateRule = (since: string) => `这是对探索路径最后一层的跟进：只写 ${since} 至今的新变化，并和那一层的结论对照，说明哪些变了、有没有推翻之前的说法。搜索结果里发布早于 ${since} 的内容不算新进展。没有查到新变化时，结论直接写「${since} 以来没有查到新的进展」，不要用自身知识补充。`;
 
-export function answerPrompt(question: string, path: { q: string; summary: string }[], existing: string[], sources: Source[] | null, imageNote?: string, since?: string, prefs?: Prefs, memory?: MemoryBrief, images?: string[], webStatus?: "failed" | "off"): ChatMessage[] {
+export function answerPrompt(question: string, path: { q: string; summary: string }[], existing: string[], sources: Source[] | null, imageNote?: string, since?: string, prefs?: Prefs, memory?: MemoryBrief, images?: string[], webStatus?: "failed" | "off", localIncomplete = false): ChatMessage[] {
   const reader = prefs?.style !== "custom";
   return [
     {
       role: "system",
       content: `你是「阑珊处」的研究助手，帮用户一层层弄懂一个话题。
 ${sources ? CITE_RULE : NO_SEARCH_RULE}
-探索路径里的旧回答用于理解追问，不代表事实已核实；涉及具体事实要看本次来源。${webStatus ? `\n本次${webStatus === "failed" ? "联网检索失败" : "未开启联网搜索"}，只能使用导入的本地资料；涉及当前状态时明确说尚未联网核验。` : ""}
+探索路径里的旧回答用于理解追问，不代表事实已核实；涉及具体事实要看本次来源。${webStatus ? `\n本次${webStatus === "failed" ? "联网检索失败" : "未开启联网搜索"}，只能使用导入的本地资料；涉及当前状态时明确说尚未联网核验。` : ""}${localIncomplete ? "\n部分本地资料尚未建成索引，不能把未检索到当成资料中不存在。" : ""}
 ${timeRule(!!sources?.length)}${since ? "\n" + updateRule(since) : ""}${reader ? "\n" + READER_RULE : ""}${styleRule(prefs)}${memory?.answer ? "\n" + memory.answer : ""}
 ${THINK}
 

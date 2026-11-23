@@ -50,10 +50,11 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
   const freshness = req.since ? `${req.since},${today()}` : prefsFreshness(req.prefs);
   const official = req.prefs?.sources === "official";
   let quick = false;
+  const emptyLocal: LocalSearchResult = { sources: [], incomplete: false };
   // 更新只比较新发布的网页；本地文件没有可用于新进展判断的发布时间。
   const localPromise = !req.since && deps.localSearch
-    ? deps.localSearch(req.question, signal).then((result) => ({ result, error: null }), (error: unknown) => ({ result: { sources: [] as Source[], incomplete: false }, error }))
-    : Promise.resolve({ result: { sources: [] as Source[], incomplete: false }, error: null });
+    ? deps.localSearch(req.question, signal).then((result) => ({ result, error: null }), (error: unknown) => ({ result: emptyLocal, error }))
+    : Promise.resolve({ result: emptyLocal, error: null });
   let webError: unknown;
   if (req.search) {
     try {
@@ -74,6 +75,7 @@ export async function* answer(deps: Deps, req: AnswerRequest, signal: AbortSigna
     notices.push("本地资料读取失败，本次未使用本地资料。");
   }
   if (localResult.result.incomplete) notices.push("部分本地资料尚未建成索引，本次仅检索已索引资料。");
+  if (localResult.result.deepSearchFailed) notices.push("本地深度检索未完成，本次使用已找到的资料片段。");
   if (webError && (!local.length || !(webError instanceof ProviderError && webError.kind === "network"))) throw webError;
   if (webError) notices.push("联网检索失败，本次仅依据本地资料，当前状态尚未核验。");
   else if (!req.search && local.length) notices.push("未联网，本次仅依据本地资料，当前状态尚未核验。");

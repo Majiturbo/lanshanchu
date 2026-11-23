@@ -99,7 +99,7 @@ export function rebuildMissingIndexes(): Promise<void> {
 }
 
 /** 索引与原文在同一只读事务中取快照，避免更新时引用指向另一版内容。 */
-export async function lookupDocuments(question: string): Promise<{ matches: IndexMatch[]; docs: LocalDocument[]; incomplete: boolean }> {
+export async function lookupDocuments(question: string, maxHits = 5): Promise<{ matches: IndexMatch[]; docs: LocalDocument[]; incomplete: boolean }> {
   const query = terms(question);
   if (!query.length) return { matches: [], docs: [], incomplete: false };
   let incomplete = rebuildFailed;
@@ -126,7 +126,7 @@ export async function lookupDocuments(question: string): Promise<{ matches: Inde
           if (read.result) indexes.push(read.result);
           if (--pendingShards !== 0) return;
           try {
-            output.matches = rankIndexes(indexes, question);
+            output.matches = rankIndexes(indexes, question, maxHits);
             for (const id of new Set(output.matches.map((hit) => hit.id))) {
               const doc = tx.objectStore(STORE).get(id) as IDBRequest<LocalDocument | undefined>;
               doc.onsuccess = () => { if (doc.result) output.docs.push(doc.result); };

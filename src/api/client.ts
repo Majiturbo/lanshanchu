@@ -90,7 +90,7 @@ async function run<T>(kind: string, fn: Run<T>, req: T, onEvent: (e: StreamEvent
     const { llm, search, reader } = createProviders({ session: s.session, runId, model: s.model, mock: MOCK_MODE, fetch: tracedFetch(httpFetch, id), pageFetch: httpFetch });
     const deps: Deps = {
       llm, search, reader,
-      localSearch: searchLocalLibrary,
+      localSearch: (question, signal) => searchLocalLibrary(question, signal, s.deepLocalSearch ? llm : undefined),
       log: (m, x) => { console.info(`[${id}] ${m}`, x ?? ""); debugLog({ run: id, type: "run.note", message: m }); },
     };
     for await (const ev of fn(deps, req, signal)) {

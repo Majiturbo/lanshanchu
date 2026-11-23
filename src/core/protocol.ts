@@ -63,6 +63,7 @@ export interface Source {
 export interface LocalSearchResult {
   sources: Source[];
   incomplete: boolean;
+  deepSearchFailed?: boolean;
 }
 
 /** 读到的正文不比搜索摘要长时（登录页、脚本渲染出的空壳，或短文本身），全文没有多出内容，继续用摘要。返回不用的原因，能用时为 null */

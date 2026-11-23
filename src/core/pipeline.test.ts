@@ -100,6 +100,14 @@ test("旧资料补建部分失败时仍使用已索引资料，并提示缺失�
   assert.ok(events.some((e) => e.type === "sources" && e.sources[0].id === local.id));
 });
 
+test("本地证据判断失败时告知已退回词项检索", async () => {
+  const { llm } = fakeLLM(() => "结论：见资料。[1]");
+  const local: Source = { id: "local:d:0", localDocId: "d", title: "资料.md", url: "", site: "本地资料", snippet: "片段" };
+  const events = await collect(answer({ llm, search: null, log: () => {}, localSearch: async () => ({ sources: [local], incomplete: false, deepSearchFailed: true }) }, { question: "问题", path: [], existing: [], search: false }, new AbortController().signal));
+  assert.ok(events.some((event) => event.type === "notice" && /本地深度检索未完成/.test(event.text)));
+  assert.ok(events.some((event) => event.type === "sources" && event.sources[0].id === local.id));
+});
+
 test("联网网络故障但本地命中时继续回答，并保留未核验提示", async () => {
   const base = fakeLLM(() => "结论：见本地资料。[1]");
   const llm: LLMProvider = {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { listDocuments, rebuildMissingIndexes, removeDocument, saveDocument, type LocalDocumentMeta } from "../library/db.ts";
+import { settingsActions, useSettings } from "../settings/store.ts";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -9,6 +10,7 @@ export function LocalLibrarySection() {
   const [busy, setBusy] = useState(true);
   const [status, setStatus] = useState("正在准备本地索引…");
   const [error, setError] = useState("");
+  const deepLocalSearch = useSettings((state) => state.deepLocalSearch);
 
   useEffect(() => {
     const onBlocked = () => setStatus("其他窗口正在使用资料库；关闭后会继续建立索引。");
@@ -63,7 +65,14 @@ export function LocalLibrarySection() {
 
   return <section className="settings-section local-library-section">
     <h3>本地资料</h3>
-    <p className="memory-hint">主动导入 TXT 或 Markdown；提问时仅把命中的片段发送给模型。资料保存在这台设备上；文件更新请先移除旧版再导入。已有回答的引用仍保留。</p>
+    <p className="memory-hint">主动导入 TXT 或 Markdown；资料保存在这台设备上，命中的片段会交给模型用于回答。文件更新请先移除旧版再导入。已有回答的引用仍保留。</p>
+    <div className="field">
+      <span className="field-label" id="local-deep-label">本地深度检索</span>
+      <div className="segmented" role="radiogroup" aria-labelledby="local-deep-label">
+        {([[true, "开启"], [false, "关闭"]] as const).map(([value, label]) => <button key={label} type="button" role="radio" aria-checked={deepLocalSearch === value} onClick={() => settingsActions.update({ deepLocalSearch: value })}>{label}</button>)}
+      </div>
+    </div>
+    <p className="memory-hint">开启后每次命中资料会增加最多两次模型判断，并发送少量候选片段。</p>
     <input ref={input} type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" multiple hidden onChange={(e) => void importFiles(e.target.files)} />
     <button type="button" className="local-library-add" disabled={busy} onClick={() => input.current?.click()}>加入文件</button>
     {status && <p className="memory-hint" role="status">{status}</p>}

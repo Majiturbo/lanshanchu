@@ -200,6 +200,7 @@ export function createMockLLM(): LLMProvider {
     async complete(messages, opts = {}) {
       await sleep(400, opts.signal);
       const system = textOf(messages[0].content);
+      if (system.includes("你负责判断本地资料片段")) return '{"keep":[1],"expand":[]}';
       return system.includes(MEMORY_MARK) ? memoryPlan(textOf(messages[1].content)) : "好";
     },
     async *stream(messages, opts = {}) {

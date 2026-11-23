@@ -56,6 +56,8 @@ export interface Settings {
   theme: Theme;
   /** 首页孔明灯；关闭后提问框上方不再放灯 */
   petals: boolean;
+  /** 本地深度检索：用快速模型判断候选原文并扩展一次，默认关闭以控制用量 */
+  deepLocalSearch: boolean;
   /** 输入框旁的回答偏好：回答风格、来源偏好与时间范围 */
   prefs: Prefs;
 }
@@ -103,11 +105,11 @@ export const useSettings = create<SettingsState>()(
     (): SettingsState => ({
       session: "", account: null, canAsk: false, usage: null, model: DEFAULT_MAIN_MODEL,
       autoCollapse: false, autoDetail: false, openSource: defaultOpenSource(), drawerRatio: DRAWER_RATIO,
-      onLeave: "background", theme: "system", petals: true, prefs: DEFAULT_PREFS, open: false, gate: null,
+      onLeave: "background", theme: "system", petals: true, deepLocalSearch: false, prefs: DEFAULT_PREFS, open: false, gate: null,
     }),
     {
       name: "lanshan-settings",
-      version: 8,
+      version: 9,
       // 版本 2：「切换节点时收起上一个节点的要点」默认改为保持展开（用户要求），老用户也改一次
       // 版本 3：回答风格新增「自动」并设为默认，原来默认的「简洁明了」改为自动（用户反馈简洁明了答得太少），其他选择保留
       // 版本 4：密钥改由平台代发，本机只保留登录会话
@@ -115,6 +117,7 @@ export const useSettings = create<SettingsState>()(
       // 版本 6：灯火余额改为月租双窗黑盒用量
       // 版本 7：用量快照补 planExpiresAt（设置账号区展示到期）
       // 版本 8：移动端点击来源默认改为应用内阅读，避免跳出 App
+      // 版本 9：本地深度检索默认关闭，避免旧用户提问自动增加模型用量
       migrate: (persisted, version) => {
         let s = (persisted ?? {}) as Partial<SettingsState> & { palette?: unknown; remaining?: unknown };
         if (version < 2) s = { ...s, autoCollapse: false };
@@ -133,10 +136,11 @@ export const useSettings = create<SettingsState>()(
           s = { ...s, usage: { ...u, planExpiresAt: Math.max(0, Math.floor(Number(u.planExpiresAt) || 0)) } };
         }
         if (version < 8 && IS_MOBILE_APP) s = { ...s, openSource: "reader" };
+        if (version < 9) s = { ...s, deepLocalSearch: false };
         return s as SettingsState;
       },
       storage: createJSONStorage(() => localStorage),
-      partialize: ({ session, account, canAsk, usage, model, autoCollapse, autoDetail, openSource, drawerRatio, onLeave, theme, petals, prefs }) => ({ session, account, canAsk, usage, model, autoCollapse, autoDetail, openSource, drawerRatio, onLeave, theme, petals, prefs }),
+      partialize: ({ session, account, canAsk, usage, model, autoCollapse, autoDetail, openSource, drawerRatio, onLeave, theme, petals, deepLocalSearch, prefs }) => ({ session, account, canAsk, usage, model, autoCollapse, autoDetail, openSource, drawerRatio, onLeave, theme, petals, deepLocalSearch, prefs }),
       // 已下线或在设置页隐藏的模型回到默认值（2026-10 起混元隐藏，统一用 DeepSeek Flash）
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<Settings>;
@@ -172,7 +176,7 @@ export const useSettings = create<SettingsState>()(
         const account = p.account && typeof p.account === "object" && typeof p.account.id === "string"
           ? { ...p.account, phone: typeof p.account.phone === "string" ? p.account.phone : "" }
           : null;
-        return { ...current, ...p, session, account, canAsk, usage, model, openSource, drawerRatio, onLeave, theme, petals, prefs: cleanPrefs(p.prefs), gate: null };
+        return { ...current, ...p, session, account, canAsk, usage, model, openSource, drawerRatio, onLeave, theme, petals, deepLocalSearch: p.deepLocalSearch === true, prefs: cleanPrefs(p.prefs), gate: null };
       },
     },
   ),

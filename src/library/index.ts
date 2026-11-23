@@ -49,7 +49,7 @@ export function buildIndex(doc: LocalDocument): DocumentIndex[] {
   return [...buckets.values()];
 }
 
-export function rankIndexes(indexes: DocumentIndex[], question: string): IndexMatch[] {
+export function rankIndexes(indexes: DocumentIndex[], question: string, maxHits = MAX_HITS): IndexMatch[] {
   const query = terms(question);
   if (!query.length) return [];
   const hits = new Map<string, IndexMatch>();
@@ -72,7 +72,7 @@ export function rankIndexes(indexes: DocumentIndex[], question: string): IndexMa
     if ((perDocument.get(hit.id) ?? 0) >= 2) continue;
     chosen.push(hit);
     perDocument.set(hit.id, (perDocument.get(hit.id) ?? 0) + 1);
-    if (chosen.length === MAX_HITS) break;
+    if (chosen.length === maxHits) break;
   }
   return chosen;
 }

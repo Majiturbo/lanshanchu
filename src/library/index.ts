@@ -44,12 +44,14 @@ export function bucketOf(term: string): number {
 export function buildIndex(doc: LocalDocument): DocumentIndex[] {
   const buckets = new Map<number, DocumentIndex>();
   const content = doc.content.trim();
-  for (let start = 0; start < content.length; start += CHUNK_STEP) {
-    for (const term of terms(content.slice(start, start + CHUNK_SIZE))) {
-      const bucket = bucketOf(term);
-      let index = buckets.get(bucket);
-      if (!index) { index = { id: doc.id, bucket, terms: [], postings: Object.create(null) }; buckets.set(bucket, index); }
-      (index.postings[term] ??= []).push(start);
+  for (const span of doc.pages ?? [{ start: 0, end: content.length }]) {
+    for (let start = span.start; start < span.end; start += CHUNK_STEP) {
+      for (const term of terms(content.slice(start, Math.min(start + CHUNK_SIZE, span.end)))) {
+        const bucket = bucketOf(term);
+        let index = buckets.get(bucket);
+        if (!index) { index = { id: doc.id, bucket, terms: [], postings: Object.create(null) }; buckets.set(bucket, index); }
+        (index.postings[term] ??= []).push(start);
+      }
     }
   }
   for (const index of buckets.values()) index.terms = Object.keys(index.postings);

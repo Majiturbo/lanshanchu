@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listDocuments, rebuildMissingIndexes, removeDocument, saveDocument, type LocalDocumentMeta } from "../library/db.ts";
+import { parseDocument } from "../library/parse.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
-
-const MAX_BYTES = 2 * 1024 * 1024;
 
 export function LocalLibrarySection() {
   const input = useRef<HTMLInputElement>(null);
@@ -37,11 +36,8 @@ export function LocalLibrarySection() {
     setError("");
     try {
       for (const file of Array.from(files)) {
-        if (!/\.(txt|md|markdown)$/i.test(file.name)) throw new Error(`${file.name}：只支持 TXT 和 Markdown`);
-        if (file.size > MAX_BYTES) throw new Error(`${file.name}：文件不能超过 2 MB`);
-        const content = (await file.text()).trim();
-        if (!content) throw new Error(`${file.name}：文件没有文字`);
-        await saveDocument({ id: crypto.randomUUID(), name: file.name, content, importedAt: Date.now() });
+        const parsed = await parseDocument(file);
+        await saveDocument({ id: crypto.randomUUID(), name: file.name, ...parsed, importedAt: Date.now() });
       }
       await refresh();
     } catch (err) {
@@ -65,7 +61,7 @@ export function LocalLibrarySection() {
 
   return <section className="settings-section local-library-section">
     <h3>本地资料</h3>
-    <p className="memory-hint">主动导入 TXT 或 Markdown；资料保存在这台设备上，命中的片段会交给模型用于回答。文件更新请先移除旧版再导入。已有回答的引用仍保留。</p>
+    <p className="memory-hint">主动导入 TXT、Markdown、PDF 或 DOCX；资料保存在这台设备上，命中的片段会交给模型用于回答。文件更新请先移除旧版再导入。已有回答的引用仍保留。</p>
     <div className="field">
       <span className="field-label" id="local-deep-label">本地深度检索</span>
       <div className="segmented" role="radiogroup" aria-labelledby="local-deep-label">
@@ -73,7 +69,7 @@ export function LocalLibrarySection() {
       </div>
     </div>
     <p className="memory-hint">开启后每次命中资料会增加最多两次模型判断，并发送少量候选片段。</p>
-    <input ref={input} type="file" accept=".txt,.md,.markdown,text/plain,text/markdown" multiple hidden onChange={(e) => void importFiles(e.target.files)} />
+    <input ref={input} type="file" accept=".txt,.md,.markdown,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden onChange={(e) => void importFiles(e.target.files)} />
     <button type="button" className="local-library-add" disabled={busy} onClick={() => input.current?.click()}>加入文件</button>
     {status && <p className="memory-hint" role="status">{status}</p>}
     {error && <p className="local-library-error" role="alert">{error}</p>}

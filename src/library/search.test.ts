@@ -53,6 +53,18 @@ test("中文长问句不会因多个零散单字误引无关资料", () => {
   assert.equal(rankIndexes(rare, "𠮷？").length, 1);
 });
 
+test("PDF 每页独立建索引且引用只包含所在页的原文", () => {
+  const content = "Orion Relay belongs to Cedarbridge.\n\nMaya Chen leads the Harbor project.";
+  const second = content.indexOf("Maya Chen");
+  const pdf = { id: "pdf", name: "记录.pdf", content, importedAt: 1, pages: [{ number: 1, start: 0, end: second - 2 }, { number: 2, start: second, end: content.length }] };
+  const first = sourcesForMatches(rankIndexes(buildIndex(pdf), "Orion Relay"), [pdf]);
+  const later = sourcesForMatches(rankIndexes(buildIndex(pdf), "Harbor project"), [pdf]);
+  assert.equal(first[0].title, "记录.pdf 第1页");
+  assert.doesNotMatch(first[0].text!, /Maya Chen/);
+  assert.equal(later[0].title, "记录.pdf 第2页");
+  assert.doesNotMatch(later[0].text!, /Orion Relay/);
+});
+
 test("判断结果只能用已选原文中的词扩展本地检索", () => {
   const candidates = [{ id: "local:a:0", title: "资料", url: "", site: "本地资料", snippet: "", text: "桔梗项目与松柏工作室合作。" }];
   assert.deepEqual(parseJudgment('{"keep":[1],"expand":["松柏工作室","虚构机构","桔梗项目"]}', candidates, "桔梗项目由谁负责？"), { keep: [1], expand: ["松柏工作室"] });

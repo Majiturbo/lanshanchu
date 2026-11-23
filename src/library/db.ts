@@ -11,6 +11,7 @@ export interface LocalDocumentMeta {
 
 export interface LocalDocument extends LocalDocumentMeta {
   content: string;
+  pages?: { number: number; start: number; end: number }[];
 }
 
 const DB = "lanshan-library";

@@ -15,11 +15,12 @@ export function sourcesForMatches(matches: IndexMatch[], docs: LocalDocument[]):
   return matches.flatMap(({ id, start }) => {
     const doc = byId.get(id);
     if (!doc) return [];
-    const chunk = doc.content.trim().slice(start, start + CHUNK_SIZE);
+    const page = doc.pages?.find((item) => start >= item.start && start < item.end);
+    const chunk = doc.content.trim().slice(start, Math.min(start + CHUNK_SIZE, page?.end ?? Infinity));
     return [{
       id: `local:${id}:${start}`,
       localDocId: id,
-      title: `${doc.name} · 第 ${Math.floor(start / CHUNK_STEP) + 1} 段`,
+      title: page ? `${doc.name} 第${page.number}页` : `${doc.name} 第${Math.floor(start / CHUNK_STEP) + 1}段`,
       url: "",
       site: "本地资料",
       snippet: chunk.slice(0, 180),

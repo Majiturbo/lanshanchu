@@ -27,6 +27,13 @@ export function terms(text: string): string[] {
   return [...new Set([...parts, ...characters])];
 }
 
+/** 长问句以连续词项召回；整句只有一个汉字时保留单字检索。 */
+export function queryTerms(text: string): string[] {
+  return /^\s*\p{Script=Han}[?？!！。.\s]*$/u.test(text)
+    ? terms(text)
+    : terms(text).filter((term) => [...term].length > 1);
+}
+
 export function bucketOf(term: string): number {
   let hash = 2166136261;
   for (const char of term) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619);
@@ -50,7 +57,7 @@ export function buildIndex(doc: LocalDocument): DocumentIndex[] {
 }
 
 export function rankIndexes(indexes: DocumentIndex[], question: string, maxHits = MAX_HITS): IndexMatch[] {
-  const query = terms(question);
+  const query = queryTerms(question);
   if (!query.length) return [];
   const hits = new Map<string, IndexMatch>();
   for (const index of indexes) {

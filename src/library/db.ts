@@ -1,4 +1,4 @@
-import { buildIndex, rankIndexes, terms, type DocumentIndex, type IndexMatch } from "./index.ts";
+import { buildIndex, queryTerms, rankIndexes, type DocumentIndex, type IndexMatch } from "./index.ts";
 
 export interface LocalDocumentMeta {
   id: string;
@@ -100,7 +100,7 @@ export function rebuildMissingIndexes(): Promise<void> {
 
 /** 索引与原文在同一只读事务中取快照，避免更新时引用指向另一版内容。 */
 export async function lookupDocuments(question: string, maxHits = 5): Promise<{ matches: IndexMatch[]; docs: LocalDocument[]; incomplete: boolean }> {
-  const query = terms(question);
+  const query = queryTerms(question);
   if (!query.length) return { matches: [], docs: [], incomplete: false };
   let incomplete = rebuildFailed;
   if (!rebuildFailed) {

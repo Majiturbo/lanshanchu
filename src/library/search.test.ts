@@ -40,6 +40,19 @@ test("单字中文与英文子串仍可检索", () => {
   assert.equal(rankIndexes(index, "knowledge").length, 1);
 });
 
+test("中文长问句不会因多个零散单字误引无关资料", () => {
+  const unrelated = { id: "u", name: "字表.md", content: "今，天，东，京，的，气，是，什，么。", importedAt: 1 };
+  const entries = buildIndex(unrelated);
+  assert.deepEqual(rankIndexes(entries, "今天东京的天气是什么？"), []);
+  assert.equal(rankIndexes(entries, "京").length, 1);
+  assert.equal(rankIndexes(entries, "京？").length, 1);
+  const filler = buildIndex({ id: "f", name: "无关.md", content: "合作与收益的关系。", importedAt: 1 });
+  assert.deepEqual(rankIndexes(filler, "请比较 iOS 与 Android 的兼容性"), []);
+  const rare = buildIndex({ id: "r", name: "无关.md", content: "𠮷。", importedAt: 1 });
+  assert.deepEqual(rankIndexes(rare, "𠮷野家今天营业吗？"), []);
+  assert.equal(rankIndexes(rare, "𠮷？").length, 1);
+});
+
 test("判断结果只能用已选原文中的词扩展本地检索", () => {
   const candidates = [{ id: "local:a:0", title: "资料", url: "", site: "本地资料", snippet: "", text: "桔梗项目与松柏工作室合作。" }];
   assert.deepEqual(parseJudgment('{"keep":[1],"expand":["松柏工作室","虚构机构","桔梗项目"]}', candidates, "桔梗项目由谁负责？"), { keep: [1], expand: ["松柏工作室"] });

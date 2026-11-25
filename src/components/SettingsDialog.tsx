@@ -434,8 +434,9 @@ function FormatCapabilities() {
       <div className="settings-capability-list">
         <div><span>文本与 Markdown</span><strong>TXT、TEXT、MD、Markdown</strong></div>
         <div><span>网页与结构化文本</span><strong>HTML、XHTML、CSV、TSV、JSON、JSONL、YAML、XML</strong></div>
-        <div><span>文档</span><strong>PDF、DOCX</strong></div>
-        <div><span>尚未提供</span><strong>扫描件 OCR、旧版 Office、表格与演示文稿、电子书、音视频</strong></div>
+        <div><span>文档与演示</span><strong>PDF、DOCX、ODT、PPTX</strong></div>
+        <div><span>电子书</span><strong>EPUB</strong></div>
+        <div><span>尚未提供</span><strong>扫描件 OCR、旧版 Office、表格、音视频</strong></div>
       </div>
       <p className="memory-hint">只显示当前实际可解析的格式。扫描版 PDF 没有可提取文字时不会加入资料库；不会把未安装的转换能力标成可用。</p>
     </section>

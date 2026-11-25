@@ -17,10 +17,11 @@ export function sourcesForMatches(matches: IndexMatch[], docs: LocalDocument[]):
     if (!doc) return [];
     const page = doc.pages?.find((item) => start >= item.start && start < item.end);
     const chunk = doc.content.trim().slice(start, Math.min(start + CHUNK_SIZE, page?.end ?? Infinity));
+    const location = doc.format === "pptx" ? "张" : doc.format === "epub" ? "节" : "页";
     return [{
       id: `local:${id}:${start}`,
       localDocId: id,
-      title: page ? `${doc.name} 第${page.number}页` : `${doc.name} 第${Math.floor(start / CHUNK_STEP) + 1}段`,
+      title: page ? `${doc.name} 第${page.number}${location}` : `${doc.name} 第${Math.floor(start / CHUNK_STEP) + 1}段`,
       url: "",
       site: "本地资料",
       snippet: chunk.slice(0, 180),

@@ -13,7 +13,7 @@ import {
 } from "../library/db.ts";
 import { MANUAL_SOURCE_ID } from "../library/model.ts";
 import { addAndSyncFolderSources, folderSourcesAvailable, removeFolderSource, syncFolderSource } from "../library/folders.ts";
-import { parseDocument } from "../library/parse.ts";
+import { parseDocument, SUPPORTED_DOCUMENT_EXTENSIONS } from "../library/parse.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
 
 export type LocalLibraryMode = "all" | "documents" | "retrieval";
@@ -202,7 +202,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
     </>}
     {showDocuments && <>
       <p className="memory-hint">手动导入的副本保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。</p>
-      <input ref={input} type="file" accept=".txt,.text,.md,.markdown,.html,.htm,.xhtml,.csv,.tsv,.json,.jsonl,.yaml,.yml,.xml,.pdf,.docx" multiple hidden onChange={(e) => void importFiles(e.target.files)} />
+      <input ref={input} type="file" accept={SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",")} multiple hidden onChange={(e) => void importFiles(e.target.files)} />
       <div className="local-library-actions">
         <button type="button" className="local-library-add" disabled={busy} onClick={() => input.current?.click()}>导入文件</button>
         {folderSourcesAvailable && <button type="button" className="local-library-add" disabled={busy} onClick={() => void addFolders()}>添加文件夹</button>}
@@ -218,10 +218,14 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
         <div>
           <span>{sourceState(source)}</span>
           {source.kind === "folder" && <>
-            <button type="button" disabled={busy} onClick={() => void syncFolder(source)}>同步</button>
+            <button type="button" disabled={busy} onClick={() => void syncFolder(source)}>{source.status === "partial" || source.status === "error" ? "重试" : "同步"}</button>
             <button type="button" disabled={busy} onClick={() => void removeFolder(source)}>移除</button>
           </>}
         </div>
+        {!!source.latestJob?.errors.length && <details className="local-library-source-errors">
+          <summary>查看 {source.latestJob.errors.length} 项失败原因</summary>
+          <ul>{source.latestJob.errors.map((item, index) => <li key={`${item.name}:${index}`}><strong>{item.name}</strong><span>{item.message}</span></li>)}</ul>
+        </details>}
       </li>)}</ul>}
       {!status && <p className="memory-hint">共 {docs.filter((doc) => doc.indexStatus === "ready").length} / {docs.length} 份资料可检索</p>}
       {docs.length > 0 && <ul className="local-library-list">{docs.map((doc) => <li key={doc.id}>

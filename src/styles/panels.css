@@ -966,6 +966,12 @@ html.is-mobile-app .reader-status:empty { display: none; }
 .local-library-source-errors li { display: flex; gap: 10px; padding: 4px 0; }
 .local-library-source-errors li strong { flex: 0 0 auto; max-width: 40%; font-size: inherit; color: var(--ink-2); }
 .local-library-source-errors li span { min-width: 0; overflow-wrap: anywhere; }
+.local-library-source-formats { flex-basis: 100%; min-width: 0; color: var(--ink-2); font-size: var(--fs-sm); }
+.local-library-source-formats summary { cursor: pointer; }
+.local-library-format-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px 12px; margin: 12px 0; }
+.local-library-format-grid label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.local-library-format-grid input { accent-color: var(--solid); }
+.local-library-format-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .local-library-list { list-style: none; padding: 0; margin: 14px 0 0; }
 .local-library-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: var(--hair) solid var(--line); }
 .local-library-list li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

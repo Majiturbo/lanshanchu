@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import JSZip from "jszip";
-import { parseDocument, pdfPageText, supportsDocumentName, validateDocx } from "./parse.ts";
+import { folderAllowsDocumentName, parseDocument, pdfPageText, supportsDocumentName, validateDocx } from "./parse.ts";
 
 test("纯文本导入只保存非空正文并拒绝无文字文件", async () => {
   assert.deepEqual(await parseDocument(new File(["  原始资料。  "], "资料.md")), { content: "原始资料。" });
@@ -15,6 +15,10 @@ test("目录扫描与单文件导入共用同一份格式能力", async () => {
   assert.equal(supportsDocumentName("数据.CSV"), true);
   assert.equal(supportsDocumentName("旧版.doc"), false);
   assert.deepEqual(await parseDocument(new File(['{"name":"阑珊处"}'], "资料.json")), { content: '{"name":"阑珊处"}' });
+  assert.equal(folderAllowsDocumentName("报告.PPTX", ["pptx"]), true);
+  assert.equal(folderAllowsDocumentName("报告.PPTX", ["pdf"]), false);
+  assert.equal(folderAllowsDocumentName("报告.PPTX", []), false);
+  assert.equal(folderAllowsDocumentName("报告.PPTX"), true);
 });
 
 test("DOCX 压缩条目校验发现正文损坏", async () => {

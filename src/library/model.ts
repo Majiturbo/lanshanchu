@@ -19,6 +19,7 @@ export interface KnowledgeSource {
   rootPath?: string;
   recursive?: boolean;
   includeHidden?: boolean;
+  allowedExtensions?: string[];
   lastSyncedAt?: number;
 }
 

@@ -21,6 +21,10 @@ export function supportsDocumentName(name: string): boolean {
   return (SUPPORTED_DOCUMENT_EXTENSIONS as readonly string[]).includes(documentExtension(name));
 }
 
+export function folderAllowsDocumentName(name: string, allowedExtensions?: readonly string[]): boolean {
+  return supportsDocumentName(name) && (!allowedExtensions || allowedExtensions.includes(documentExtension(name)));
+}
+
 export type ParsedDocument = Pick<LocalDocument, "content" | "pages">;
 
 function checkText(content: string, name: string): string {

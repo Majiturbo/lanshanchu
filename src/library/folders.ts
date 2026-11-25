@@ -9,9 +9,10 @@ import {
   getSource,
   listDocuments,
   listSources,
+  markSourceSynced,
   markDocumentIndexFailed,
   putSource,
-  removeDocument,
+  removeScannedFolderDocument,
   removeSource,
   saveDocument,
   startIndexJob,
@@ -19,7 +20,7 @@ import {
   type KnowledgeSource,
 } from "./db.ts";
 import { createFolderSource } from "./model.ts";
-import { MAX_IMPORT_FILE_BYTES, parseDocument, supportsDocumentName } from "./parse.ts";
+import { folderAllowsDocumentName, MAX_IMPORT_FILE_BYTES, parseDocument } from "./parse.ts";
 
 const MAX_FOLDER_FILES = 5_000;
 const ALWAYS_IGNORED_DIRECTORIES = new Set([".git", ".svn", "node_modules", ".sag-converted"]);
@@ -62,7 +63,7 @@ async function scanFolder(source: KnowledgeSource): Promise<ScannedFile[]> {
         if (source.recursive !== false) await walk(absolutePath, relativePath);
         continue;
       }
-      if (!entry.isFile || !supportsDocumentName(entry.name)) continue;
+      if (!entry.isFile || !folderAllowsDocumentName(entry.name, source.allowedExtensions)) continue;
       const metadata = await stat(absolutePath);
       files.push({
         absolutePath,
@@ -105,7 +106,7 @@ async function syncFolder(source: KnowledgeSource): Promise<void> {
           const bytes = await readFile(file.absolutePath);
           const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
           const parsed = await parseDocument(new File([data], file.name));
-          await saveDocument({
+          if (await saveDocument({
             id: previous?.id ?? crypto.randomUUID(),
             sourceId: source.id,
             sourcePath: file.relativePath,
@@ -114,8 +115,7 @@ async function syncFolder(source: KnowledgeSource): Promise<void> {
             importedAt: Date.now(),
             sourceModifiedAt: file.modifiedAt,
             sourceSize: file.size,
-          });
-          updated++;
+          })) updated++;
         } catch (error) {
           failed++;
           if (previous) await markDocumentIndexFailed(previous, error);
@@ -135,13 +135,13 @@ async function syncFolder(source: KnowledgeSource): Promise<void> {
     }
 
     for (const document of removed) {
-      await removeDocument(document.id);
+      const deleted = await removeScannedFolderDocument(document.id, source);
       completed++;
-      updated++;
+      if (deleted) updated++;
       job = await updateIndexJob(job.id, { stage: "indexing", completed, updated, failed });
     }
     await completeIndexJob(job.id);
-    await putSource({ ...source, updatedAt: Date.now(), lastSyncedAt: Date.now() });
+    await markSourceSynced(source.id);
   } catch (error) {
     await updateIndexJob(job.id, {
       stage: "finished",
@@ -169,7 +169,9 @@ export function syncFolderSource(source: KnowledgeSource): Promise<void> {
     do {
       changedDuringSync.delete(source.id);
       try {
-        await syncFolder(source);
+        const fresh = await getSource(source.id);
+        if (!fresh) return;
+        await syncFolder(fresh);
       } catch (error) {
         if (!changedDuringSync.has(source.id) || removing.has(source.id)) throw error;
       }

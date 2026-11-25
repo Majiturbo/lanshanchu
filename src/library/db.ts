@@ -199,6 +199,46 @@ export async function putSource(source: KnowledgeSource): Promise<void> {
   notifyChanged();
 }
 
+export async function updateFolderFormats(id: string, allowedExtensions: string[]): Promise<void> {
+  const database = await db();
+  const stores = [SOURCES, META, DOCUMENTS, SHARDS, ...(database.objectStoreNames.contains(LEGACY_INDEX) ? [LEGACY_INDEX] : [])];
+  const transaction = database.transaction(stores, "readwrite");
+  const finished = transactionDone(transaction);
+  const source = transaction.objectStore(SOURCES).get(id) as IDBRequest<KnowledgeSource | undefined>;
+  source.onsuccess = () => {
+    if (!source.result || source.result.kind !== "folder") {
+      transaction.abort();
+      return;
+    }
+    transaction.objectStore(SOURCES).put({ ...source.result, allowedExtensions, updatedAt: Date.now() });
+    const cursor = transaction.objectStore(META).index("bySource").openCursor(IDBKeyRange.only(id));
+    cursor.onsuccess = () => {
+      const row = cursor.result;
+      if (!row) return;
+      const document = row.value as LocalDocumentMeta;
+      if (!allowedExtensions.includes(extensionForName(document.sourcePath ?? document.name))) {
+        for (const bucket of document.buckets ?? []) transaction.objectStore(SHARDS).delete([bucket, document.id]);
+        if (stores.includes(LEGACY_INDEX)) transaction.objectStore(LEGACY_INDEX).delete(document.id);
+        transaction.objectStore(DOCUMENTS).delete(document.id);
+        row.delete();
+      }
+      row.continue();
+    };
+  };
+  await finished;
+  notifyChanged();
+}
+
+export async function markSourceSynced(id: string): Promise<void> {
+  const transaction = (await db()).transaction(SOURCES, "readwrite");
+  const request = transaction.objectStore(SOURCES).get(id) as IDBRequest<KnowledgeSource | undefined>;
+  request.onsuccess = () => {
+    if (request.result) transaction.objectStore(SOURCES).put({ ...request.result, updatedAt: Date.now(), lastSyncedAt: Date.now() });
+  };
+  await transactionDone(transaction);
+  notifyChanged();
+}
+
 export async function removeSource(id: string): Promise<void> {
   if (id === MANUAL_SOURCE_ID) throw new Error("手动导入数据源不能移除");
   const database = await db();
@@ -304,10 +344,14 @@ export function completeIndexJob(id: string): Promise<IndexJob> {
 export async function markDocumentIndexFailed(meta: LocalDocumentMeta, error: unknown): Promise<void> {
   const message = error instanceof Error ? error.message : "索引失败";
   const transaction = (await db()).transaction([META, DOCUMENTS], "readwrite");
-  transaction.objectStore(META).put({ ...meta, indexStatus: "failed", indexError: message });
-  const document = transaction.objectStore(DOCUMENTS).get(meta.id) as IDBRequest<LocalDocument | undefined>;
-  document.onsuccess = () => {
-    if (document.result) transaction.objectStore(DOCUMENTS).put({ ...document.result, indexStatus: "failed", indexError: message });
+  const current = transaction.objectStore(META).get(meta.id) as IDBRequest<LocalDocumentMeta | undefined>;
+  current.onsuccess = () => {
+    if (!current.result) return;
+    transaction.objectStore(META).put({ ...current.result, indexStatus: "failed", indexError: message });
+    const document = transaction.objectStore(DOCUMENTS).get(meta.id) as IDBRequest<LocalDocument | undefined>;
+    document.onsuccess = () => {
+      if (document.result) transaction.objectStore(DOCUMENTS).put({ ...document.result, indexStatus: "failed", indexError: message });
+    };
   };
   await transactionDone(transaction);
   notifyChanged();
@@ -467,21 +511,24 @@ async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean):
   const current = transaction.objectStore(DOCUMENTS).get(doc.id) as IDBRequest<LocalDocument | undefined>;
   current.onsuccess = () => {
     if (onlyIfCurrent && (!current.result || current.result.content !== doc.content || current.result.importedAt !== doc.importedAt)) return;
-    const previous = transaction.objectStore(META).get(doc.id) as IDBRequest<LocalDocumentMeta | undefined>;
-    previous.onsuccess = () => {
-      if (onlyIfCurrent && previous.result?.indexedVersion === LIBRARY_INDEX_VERSION && previous.result.indexStatus === "ready") return;
-      for (const bucket of previous.result?.buckets ?? []) transaction.objectStore(SHARDS).delete([bucket, doc.id]);
-      if (stores.includes(LEGACY_INDEX)) transaction.objectStore(LEGACY_INDEX).delete(doc.id);
-      const ready: LocalDocument = { ...doc, indexStatus: "ready", indexError: undefined, indexedVersion: LIBRARY_INDEX_VERSION, buckets: indexes.map((index) => index.bucket) };
-      transaction.objectStore(DOCUMENTS).put(ready);
-      for (const index of indexes) transaction.objectStore(SHARDS).put(index);
-      const { content: _content, pages: _pages, ...metadata } = ready;
-      transaction.objectStore(META).put(metadata);
-      const source = transaction.objectStore(SOURCES).get(ready.sourceId || MANUAL_SOURCE_ID) as IDBRequest<KnowledgeSource | undefined>;
-      source.onsuccess = () => {
-        if (source.result) transaction.objectStore(SOURCES).put({ ...source.result, updatedAt: Date.now() });
+    const source = transaction.objectStore(SOURCES).get(doc.sourceId || MANUAL_SOURCE_ID) as IDBRequest<KnowledgeSource | undefined>;
+    source.onsuccess = () => {
+      const currentSource = source.result;
+      if (!currentSource || (currentSource.kind === "folder" && currentSource.allowedExtensions
+        && !currentSource.allowedExtensions.includes(extensionForName(doc.sourcePath ?? doc.name)))) return;
+      const previous = transaction.objectStore(META).get(doc.id) as IDBRequest<LocalDocumentMeta | undefined>;
+      previous.onsuccess = () => {
+        if (onlyIfCurrent && previous.result?.indexedVersion === LIBRARY_INDEX_VERSION && previous.result.indexStatus === "ready") return;
+        for (const bucket of previous.result?.buckets ?? []) transaction.objectStore(SHARDS).delete([bucket, doc.id]);
+        if (stores.includes(LEGACY_INDEX)) transaction.objectStore(LEGACY_INDEX).delete(doc.id);
+        const ready: LocalDocument = { ...doc, indexStatus: "ready", indexError: undefined, indexedVersion: LIBRARY_INDEX_VERSION, buckets: indexes.map((index) => index.bucket) };
+        transaction.objectStore(DOCUMENTS).put(ready);
+        for (const index of indexes) transaction.objectStore(SHARDS).put(index);
+        const { content: _content, pages: _pages, ...metadata } = ready;
+        transaction.objectStore(META).put(metadata);
+        transaction.objectStore(SOURCES).put({ ...currentSource, updatedAt: Date.now() });
+        wrote = true;
       };
-      wrote = true;
     };
   };
   await finished;
@@ -489,28 +536,51 @@ async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean):
   return wrote;
 }
 
-export async function saveDocument(doc: LocalDocumentInput): Promise<void> {
-  await writeDocument(doc, false);
+export async function saveDocument(doc: LocalDocumentInput): Promise<boolean> {
+  return writeDocument(doc, false);
 }
 
-export async function removeDocument(id: string): Promise<void> {
+async function deleteDocument(id: string, expectedFolder?: KnowledgeSource): Promise<boolean> {
   const database = await db();
   const stores = [DOCUMENTS, SHARDS, META, SOURCES, ...(database.objectStoreNames.contains(LEGACY_INDEX) ? [LEGACY_INDEX] : [])];
   const transaction = database.transaction(stores, "readwrite");
   const finished = transactionDone(transaction);
-  const previous = transaction.objectStore(META).get(id) as IDBRequest<LocalDocumentMeta | undefined>;
-  previous.onsuccess = () => {
-    for (const bucket of previous.result?.buckets ?? []) transaction.objectStore(SHARDS).delete([bucket, id]);
-    if (stores.includes(LEGACY_INDEX)) transaction.objectStore(LEGACY_INDEX).delete(id);
-    transaction.objectStore(DOCUMENTS).delete(id);
-    transaction.objectStore(META).delete(id);
-    if (previous.result) {
+  let deleted = false;
+  const remove = () => {
+    const previous = transaction.objectStore(META).get(id) as IDBRequest<LocalDocumentMeta | undefined>;
+    previous.onsuccess = () => {
+      if (!previous.result || (expectedFolder && previous.result.sourceId !== expectedFolder.id)) return;
+      for (const bucket of previous.result.buckets ?? []) transaction.objectStore(SHARDS).delete([bucket, id]);
+      if (stores.includes(LEGACY_INDEX)) transaction.objectStore(LEGACY_INDEX).delete(id);
+      transaction.objectStore(DOCUMENTS).delete(id);
+      transaction.objectStore(META).delete(id);
       const source = transaction.objectStore(SOURCES).get(previous.result.sourceId || MANUAL_SOURCE_ID) as IDBRequest<KnowledgeSource | undefined>;
       source.onsuccess = () => {
         if (source.result) transaction.objectStore(SOURCES).put({ ...source.result, updatedAt: Date.now() });
       };
-    }
+      deleted = true;
+    };
   };
+  if (expectedFolder) {
+    const source = transaction.objectStore(SOURCES).get(expectedFolder.id) as IDBRequest<KnowledgeSource | undefined>;
+    source.onsuccess = () => {
+      const currentSource = source.result;
+      if (!currentSource) return;
+      if (currentSource.rootPath === expectedFolder.rootPath
+        && currentSource.recursive === expectedFolder.recursive
+        && currentSource.includeHidden === expectedFolder.includeHidden
+        && JSON.stringify(currentSource.allowedExtensions) === JSON.stringify(expectedFolder.allowedExtensions)) remove();
+    };
+  } else remove();
   await finished;
-  notifyChanged();
+  if (deleted) notifyChanged();
+  return deleted;
+}
+
+export async function removeDocument(id: string): Promise<void> {
+  await deleteDocument(id);
+}
+
+export function removeScannedFolderDocument(id: string, source: KnowledgeSource): Promise<boolean> {
+  return deleteDocument(id, source);
 }

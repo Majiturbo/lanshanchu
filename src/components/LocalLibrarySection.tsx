@@ -3,6 +3,7 @@ import {
   completeIndexJob,
   listDocuments,
   listSources,
+  updateFolderFormats,
   rebuildMissingIndexes,
   removeDocument,
   saveDocument,
@@ -26,10 +27,16 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
   const [busy, setBusy] = useState(true);
   const [status, setStatus] = useState("正在准备本地索引…");
   const [error, setError] = useState("");
+  const [formatDrafts, setFormatDrafts] = useState<Record<string, string[]>>({});
   const deepLocalSearch = useSettings((state) => state.deepLocalSearch);
 
   const showDocuments = mode !== "retrieval";
   const showRetrieval = mode !== "documents";
+  const selectedFormats = (source: KnowledgeSourceSummary) => formatDrafts[source.id] ?? source.allowedExtensions ?? [...SUPPORTED_DOCUMENT_EXTENSIONS];
+
+  const setFormats = (source: KnowledgeSourceSummary, formats: string[]) => {
+    setFormatDrafts((current) => ({ ...current, [source.id]: formats }));
+  };
 
   useEffect(() => {
     if (!showDocuments) return;
@@ -166,6 +173,22 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
     }
   };
 
+  const applyFormats = async (source: KnowledgeSourceSummary) => {
+    setBusy(true);
+    setStatus(`正在更新 ${source.name} 的索引…`);
+    setError("");
+    try {
+      await updateFolderFormats(source.id, selectedFormats(source));
+      await syncFolderSource(source);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      setStatus("");
+    }
+  };
+
   const sourceState = (source: KnowledgeSourceSummary) => {
     if (source.status === "indexing") return "索引中";
     if (source.status === "partial") return "部分失败";
@@ -225,6 +248,23 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
         {!!source.latestJob?.errors.length && <details className="local-library-source-errors">
           <summary>查看 {source.latestJob.errors.length} 项失败原因</summary>
           <ul>{source.latestJob.errors.map((item, index) => <li key={`${item.name}:${index}`}><strong>{item.name}</strong><span>{item.message}</span></li>)}</ul>
+        </details>}
+        {source.kind === "folder" && <details className="local-library-source-formats">
+          <summary>索引格式 {selectedFormats(source).length} 项</summary>
+          <div className="local-library-format-grid">{SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => <label key={extension}>
+            <input type="checkbox" checked={selectedFormats(source).includes(extension)} disabled={busy} onChange={(event) => {
+              const next = event.target.checked
+                ? [...selectedFormats(source), extension]
+                : selectedFormats(source).filter((value) => value !== extension);
+              setFormats(source, SUPPORTED_DOCUMENT_EXTENSIONS.filter((value) => next.includes(value)));
+            }} />
+            {extension.toUpperCase()}
+          </label>)}</div>
+          <div className="local-library-format-actions">
+            <button type="button" disabled={busy} onClick={() => setFormats(source, [...SUPPORTED_DOCUMENT_EXTENSIONS])}>全选</button>
+            <button type="button" disabled={busy} onClick={() => setFormats(source, [])}>清空选择</button>
+            <button type="button" disabled={busy || (source.status !== "error" && source.status !== "partial" && selectedFormats(source).join(",") === (source.allowedExtensions ?? [...SUPPORTED_DOCUMENT_EXTENSIONS]).join(","))} onClick={() => void applyFormats(source)}>应用</button>
+          </div>
         </details>}
       </li>)}</ul>}
       {!status && <p className="memory-hint">共 {docs.filter((doc) => doc.indexStatus === "ready").length} / {docs.length} 份资料可检索</p>}

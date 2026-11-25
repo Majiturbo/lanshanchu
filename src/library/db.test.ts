@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import "fake-indexeddb/auto";
-import { listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, putSource, rebuildMissingIndexes, removeDocument, removeSource, saveDocument } from "./db.ts";
+import { getSource, listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, markSourceSynced, putSource, rebuildMissingIndexes, removeDocument, removeScannedFolderDocument, removeSource, saveDocument, updateFolderFormats } from "./db.ts";
 import { createFolderSource } from "./model.ts";
 
 const DB = "lanshan-library";
@@ -80,4 +80,23 @@ test("v4 资料迁移到数据源后保留原文并可重建、检索和移除",
   await removeSource(folder.id);
   assert.equal((await listSources()).some((source) => source.id === folder.id), false);
   assert.equal((await listDocuments()).length, 0);
+});
+
+test("修改文件夹格式时立即清理旧索引，迟到的同步不能恢复排除资料或覆盖设置", async () => {
+  const source = createFolderSource("formats-folder", "/资料/格式", "格式");
+  await putSource(source);
+  await saveDocument({ id: "old-md", sourceId: source.id, sourcePath: "旧.MD", name: "旧.MD", content: "排除标记黄鹤楼", importedAt: 1 });
+  await saveDocument({ id: "keep-pdf", sourceId: source.id, sourcePath: "保留.pdf", name: "保留.pdf", content: "保留标记青玉案", importedAt: 2 });
+  assert.deepEqual((await lookupDocuments("黄鹤楼")).docs.map((doc) => doc.id), ["old-md"]);
+
+  await updateFolderFormats(source.id, ["pdf"]);
+  assert.deepEqual((await lookupDocuments("黄鹤楼")).docs, []);
+  assert.deepEqual((await lookupDocuments("青玉案")).docs.map((doc) => doc.id), ["keep-pdf"]);
+  assert.equal(await saveDocument({ id: "late-md", sourceId: source.id, sourcePath: "迟到.md", name: "迟到.md", content: "排除标记黄鹤楼", importedAt: 3 }), false);
+  assert.equal(await removeScannedFolderDocument("keep-pdf", source), false);
+  await markSourceSynced(source.id);
+  assert.deepEqual((await getSource(source.id))?.allowedExtensions, ["pdf"]);
+  assert.deepEqual((await listDocuments(source.id)).map((doc) => doc.id), ["keep-pdf"]);
+  assert.equal(await removeScannedFolderDocument("keep-pdf", (await getSource(source.id))!), true);
+  await removeSource(source.id);
 });

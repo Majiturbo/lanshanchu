@@ -136,7 +136,9 @@ fn configure_ios_spa_scroll(_app: &tauri::AppHandle) {}
 pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_persisted_scope::init());
 
     // 系统「另存为」只在桌面；移动端导出走分享 / 下载，不挂 dialog 插件
     #[cfg(not(mobile))]

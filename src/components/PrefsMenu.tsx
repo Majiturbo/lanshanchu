@@ -12,7 +12,7 @@ const TIMES: [Prefs["time"], string][] = [["auto", "自动"], ["d7", "近一周"
 const EDGE = 8;
 
 /** 按钮上显示不是自动的那几项；全是自动时显示「回答偏好」 */
-function summary(p: Prefs) {
+export function prefsSummary(p: Prefs) {
   const style = p.style === "auto" ? null : p.style === "custom" && p.customStyle.trim() ? p.customStyle.trim().slice(0, 6) : STYLES.find(([v]) => v === p.style)![1];
   const parts = [style, p.sources !== "auto" && "权威优先", TIMES.find(([v]) => v === p.time && v !== "auto")?.[1]].filter(Boolean);
   return parts.length ? parts.join("、") : "回答偏好";
@@ -33,12 +33,15 @@ function Choice<T extends string>({ label, options, value, onChange }: { label: 
 }
 
 /** 画布里多一行：这张地图用不用个人记忆（不用时既不记录，也不用记忆作答）；总开关关着或在首页时不显示 */
-function MapMemory() {
+function MapMemory({ onChange }: { onChange?: () => void }) {
   const mapId = useGraph((s) => s.map?.id);
   const enabled = useMemory((s) => s.enabled);
   const off = useMemory((s) => !!mapId && s.offMaps.includes(mapId));
   if (!mapId || !enabled) return null;
-  return <Choice label="记忆" options={[["on", "使用"], ["off", "这张地图不用"]]} value={off ? "off" : "on"} onChange={(v) => memoryActions.toggleMap(mapId, v === "off")} />;
+  return <Choice label="记忆" options={[["on", "使用"], ["off", "这张地图不用"]]} value={off ? "off" : "on"} onChange={(v) => {
+    memoryActions.toggleMap(mapId, v === "off");
+    onChange?.();
+  }} />;
 }
 
 /** 弹层贴着按钮，左右超出视口时平移回来，避免窄窗口被裁切 */
@@ -52,13 +55,14 @@ function keepInView(el: HTMLElement) {
 }
 
 /** 偏好表单本体：桌面弹层与移动底栏共用 */
-export function PrefsFields({ onDone }: { onDone?: () => void }) {
+export function PrefsFields({ onDone, onChange }: { onDone?: () => void; onChange?: () => void }) {
   const prefs = useSettings((s) => s.prefs);
   const custom = useRef<HTMLInputElement>(null);
   return (
     <>
       <Choice label="回答风格" options={STYLES} value={prefs.style} onChange={(style) => {
         settingsActions.setPrefs({ style });
+        onChange?.();
         if (style === "custom") requestAnimationFrame(() => custom.current?.focus());
       }} />
       {prefs.style === "custom" && (
@@ -69,13 +73,13 @@ export function PrefsFields({ onDone }: { onDone?: () => void }) {
           placeholder="自定义回答风格"
           maxLength={100}
           value={prefs.customStyle}
-          onChange={(e) => settingsActions.setPrefs({ customStyle: e.target.value })}
+          onChange={(e) => { settingsActions.setPrefs({ customStyle: e.target.value }); onChange?.(); }}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onDone?.(); } }}
         />
       )}
-      <Choice label="来源" options={SOURCES} value={prefs.sources} onChange={(sources) => settingsActions.setPrefs({ sources })} />
-      <Choice label="时间" options={TIMES} value={prefs.time} onChange={(time) => settingsActions.setPrefs({ time })} />
-      <MapMemory />
+      <Choice label="来源" options={SOURCES} value={prefs.sources} onChange={(sources) => { settingsActions.setPrefs({ sources }); onChange?.(); }} />
+      <Choice label="时间" options={TIMES} value={prefs.time} onChange={(time) => { settingsActions.setPrefs({ time }); onChange?.(); }} />
+      <MapMemory onChange={onChange} />
     </>
   );
 }
@@ -116,11 +120,11 @@ export function PrefsMenu({ compact = false }: { compact?: boolean }) {
         className={`toggle${compact ? " is-compact" : ""}`}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={summary(prefs)}
+        aria-label={prefsSummary(prefs)}
         onClick={() => setOpen((o) => !o)}
       >
         <SlidersHorizontal size={15} strokeWidth={1.6} aria-hidden="true" />
-        {!compact && <span className="toggle-label">{summary(prefs)}</span>}
+        {!compact && <span className="toggle-label">{prefsSummary(prefs)}</span>}
       </button>
       {mounted && (
         <div ref={pop} className={`prefs-pop${closing ? " is-closing" : ""}`} role="dialog" aria-label="回答偏好">

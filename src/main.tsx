@@ -23,6 +23,7 @@ import { startBackStack } from "./lib/backStack.ts";
 import { startPortraitLock } from "./lib/portraitLock.ts";
 import { startKeyboardInset } from "./lib/keyboardInset.ts";
 import { startMemory } from "./memory/run.ts";
+import { startFolderSources } from "./library/folders.ts";
 import { useGraph } from "./store/graph.ts";
 import { settingsActions, useSettings, type Theme } from "./settings/store.ts";
 import "./styles/tokens.css";
@@ -50,6 +51,7 @@ startKeyboardInset();
 startBackStack();
 startPortraitLock();
 trackAppOpened();
+void startFolderSources().catch(() => console.warn("知识库文件夹初始化失败"));
 
 function openMobileLoginIfNeeded() {
   if (!IS_MOBILE_APP) return;

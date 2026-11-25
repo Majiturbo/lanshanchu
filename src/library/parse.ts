@@ -1,7 +1,25 @@
 import type { LocalDocument } from "./db.ts";
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
+
+export const SUPPORTED_DOCUMENT_EXTENSIONS = [
+  "txt", "text", "md", "markdown",
+  "html", "htm", "xhtml",
+  "csv", "tsv", "json", "jsonl", "yaml", "yml", "xml",
+  "pdf", "docx",
+] as const;
+
+const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "text", "md", "markdown", "csv", "tsv", "json", "jsonl", "yaml", "yml"]);
+const HTML_EXTENSIONS = new Set(["html", "htm", "xhtml"]);
+
+export function documentExtension(name: string): string {
+  return /\.([^.]+)$/u.exec(name.trim())?.[1]?.toLocaleLowerCase() ?? "";
+}
+
+export function supportsDocumentName(name: string): boolean {
+  return (SUPPORTED_DOCUMENT_EXTENSIONS as readonly string[]).includes(documentExtension(name));
+}
 
 export type ParsedDocument = Pick<LocalDocument, "content" | "pages">;
 
@@ -79,21 +97,34 @@ async function readDocx(file: File): Promise<ParsedDocument> {
 }
 
 export async function parseDocument(file: File): Promise<ParsedDocument> {
-  if (file.size > MAX_FILE_BYTES) throw new Error(`${file.name}：文件不能超过 10 MB`);
-  if (/\.(txt|md|markdown)$/i.test(file.name)) {
+  if (file.size > MAX_IMPORT_FILE_BYTES) throw new Error(`${file.name}：文件不能超过 10 MB`);
+  const extension = documentExtension(file.name);
+  if (PLAIN_TEXT_EXTENSIONS.has(extension)) {
     try { return { content: checkText(new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()), file.name) }; }
     catch (error) {
       if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;
       throw new Error(`${file.name}：文本编码无法读取，请转为 UTF-8`);
     }
   }
-  if (/\.pdf$/i.test(file.name) || /\.docx$/i.test(file.name)) {
-    const format = /\.pdf$/i.test(file.name) ? "PDF" : "DOCX";
+  if (HTML_EXTENSIONS.has(extension) || extension === "xml") {
+    try {
+      const raw = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+      const parsed = new DOMParser().parseFromString(raw, extension === "xml" ? "application/xml" : "text/html");
+      if (parsed.querySelector("parsererror")) throw new Error(`${file.name}：文档结构无法读取`);
+      parsed.querySelectorAll("script, style, noscript, template").forEach((node) => node.remove());
+      return { content: checkText(parsed.documentElement.textContent ?? "", file.name) };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;
+      throw new Error(`${file.name}：文本编码无法读取，请转为 UTF-8`);
+    }
+  }
+  if (extension === "pdf" || extension === "docx") {
+    const format = extension === "pdf" ? "PDF" : "DOCX";
     try { return format === "PDF" ? await readPdf(file) : await readDocx(file); }
     catch (error) {
       if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;
       throw new Error(`${file.name}：${format} 解析失败，请确认文件未损坏或加密`);
     }
   }
-  throw new Error(`${file.name}：支持 TXT、Markdown、PDF 和 DOCX`);
+  throw new Error(`${file.name}：当前格式尚不能解析`);
 }

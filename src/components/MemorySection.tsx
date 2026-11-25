@@ -2,7 +2,7 @@ import { useId, useLayoutEffect, useRef } from "react";
 import { MEMORY_MAX, memoryActions, useMemory } from "../memory/store.ts";
 
 /** 设置里的「记忆」：总开关，以及记忆文本本身（就是交给模型的那段话，直接改，即改即存） */
-export function MemorySection() {
+export function MemorySection({ onSaved }: { onSaved?: () => void } = {}) {
   const enabled = useMemory((s) => s.enabled);
   const text = useMemory((s) => s.text);
   const id = useId();
@@ -23,7 +23,11 @@ export function MemorySection() {
         <span className="field-label" id={id}>个人记忆</span>
         <div className="segmented" role="radiogroup" aria-labelledby={id}>
           {([[true, "开启"], [false, "关闭"]] as const).map(([v, label]) => (
-            <button key={label} type="button" role="radio" aria-checked={enabled === v} onClick={() => enabled !== v && memoryActions.setEnabled(v)}>
+            <button key={label} type="button" role="radio" aria-checked={enabled === v} onClick={() => {
+              if (enabled === v) return;
+              memoryActions.setEnabled(v);
+              onSaved?.();
+            }}>
               {label}
             </button>
           ))}
@@ -39,7 +43,7 @@ export function MemorySection() {
             maxLength={MEMORY_MAX}
             spellCheck={false}
             value={text}
-            onChange={(e) => memoryActions.setText(e.target.value)}
+            onChange={(e) => { memoryActions.setText(e.target.value); onSaved?.(); }}
           />
           <p className="memory-hint">这段话会交给模型，改了即存</p>
         </>

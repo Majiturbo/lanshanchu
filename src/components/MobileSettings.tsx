@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Brain, ChevronRight, LoaderCircle, LogOut, Map, Palette, RefreshCw, ShoppingCart } from "lucide-react";
+import { ArrowLeft, BookOpen, Brain, ChevronRight, LoaderCircle, LogOut, Map, Palette, RefreshCw, ShoppingCart, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useMemory } from "../memory/store.ts";
 import { bindSettingsBack } from "../lib/backStack.ts";
@@ -18,19 +18,21 @@ import { MemorySection } from "./MemorySection.tsx";
 import { LocalLibrarySection } from "./LocalLibrarySection.tsx";
 import { NAV_MS, useNavCover, useStackNav } from "./navMotion.ts";
 import { PlanMark } from "./PlanMark.tsx";
+import { PrefsFields, prefsSummary } from "./PrefsMenu.tsx";
 import { usePresence } from "./presence.ts";
 import { settingsActions, THEMES, useSettings, type Settings } from "../settings/store.ts";
 import { toast } from "../store/toast.ts";
 
 const PHONE = /^1\d{10}$/;
 
-type Page = "root" | "account" | "memory" | "library" | "look" | "canvas" | "update" | "bind" | "change" | "delete";
+type Page = "root" | "account" | "answer" | "memory" | "library" | "look" | "canvas" | "update" | "bind" | "change" | "delete";
 
 const TITLES: Record<Page, string> = {
   root: "设置",
   account: "账号与用量",
+  answer: "问答设置",
   memory: "记忆",
-  library: "本地资料",
+  library: "知识库",
   look: "外观",
   canvas: "画布与来源",
   update: "检查更新",
@@ -133,6 +135,7 @@ function MobileSettings({ closing }: { closing: boolean }) {
   const renderPage = (id: Page): ReactNode => {
     if (id === "root") return <RootPage push={push} />;
     if (id === "account") return <AccountPage push={push} />;
+    if (id === "answer") return <div className="mset-prefs-page"><PrefsFields /></div>;
     if (id === "memory") return <MemorySection />;
     if (id === "library") return <LocalLibrarySection />;
     if (id === "look") return <LookPage />;
@@ -191,6 +194,7 @@ function RootPage({ push }: { push: (page: Page) => void }) {
   const canAsk = useSettings((s) => s.canAsk);
   const theme = useSettings((s) => s.theme);
   const memoryOn = useMemory((s) => s.enabled);
+  const prefs = useSettings((s) => s.prefs);
   const planLabel = usage?.planLabel || "";
   const expires = usage?.planExpiresAt
     ? (() => {
@@ -203,7 +207,7 @@ function RootPage({ push }: { push: (page: Page) => void }) {
     : !planLabel
       ? "尚未开通套餐"
       : canAsk || usage?.canAsk
-        ? (expires ? `额度充足 · ${expires}到期` : "额度充足")
+        ? (expires ? `额度充足，${expires}到期` : "额度充足")
         : "额度已用完";
   const themeLabel = THEMES.find(([value]) => value === theme)?.[1] ?? "跟随系统";
 
@@ -225,7 +229,14 @@ function RootPage({ push }: { push: (page: Page) => void }) {
         <span>购买套餐</span>
         <em className="mset-soon">即将开放</em>
       </button>
+      <div className="mset-section-label">问答与知识</div>
       <div className="mset-card mset-group">
+        <button type="button" className="mset-row" onClick={() => push("answer")}>
+          <SlidersHorizontal size={20} strokeWidth={1.6} aria-hidden="true" />
+          <span>问答设置</span>
+          <em>{prefsSummary(prefs)}</em>
+          <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
+        </button>
         <button type="button" className="mset-row" onClick={() => push("memory")}>
           <Brain size={20} strokeWidth={1.6} aria-hidden="true" />
           <span>记忆</span>
@@ -234,9 +245,12 @@ function RootPage({ push }: { push: (page: Page) => void }) {
         </button>
         <button type="button" className="mset-row" onClick={() => push("library")}>
           <BookOpen size={20} strokeWidth={1.6} aria-hidden="true" />
-          <span>本地资料</span>
+          <span>知识库</span>
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
+      </div>
+      <div className="mset-section-label">应用</div>
+      <div className="mset-card mset-group">
         <button type="button" className="mset-row" onClick={() => push("look")}>
           <Palette size={20} strokeWidth={1.6} aria-hidden="true" />
           <span>外观</span>
@@ -249,6 +263,7 @@ function RootPage({ push }: { push: (page: Page) => void }) {
           <ChevronRight size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
       </div>
+      <div className="mset-section-label">系统</div>
       <button type="button" className="mset-card mset-row" onClick={() => push("update")}>
         <RefreshCw size={20} strokeWidth={1.6} aria-hidden="true" />
         <span>检查更新</span>

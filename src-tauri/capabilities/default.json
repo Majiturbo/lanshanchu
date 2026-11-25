@@ -15,6 +15,14 @@
     "core:window:allow-destroy",
     "opener:allow-open-url",
     "opener:allow-default-urls",
+    "dialog:allow-open",
+    "dialog:allow-message",
+    "fs:allow-read-dir",
+    "fs:allow-read-file",
+    "fs:allow-exists",
+    "fs:allow-stat",
+    "fs:allow-watch",
+    "fs:allow-unwatch",
     {
       "identifier": "http:default",
       "allow": [

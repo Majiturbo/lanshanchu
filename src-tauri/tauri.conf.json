@@ -30,6 +30,9 @@
     }
   },
   "plugins": {
+    "fs": {
+      "requireLiteralLeadingDot": false
+    },
     "http": {
       "scopeRedirects": true
     }

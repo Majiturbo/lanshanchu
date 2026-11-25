@@ -65,6 +65,16 @@ test("PDF 每页独立建索引且引用只包含所在页的原文", () => {
   assert.doesNotMatch(later[0].text!, /Orion Relay/);
 });
 
+test("表格引用显示工作表名称并限制片段到该表", () => {
+  const content = "工作表：汇总\nA1: 蓝色灯笼\n\n工作表：明细\nC3: 青玉案";
+  const second = content.indexOf("工作表：明细");
+  const sheet = { id: "sheet", name: "台账.xlsx", format: "xlsx", content, importedAt: 1,
+    pages: [{ number: 1, start: 0, end: second - 2, label: "汇总" }, { number: 2, start: second, end: content.length, label: "明细" }] };
+  const found = sourcesForMatches(rankIndexes(buildIndex(sheet), "青玉案"), [sheet]);
+  assert.equal(found[0].title, "台账.xlsx 明细");
+  assert.doesNotMatch(found[0].text!, /蓝色灯笼/);
+});
+
 test("判断结果只能用已选原文中的词扩展本地检索", () => {
   const candidates = [{ id: "local:a:0", title: "资料", url: "", site: "本地资料", snippet: "", text: "桔梗项目与松柏工作室合作。" }];
   assert.deepEqual(parseJudgment('{"keep":[1],"expand":["松柏工作室","虚构机构","桔梗项目"]}', candidates, "桔梗项目由谁负责？"), { keep: [1], expand: ["松柏工作室"] });

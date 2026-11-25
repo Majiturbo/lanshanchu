@@ -37,7 +37,7 @@ export interface LocalDocumentMeta {
 
 export interface LocalDocument extends LocalDocumentMeta {
   content: string;
-  pages?: { number: number; start: number; end: number }[];
+  pages?: { number: number; start: number; end: number; label?: string }[];
 }
 
 export type LocalDocumentInput = LocalDocument;

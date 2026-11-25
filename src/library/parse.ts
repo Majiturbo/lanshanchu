@@ -7,7 +7,7 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   "txt", "text", "md", "markdown",
   "html", "htm", "xhtml",
   "csv", "tsv", "json", "jsonl", "yaml", "yml", "xml",
-  "pdf", "docx", "pptx", "odt", "epub",
+  "pdf", "docx", "pptx", "odt", "epub", "xlsx", "ods",
 ] as const;
 
 const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "text", "md", "markdown", "csv", "tsv", "json", "jsonl", "yaml", "yml"]);
@@ -130,7 +130,7 @@ export async function parseDocument(file: File): Promise<ParsedDocument> {
       throw new Error(`${file.name}：${format} 解析失败，请确认文件未损坏或加密`);
     }
   }
-  if (extension === "pptx" || extension === "odt" || extension === "epub") {
+  if (extension === "pptx" || extension === "odt" || extension === "epub" || extension === "xlsx" || extension === "ods") {
     try { return await (await import("./parse-archive.ts")).parseArchive(file, extension); }
     catch (error) {
       if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;

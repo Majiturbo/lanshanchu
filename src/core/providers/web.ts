@@ -1,13 +1,14 @@
 import { Readability } from "@mozilla/readability";
 import type { HttpFetch } from "./types.ts";
 
-// 网页全文读取：研究 Agent 觉得摘要不够时，按需抓取少数几篇来源网页并提取正文。
-// 网址来自搜索结果而不是用户输入，所以只允许公网的 http/https；本机与内网地址一律拒绝（Tauri 作用域里也有同样的拒绝名单），
+// 网页全文读取：研究 Agent 按需读取来源网页，用户也可主动剪藏网页正文。
+// 只允许公网的 http/https；本机与内网地址一律拒绝（Tauri 作用域里也有同样的拒绝名单），
 // 重定向逐跳检查；限制超时、大小与类型。
 
 export interface PageText {
   title: string;
   text: string;
+  url?: string;
 }
 
 export interface PageReader {
@@ -56,13 +57,14 @@ export function sniffCharset(contentType: string | null, head: string): string {
 }
 
 /** 正文整理：合并空白，保留段落分隔，截到上限 */
-export function tidyText(text: string): string {
+export function tidyText(text: string, maxChars = MAX_PAGE_CHARS, truncate = true): string {
   const t = text.replace(/\r/g, "").split(/\n\s*\n/).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
-  return t.length > MAX_PAGE_CHARS ? t.slice(0, MAX_PAGE_CHARS) + "…" : t;
+  if (t.length > maxChars && !truncate) throw new PageError("网页正文超过剪藏容量（20 万字）");
+  return t.length > maxChars ? t.slice(0, maxChars) + "…" : t;
 }
 
 /** 从 HTML 提取标题与正文：Readability 识别正文区域；识别不出时退回整页可见文字 */
-function extract(html: string, url: string): PageText {
+function extract(html: string, url: string, maxChars: number, truncate: boolean, requireArticle: boolean): PageText {
   const doc = new DOMParser().parseFromString(html, "text/html");
   // Readability 需要文档的基础地址来处理相对链接；它会修改文档，所以先取好退回用的整页文字
   const base = doc.createElement("base");
@@ -72,11 +74,12 @@ function extract(html: string, url: string): PageText {
   const fallback = doc.body?.textContent ?? "";
   const title = doc.title.trim();
   const article = new Readability(doc).parse();
-  const text = tidyText(article?.textContent && article.textContent.trim().length > 200 ? article.textContent : fallback);
+  const articleText = article?.textContent?.trim() ?? "";
+  const text = tidyText(requireArticle ? articleText : articleText.length > 200 ? articleText : fallback, maxChars, truncate);
   return { title: article?.title?.trim() || title, text };
 }
 
-export function createPageReader(fetchFn: HttpFetch): PageReader {
+export function createPageReader(fetchFn: HttpFetch, options?: { maxChars: number; truncate: boolean; requireArticle?: boolean }): PageReader {
   return {
     async read(url, signal) {
       const timeout = AbortSignal.timeout(TIMEOUT_MS);
@@ -113,10 +116,11 @@ export function createPageReader(fetchFn: HttpFetch): PageReader {
       } catch {
         html = new TextDecoder("utf-8").decode(buf);
       }
-      if (/text\/plain/i.test(type)) return { title: "", text: tidyText(html) };
-      const page = extract(html, current);
+      // 纯文本响应本身就是完整正文；HTML 剪藏才要求 Readability 识别文章区域。
+      if (/text\/plain/i.test(type)) return { title: "", text: tidyText(html, options?.maxChars, options?.truncate), url: current };
+      const page = extract(html, current, options?.maxChars ?? MAX_PAGE_CHARS, options?.truncate ?? true, options?.requireArticle ?? false);
       if (page.text.length < 80) throw new PageError("没有提取到正文（可能需要登录或由脚本渲染）");
-      return page;
+      return { ...page, url: current };
     },
   };
 }

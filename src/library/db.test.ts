@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import "fake-indexeddb/auto";
 import { getSource, listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, markSourceSynced, putSource, rebuildMissingIndexes, removeDocument, removeScannedFolderDocument, removeSource, saveDocument, updateFolderFormats } from "./db.ts";
-import { createFolderSource } from "./model.ts";
+import { createFolderSource, createWebClipsSource, WEB_CLIPS_SOURCE_ID } from "./model.ts";
 
 const DB = "lanshan-library";
 
@@ -99,4 +99,18 @@ test("修改文件夹格式时立即清理旧索引，迟到的同步不能恢�
   assert.deepEqual((await listDocuments(source.id)).map((doc) => doc.id), ["keep-pdf"]);
   assert.equal(await removeScannedFolderDocument("keep-pdf", (await getSource(source.id))!), true);
   await removeSource(source.id);
+});
+
+test("重复剪藏同一网页替换原文和索引，移除后不再召回", async () => {
+  const base = { id: "web:test", sourceId: WEB_CLIPS_SOURCE_ID, sourceUrl: "https://example.com/article", name: "海棠计划", format: "html" };
+  await saveDocument({ ...base, content: "海棠计划使用蓝色灯笼。", importedAt: 1 }, createWebClipsSource());
+  assert.equal((await getSource(WEB_CLIPS_SOURCE_ID))?.kind, "web-clips");
+  assert.deepEqual((await lookupDocuments("蓝色灯笼")).docs.map((doc) => doc.id), [base.id]);
+  await saveDocument({ ...base, content: "海棠计划使用紫色纸鹤。", importedAt: 2 });
+  assert.deepEqual((await lookupDocuments("蓝色灯笼")).docs, []);
+  assert.deepEqual((await lookupDocuments("紫色纸鹤")).docs.map((doc) => doc.id), [base.id]);
+  assert.equal((await listDocuments(WEB_CLIPS_SOURCE_ID))[0].sourceUrl, base.sourceUrl);
+  await removeDocument(base.id);
+  assert.deepEqual((await lookupDocuments("紫色纸鹤")).docs, []);
+  await removeSource(WEB_CLIPS_SOURCE_ID);
 });

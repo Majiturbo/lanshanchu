@@ -19,6 +19,15 @@ test("索引只返回与问题匹配的导入原文，保留文件和片段定�
   assert.deepEqual(rankIndexes(indexes, "火星探测器"), []);
 });
 
+test("网页剪藏的本地快照保留原始网址引用", () => {
+  const clipped = { id: "web:a", sourceId: "web-clips", name: "海棠计划", sourceUrl: "https://example.com/article", content: "海棠计划的蓝色灯笼由林先生保管。", importedAt: 3 };
+  const found = sourcesForMatches(rankIndexes(buildIndex(clipped), "蓝色灯笼由谁保管？"), [clipped]);
+  assert.equal(found[0].url, clipped.sourceUrl);
+  assert.match(found[0].site, /^网页剪藏（保存于 /);
+  assert.equal(found[0].localDocId, clipped.id);
+  assert.match(found[0].text!, /林先生/);
+});
+
 test("同一资料更新后重建索引，旧词不再召回", () => {
   const old = buildIndex(docs[0]);
   const updated = buildIndex({ ...docs[0], content: "海棠计划使用蓝色灯笼。" });

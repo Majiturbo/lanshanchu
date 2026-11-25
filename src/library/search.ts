@@ -22,8 +22,8 @@ export function sourcesForMatches(matches: IndexMatch[], docs: LocalDocument[]):
       id: `local:${id}:${start}`,
       localDocId: id,
       title: page ? `${doc.name} ${page.label ?? `第${page.number}${location}`}` : `${doc.name} 第${Math.floor(start / CHUNK_STEP) + 1}段`,
-      url: "",
-      site: "本地资料",
+      url: doc.sourceUrl ?? "",
+      site: doc.sourceUrl ? `网页剪藏（保存于 ${new Date(doc.importedAt).toLocaleDateString("zh-CN")}）` : "本地资料",
       snippet: chunk.slice(0, 180),
       text: chunk,
     }];

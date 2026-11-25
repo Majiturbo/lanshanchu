@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isPublicUrl, MAX_PAGE_CHARS, sniffCharset, tidyText } from "./web.ts";
+import { createPageReader, isPublicUrl, MAX_PAGE_CHARS, sniffCharset, tidyText } from "./web.ts";
 
 test("只允许公网 http/https：本机、内网、链路本地与非网页协议一律拒绝", () => {
   for (const ok of ["https://www.gmw.cn/a.html", "http://news.qq.com/x?y=1", "https://8.8.8.8/", "https://172.32.0.1/"]) assert.equal(isPublicUrl(ok), true, ok);
@@ -23,4 +23,20 @@ test("正文整理：合并空白、保留段落、超长截断", () => {
   const long = tidyText("字".repeat(MAX_PAGE_CHARS + 50));
   assert.equal(long.length, MAX_PAGE_CHARS + 1);
   assert.ok(long.endsWith("…"));
+});
+
+test("手动剪藏保留重定向后的地址和长正文，超限时拒绝保存", async () => {
+  const body = "海棠计划的资料。".repeat(1200);
+  const seen: string[] = [];
+  const reader = createPageReader(async (url) => {
+    seen.push(url);
+    return url.endsWith("/old")
+      ? new Response(null, { status: 302, headers: { location: "/article" } })
+      : new Response(body, { headers: { "content-type": "text/plain; charset=utf-8" } });
+  }, { maxChars: 20_000, truncate: false });
+  const page = await reader.read("https://example.com/old");
+  assert.deepEqual(seen, ["https://example.com/old", "https://example.com/article"]);
+  assert.equal(page.url, "https://example.com/article");
+  assert.equal(page.text, body);
+  await assert.rejects(createPageReader(async () => new Response(body, { headers: { "content-type": "text/plain" } }), { maxChars: 100, truncate: false }).read("https://example.com/"), /超过剪藏容量/);
 });

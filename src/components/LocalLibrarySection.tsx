@@ -15,6 +15,8 @@ import {
 import { MANUAL_SOURCE_ID } from "../library/model.ts";
 import { addAndSyncFolderSources, folderSourcesAvailable, removeFolderSource, syncFolderSource } from "../library/folders.ts";
 import { parseDocument, SUPPORTED_DOCUMENT_EXTENSIONS } from "../library/parse.ts";
+import { clipWebPage } from "../library/web-clips.ts";
+import { openExternal } from "../lib/external.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
 
 export type LocalLibraryMode = "all" | "documents" | "retrieval";
@@ -28,6 +30,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
   const [status, setStatus] = useState("正在准备本地索引…");
   const [error, setError] = useState("");
   const [formatDrafts, setFormatDrafts] = useState<Record<string, string[]>>({});
+  const [webUrl, setWebUrl] = useState("");
   const deepLocalSearch = useSettings((state) => state.deepLocalSearch);
 
   const showDocuments = mode !== "retrieval";
@@ -158,6 +161,22 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
     }
   };
 
+  const addWebPage = async (url: string, clearInput = false) => {
+    setBusy(true);
+    setStatus("正在读取网页并建立本地索引…");
+    setError("");
+    try {
+      await clipWebPage(url);
+      if (clearInput) setWebUrl("");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "网页剪藏失败");
+    } finally {
+      setBusy(false);
+      setStatus("");
+    }
+  };
+
   const syncFolder = async (source: KnowledgeSourceSummary) => {
     setBusy(true);
     setStatus(`正在同步 ${source.name}…`);
@@ -224,19 +243,23 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
       <p className="memory-hint">开启后每次命中资料会增加最多两次模型判断，并发送少量候选片段。</p>
     </>}
     {showDocuments && <>
-      <p className="memory-hint">手动导入的副本保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。</p>
+      <p className="memory-hint">主动导入的文件和网页正文副本保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。</p>
       <input ref={input} type="file" accept={SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",")} multiple hidden onChange={(e) => void importFiles(e.target.files)} />
       <div className="local-library-actions">
         <button type="button" className="local-library-add" disabled={busy} onClick={() => input.current?.click()}>导入文件</button>
         {folderSourcesAvailable && <button type="button" className="local-library-add" disabled={busy} onClick={() => void addFolders()}>添加文件夹</button>}
       </div>
+      <form className="local-library-web-form" onSubmit={(event) => { event.preventDefault(); void addWebPage(webUrl, true); }}>
+        <input type="url" aria-label="网页地址" placeholder="粘贴网页地址" value={webUrl} disabled={busy} onChange={(event) => setWebUrl(event.target.value)} required />
+        <button type="submit" className="local-library-add" disabled={busy || !webUrl.trim()}>剪藏网页</button>
+      </form>
       {status && <p className="memory-hint" role="status">{status}</p>}
       {error && <p className="local-library-error" role="alert">{error}</p>}
-      {error && !busy && <button type="button" className="local-library-add" onClick={() => void refresh()}>重试建索引</button>}
+      {error === "索引未全部建成；请释放本机空间或移除资料后重试。" && !busy && <button type="button" className="local-library-add" onClick={() => void refresh()}>重试建索引</button>}
       {sources.length > 0 && <ul className="local-library-sources">{sources.map((source) => <li key={source.id}>
         <div>
           <strong>{source.name}</strong>
-          <span>{source.kind === "folder" ? source.rootPath : "用户主动选择的文件"}</span>
+          <span>{source.kind === "folder" ? source.rootPath : source.kind === "web-clips" ? "用户主动保存的网页快照" : "用户主动选择的文件"}</span>
         </div>
         <div>
           <span>{sourceState(source)}</span>
@@ -269,7 +292,11 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
       </li>)}</ul>}
       {!status && <p className="memory-hint">共 {docs.filter((doc) => doc.indexStatus === "ready").length} / {docs.length} 份资料可检索</p>}
       {docs.length > 0 && <ul className="local-library-list">{docs.map((doc) => <li key={doc.id}>
-        <span>{doc.sourcePath ?? doc.name}</span>
+        <span title={doc.sourceUrl ?? doc.sourcePath ?? doc.name}>{doc.sourcePath ?? doc.name}</span>
+        {doc.sourceUrl && <>
+          <button type="button" onClick={() => openExternal(doc.sourceUrl!)}>打开</button>
+          <button type="button" disabled={busy} aria-label={`更新 ${doc.name}`} onClick={() => void addWebPage(doc.sourceUrl!)}>更新</button>
+        </>}
         <button type="button" disabled={busy} aria-label={`移除 ${doc.name}`} onClick={() => void remove(doc.id)}>移除</button>
       </li>)}</ul>}
     </>}

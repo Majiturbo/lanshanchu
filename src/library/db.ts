@@ -28,6 +28,8 @@ export interface LocalDocumentMeta {
   sourceSize?: number;
   /** 文件夹源内的相对路径；手动导入不记录磁盘位置。 */
   sourcePath?: string;
+  /** 用户主动剪藏的网页最终地址；正文是当时读取的本地快照。 */
+  sourceUrl?: string;
   indexStatus?: DocumentIndexStatus;
   indexError?: string;
   /** 派生索引版本与分片，仅用于更新和移除时定位旧分片。 */
@@ -494,14 +496,14 @@ export async function lookupDocuments(question: string, maxHits = 5): Promise<{ 
   });
 }
 
-async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean): Promise<boolean> {
+async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean, sourceIfMissing?: KnowledgeSource): Promise<boolean> {
   const doc = normalizeDocument({
     ...input,
     sourceId: input.sourceId || MANUAL_SOURCE_ID,
     format: input.format || extensionForName(input.name),
     indexStatus: input.indexStatus || "pending",
   } as LocalDocument);
-  if (!await getSource(doc.sourceId || MANUAL_SOURCE_ID)) throw new Error("资料所属的数据源不存在");
+  if (!await getSource(doc.sourceId || MANUAL_SOURCE_ID) && sourceIfMissing?.id !== doc.sourceId) throw new Error("资料所属的数据源不存在");
   const indexes = buildIndex(doc);
   const database = await db();
   const stores = [DOCUMENTS, SHARDS, META, SOURCES, ...(database.objectStoreNames.contains(LEGACY_INDEX) ? [LEGACY_INDEX] : [])];
@@ -513,7 +515,7 @@ async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean):
     if (onlyIfCurrent && (!current.result || current.result.content !== doc.content || current.result.importedAt !== doc.importedAt)) return;
     const source = transaction.objectStore(SOURCES).get(doc.sourceId || MANUAL_SOURCE_ID) as IDBRequest<KnowledgeSource | undefined>;
     source.onsuccess = () => {
-      const currentSource = source.result;
+      const currentSource = source.result ?? sourceIfMissing;
       if (!currentSource || (currentSource.kind === "folder" && currentSource.allowedExtensions
         && !currentSource.allowedExtensions.includes(extensionForName(doc.sourcePath ?? doc.name)))) return;
       const previous = transaction.objectStore(META).get(doc.id) as IDBRequest<LocalDocumentMeta | undefined>;
@@ -536,8 +538,8 @@ async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean):
   return wrote;
 }
 
-export async function saveDocument(doc: LocalDocumentInput): Promise<boolean> {
-  return writeDocument(doc, false);
+export async function saveDocument(doc: LocalDocumentInput, sourceIfMissing?: KnowledgeSource): Promise<boolean> {
+  return writeDocument(doc, false, sourceIfMissing);
 }
 
 async function deleteDocument(id: string, expectedFolder?: KnowledgeSource): Promise<boolean> {

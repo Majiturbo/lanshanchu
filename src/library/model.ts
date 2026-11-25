@@ -1,8 +1,9 @@
 export const LIBRARY_DB_VERSION = 5;
 export const LIBRARY_INDEX_VERSION = 4;
 export const MANUAL_SOURCE_ID = "manual-files";
+export const WEB_CLIPS_SOURCE_ID = "web-clips";
 
-export type KnowledgeSourceKind = "manual-files" | "folder";
+export type KnowledgeSourceKind = "manual-files" | "folder" | "web-clips";
 export type KnowledgeSourceStatus = "ready" | "indexing" | "partial" | "error";
 export type DocumentIndexStatus = "pending" | "ready" | "failed";
 export type IndexJobKind = "import" | "rebuild";
@@ -69,6 +70,10 @@ export function createManualSource(now = Date.now()): KnowledgeSource {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export function createWebClipsSource(now = Date.now()): KnowledgeSource {
+  return { id: WEB_CLIPS_SOURCE_ID, kind: "web-clips", name: "网页剪藏", enabled: true, createdAt: now, updatedAt: now };
 }
 
 export function createFolderSource(id: string, rootPath: string, name: string, now = Date.now()): KnowledgeSource {

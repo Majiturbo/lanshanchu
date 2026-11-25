@@ -151,7 +151,7 @@ export function formatSources(sources: Source[]) {
     .map((s, i) => {
       const tags = [s.site, s.date, s.card ? "权威信源" : "", s.authority !== undefined ? `权威度 ${s.authority}/5` : ""].filter(Boolean).join("｜");
       // 元宝的摘要全部给模型（平均约 1650 字）；研究 Agent 读过全文的来源改用正文；配图描述接在后面
-      return `[${i + 1}] ${s.title}${tags ? "｜" + tags : ""}${s.text ? s.localDocId ? "｜文件片段" : "｜已读全文" : ""}\n${s.text ?? s.snippet}${captionLine(s)}`;
+      return `[${i + 1}] ${s.title}${tags ? "｜" + tags : ""}${s.text ? s.localDocId ? "｜本地资料片段" : "｜已读全文" : ""}\n${s.text ?? s.snippet}${captionLine(s)}`;
     })
     .join("\n\n");
 }

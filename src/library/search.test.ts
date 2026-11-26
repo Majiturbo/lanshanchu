@@ -28,6 +28,12 @@ test("网页剪藏的本地快照保留原始网址引用", () => {
   assert.match(found[0].text!, /林先生/);
 });
 
+test("RSS 摘要的每个命中片段都标明不是全文", () => {
+  const doc = { id: "rss:feed:article", sourceId: "rss:feed", name: "测试订阅", sourceUrl: "https://example.com/post", isSummary: true, content: "甲".repeat(4000), importedAt: 3 };
+  const found = sourcesForMatches([{ id: doc.id, start: 2000, score: 1 }], [doc]);
+  assert.match(found[0].site, /RSS 摘要（非全文）/);
+});
+
 test("同一资料更新后重建索引，旧词不再召回", () => {
   const old = buildIndex(docs[0]);
   const updated = buildIndex({ ...docs[0], content: "海棠计划使用蓝色灯笼。" });

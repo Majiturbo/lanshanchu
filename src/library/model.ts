@@ -3,7 +3,7 @@ export const LIBRARY_INDEX_VERSION = 4;
 export const MANUAL_SOURCE_ID = "manual-files";
 export const WEB_CLIPS_SOURCE_ID = "web-clips";
 
-export type KnowledgeSourceKind = "manual-files" | "folder" | "web-clips";
+export type KnowledgeSourceKind = "manual-files" | "folder" | "web-clips" | "rss";
 export type KnowledgeSourceStatus = "ready" | "indexing" | "partial" | "error";
 export type DocumentIndexStatus = "pending" | "ready" | "failed";
 export type IndexJobKind = "import" | "rebuild";
@@ -18,6 +18,7 @@ export interface KnowledgeSource {
   createdAt: number;
   updatedAt: number;
   rootPath?: string;
+  feedUrl?: string;
   recursive?: boolean;
   includeHidden?: boolean;
   allowedExtensions?: string[];

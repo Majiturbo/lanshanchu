@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import "fake-indexeddb/auto";
-import { getSource, listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, markSourceSynced, putSource, rebuildMissingIndexes, removeDocument, removeScannedFolderDocument, removeSource, saveDocument, updateFolderFormats } from "./db.ts";
+import { getSource, listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, markSourceSynced, putSource, rebuildMissingIndexes, removeDocument, removeScannedFolderDocument, removeSource, saveDocument, updateFolderFormats, updateRssSourceUrl } from "./db.ts";
 import { createFolderSource, createWebClipsSource, WEB_CLIPS_SOURCE_ID } from "./model.ts";
 
 const DB = "lanshan-library";
@@ -113,4 +113,17 @@ test("重复剪藏同一网页替换原文和索引，移除后不再召回", as
   await removeDocument(base.id);
   assert.deepEqual((await lookupDocuments("紫色纸鹤")).docs, []);
   await removeSource(WEB_CLIPS_SOURCE_ID);
+});
+
+test("订阅源改址保留同步时间，移除后的迟到更新不会重建来源", async () => {
+  const source = { id: "rss:move", kind: "rss" as const, name: "订阅", feedUrl: "https://example.com/old", enabled: true, createdAt: 1, updatedAt: 1 };
+  await putSource(source);
+  await markSourceSynced(source.id);
+  const syncedAt = (await getSource(source.id))?.lastSyncedAt;
+  await updateRssSourceUrl(source.id, "https://example.com/new");
+  assert.equal((await getSource(source.id))?.feedUrl, "https://example.com/new");
+  assert.equal((await getSource(source.id))?.lastSyncedAt, syncedAt);
+  await removeSource(source.id);
+  await updateRssSourceUrl(source.id, "https://example.com/late");
+  assert.equal(await getSource(source.id), undefined);
 });

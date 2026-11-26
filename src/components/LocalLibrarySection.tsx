@@ -6,6 +6,7 @@ import {
   updateFolderFormats,
   rebuildMissingIndexes,
   removeDocument,
+  removeSource,
   saveDocument,
   startIndexJob,
   updateIndexJob,
@@ -16,6 +17,7 @@ import { MANUAL_SOURCE_ID } from "../library/model.ts";
 import { addAndSyncFolderSources, folderSourcesAvailable, removeFolderSource, syncFolderSource } from "../library/folders.ts";
 import { parseDocument, SUPPORTED_DOCUMENT_EXTENSIONS } from "../library/parse.ts";
 import { clipWebPage } from "../library/web-clips.ts";
+import { addRssSource, syncRssSource } from "../library/rss.ts";
 import { openExternal } from "../lib/external.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
 
@@ -31,6 +33,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
   const [error, setError] = useState("");
   const [formatDrafts, setFormatDrafts] = useState<Record<string, string[]>>({});
   const [webUrl, setWebUrl] = useState("");
+  const [rssUrl, setRssUrl] = useState("");
   const deepLocalSearch = useSettings((state) => state.deepLocalSearch);
 
   const showDocuments = mode !== "retrieval";
@@ -192,6 +195,38 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
     }
   };
 
+  const addRss = async () => {
+    setBusy(true);
+    setStatus("正在读取订阅源并建立索引…");
+    setError("");
+    try {
+      await addRssSource(rssUrl);
+      setRssUrl("");
+      await refresh();
+    } catch (err) {
+      await refresh();
+      setError(err instanceof Error ? err.message : "订阅源导入失败");
+    } finally { setBusy(false); setStatus(""); }
+  };
+
+  const syncRss = async (source: KnowledgeSourceSummary) => {
+    setBusy(true);
+    setStatus(`正在同步 ${source.name}…`);
+    setError("");
+    try { await syncRssSource(source); await refresh(); }
+    catch (err) { setError(err instanceof Error ? err.message : "订阅源同步失败"); }
+    finally { setBusy(false); setStatus(""); }
+  };
+
+  const removeRss = async (source: KnowledgeSourceSummary) => {
+    if (!window.confirm(`从知识库移除“${source.name}”及已导入的文章副本？`)) return;
+    setBusy(true);
+    setError("");
+    try { await removeSource(source.id); await refresh(); }
+    catch (err) { setError(err instanceof Error ? err.message : "订阅源移除失败"); }
+    finally { setBusy(false); }
+  };
+
   const applyFormats = async (source: KnowledgeSourceSummary) => {
     setBusy(true);
     setStatus(`正在更新 ${source.name} 的索引…`);
@@ -243,7 +278,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
       <p className="memory-hint">开启后每次命中资料会增加最多两次模型判断，并发送少量候选片段。</p>
     </>}
     {showDocuments && <>
-      <p className="memory-hint">主动导入的文件和网页正文副本保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。</p>
+      <p className="memory-hint">主动导入的文件、网页和 RSS / Atom 订阅内容保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。订阅源需手动同步，只有摘要时会标明并非全文。</p>
       <input ref={input} type="file" accept={SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",")} multiple hidden onChange={(e) => void importFiles(e.target.files)} />
       <div className="local-library-actions">
         <button type="button" className="local-library-add" disabled={busy} onClick={() => input.current?.click()}>导入文件</button>
@@ -253,19 +288,27 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
         <input type="url" aria-label="网页地址" placeholder="粘贴网页地址" value={webUrl} disabled={busy} onChange={(event) => setWebUrl(event.target.value)} required />
         <button type="submit" className="local-library-add" disabled={busy || !webUrl.trim()}>剪藏网页</button>
       </form>
+      <form className="local-library-web-form" onSubmit={(event) => { event.preventDefault(); void addRss(); }}>
+        <input type="url" aria-label="RSS 或 Atom 地址" placeholder="粘贴 RSS / Atom 地址" value={rssUrl} disabled={busy} onChange={(event) => setRssUrl(event.target.value)} required />
+        <button type="submit" className="local-library-add" disabled={busy || !rssUrl.trim()}>添加订阅</button>
+      </form>
       {status && <p className="memory-hint" role="status">{status}</p>}
       {error && <p className="local-library-error" role="alert">{error}</p>}
       {error === "索引未全部建成；请释放本机空间或移除资料后重试。" && !busy && <button type="button" className="local-library-add" onClick={() => void refresh()}>重试建索引</button>}
       {sources.length > 0 && <ul className="local-library-sources">{sources.map((source) => <li key={source.id}>
         <div>
           <strong>{source.name}</strong>
-          <span>{source.kind === "folder" ? source.rootPath : source.kind === "web-clips" ? "用户主动保存的网页快照" : "用户主动选择的文件"}</span>
+          <span>{source.kind === "folder" ? source.rootPath : source.kind === "web-clips" ? "用户主动保存的网页快照" : source.kind === "rss" ? source.feedUrl : "用户主动选择的文件"}</span>
         </div>
         <div>
           <span>{sourceState(source)}</span>
           {source.kind === "folder" && <>
             <button type="button" disabled={busy} onClick={() => void syncFolder(source)}>{source.status === "partial" || source.status === "error" ? "重试" : "同步"}</button>
             <button type="button" disabled={busy} onClick={() => void removeFolder(source)}>移除</button>
+          </>}
+          {source.kind === "rss" && <>
+            <button type="button" disabled={busy} onClick={() => void syncRss(source)}>同步</button>
+            <button type="button" disabled={busy} onClick={() => void removeRss(source)}>移除</button>
           </>}
         </div>
         {!!source.latestJob?.errors.length && <details className="local-library-source-errors">
@@ -295,7 +338,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
         <span title={doc.sourceUrl ?? doc.sourcePath ?? doc.name}>{doc.sourcePath ?? doc.name}</span>
         {doc.sourceUrl && <>
           <button type="button" onClick={() => openExternal(doc.sourceUrl!)}>打开</button>
-          <button type="button" disabled={busy} aria-label={`更新 ${doc.name}`} onClick={() => void addWebPage(doc.sourceUrl!)}>更新</button>
+          {doc.sourceId === "web-clips" && <button type="button" disabled={busy} aria-label={`更新 ${doc.name}`} onClick={() => void addWebPage(doc.sourceUrl!)}>更新</button>}
         </>}
         <button type="button" disabled={busy} aria-label={`移除 ${doc.name}`} onClick={() => void remove(doc.id)}>移除</button>
       </li>)}</ul>}

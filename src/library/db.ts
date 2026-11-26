@@ -30,6 +30,8 @@ export interface LocalDocumentMeta {
   sourcePath?: string;
   /** 用户主动剪藏的网页最终地址；正文是当时读取的本地快照。 */
   sourceUrl?: string;
+  /** 订阅源只提供摘要时，所有命中片段都必须保持这一来源属性。 */
+  isSummary?: boolean;
   indexStatus?: DocumentIndexStatus;
   indexError?: string;
   /** 派生索引版本与分片，仅用于更新和移除时定位旧分片。 */
@@ -239,6 +241,20 @@ export async function markSourceSynced(id: string): Promise<void> {
   };
   await transactionDone(transaction);
   notifyChanged();
+}
+
+export async function updateRssSourceUrl(id: string, feedUrl: string): Promise<void> {
+  const transaction = (await db()).transaction(SOURCES, "readwrite");
+  const request = transaction.objectStore(SOURCES).get(id) as IDBRequest<KnowledgeSource | undefined>;
+  let changed = false;
+  request.onsuccess = () => {
+    if (request.result?.kind === "rss") {
+      transaction.objectStore(SOURCES).put({ ...request.result, feedUrl, updatedAt: Date.now() });
+      changed = true;
+    }
+  };
+  await transactionDone(transaction);
+  if (changed) notifyChanged();
 }
 
 export async function removeSource(id: string): Promise<void> {

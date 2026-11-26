@@ -5,7 +5,7 @@ import type { HttpFetch } from "./providers/types.ts";
 
 /**
  * 腾讯的接口不允许浏览器跨域调用，桌面 / 移动应用里由 Tauri HTTP 插件在本机发出请求。
- * 可访问范围见 capabilities/default.json（桌面）与 mobile.json（iOS/Android）：允许公网 http/https，拒绝本机与内网。
+ * 可访问范围见 capabilities/default.json（桌面）与 mobile.json（iOS/Android）：按网址模式拒绝本机与内网字面地址。
  */
 export const IN_APP = isTauri();
 

@@ -2,7 +2,8 @@ import { Readability } from "@mozilla/readability";
 import type { HttpFetch } from "./types.ts";
 
 // 网页全文读取：研究 Agent 按需读取来源网页，用户也可主动剪藏网页正文。
-// 只允许公网的 http/https；本机与内网地址一律拒绝（Tauri 作用域里也有同样的拒绝名单），
+// 按网址中的主机名或字面 IP 拒绝本机与常见内网地址（Tauri 作用域有对应拒绝名单）；
+// 域名解析结果和系统代理的实际连接地址不由这层校验。
 // 重定向逐跳检查；限制超时、大小与类型。
 
 export interface PageText {
@@ -24,7 +25,7 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 export class PageError extends Error {}
 
-/** 只允许公网 http/https：拒绝本机、内网、链路本地、.local 等地址，防止网页内容诱导应用访问用户自己的设备或局域网 */
+/** 按网址字面拒绝本机、常见内网 IP 和内网主机名；不能验证域名最终解析或代理出口。 */
 export function isPublicUrl(raw: string): boolean {
   let u: URL;
   try { u = new URL(raw); } catch { return false; }
@@ -71,6 +72,23 @@ function extract(html: string, url: string, maxChars: number, truncate: boolean,
   base.href = url;
   doc.head.prepend(base);
   for (const el of doc.querySelectorAll("script, style, noscript, template, svg, iframe")) el.remove();
+  for (const heading of doc.querySelectorAll("h2, h3")) {
+    const title = (heading.textContent ?? "")
+      .replace(/\s*\[(?:edit|编辑)\]\s*$/iu, "").replace(/[:：]\s*$/u, "").trim();
+    if (!/^(references|see also|external links|参考资料|参见|外部链接)$/iu.test(title)) continue;
+    const block = heading.parentElement?.classList.contains("mw-heading") ? heading.parentElement : heading;
+    const parent = block.parentElement;
+    if (!parent || !doc.contains(block)) continue;
+    if (parent.tagName === "SECTION" && parent.firstElementChild === block) { parent.remove(); continue; }
+    let next = block.nextElementSibling;
+    block.remove();
+    while (next && !next.matches("section, h2, h3, .mw-heading")) {
+      const following = next.nextElementSibling;
+      next.remove();
+      next = following;
+    }
+  }
+  for (const el of doc.querySelectorAll("ol.references, .mw-references-wrap, [role='doc-bibliography']")) el.remove();
   const fallback = doc.body?.textContent ?? "";
   const title = doc.title.trim();
   const article = new Readability(doc).parse();

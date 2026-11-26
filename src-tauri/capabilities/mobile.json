@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "mobile",
-  "description": "iOS / Android：无窗口拖拽与窗控。网络请求允许公网 http/https，拒绝本机与内网；外链交给系统浏览器。",
+  "description": "iOS / Android：无窗口拖拽与窗控。网络请求按网址模式拒绝本机与内网字面地址；域名解析与系统代理出口不在作用域校验内。外链交给系统浏览器。",
   "platforms": ["iOS", "android"],
   "windows": ["main"],
   "permissions": [

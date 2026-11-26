@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "桌面主窗口：拖动标题栏、Windows 自绘窗口按钮（destroy 用于关窗前先保存历史记录）；macOS 用系统红绿灯，不走这些按钮。网络请求允许所有公网 http/https（研究 Agent 按需读取来源网页全文），本机与内网地址拒绝，重定向逐跳检查（tauri.conf.json 的 scopeRedirects）；外链交给系统浏览器。移动端见 mobile.json。",
+  "description": "桌面主窗口：拖动标题栏、Windows 自绘窗口按钮（destroy 用于关窗前先保存历史记录）；macOS 用系统红绿灯，不走这些按钮。网络请求按网址模式允许 http/https、拒绝本机与内网字面地址；域名解析与系统代理出口不在作用域校验内。重定向逐跳检查（tauri.conf.json 的 scopeRedirects）；外链交给系统浏览器。移动端见 mobile.json。",
   "platforms": ["linux", "macOS", "windows"],
   "windows": [
     "main"

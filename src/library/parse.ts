@@ -8,6 +8,7 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   "html", "htm", "xhtml",
   "csv", "tsv", "json", "jsonl", "yaml", "yml", "xml",
   "pdf", "docx", "pptx", "odt", "epub", "xlsx", "ods",
+  "enex",
 ] as const;
 
 const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "text", "md", "markdown", "csv", "tsv", "json", "jsonl", "yaml", "yml"]);
@@ -121,6 +122,12 @@ export async function parseDocument(file: File): Promise<ParsedDocument> {
       if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;
       throw new Error(`${file.name}：文本编码无法读取，请转为 UTF-8`);
     }
+  }
+  if (extension === "enex") {
+    let raw: string;
+    try { raw = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()); }
+    catch { throw new Error(`${file.name}：文本编码无法读取，请转为 UTF-8`); }
+    return (await import("./parse-enex.ts")).parseEnex(raw, file.name);
   }
   if (extension === "pdf" || extension === "docx") {
     const format = extension === "pdf" ? "PDF" : "DOCX";

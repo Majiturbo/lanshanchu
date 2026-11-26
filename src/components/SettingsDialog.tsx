@@ -437,6 +437,7 @@ function FormatCapabilities() {
         <div><span>文档与演示</span><strong>PDF、DOCX、ODT、PPTX</strong></div>
         <div><span>电子表格</span><strong>XLSX、ODS、CSV、TSV</strong></div>
         <div><span>电子书</span><strong>EPUB</strong></div>
+        <div><span>笔记导出</span><strong>Evernote ENEX（文字，不含图片和附件）</strong></div>
         <div><span>尚未提供</span><strong>扫描件 OCR、旧版 Office、音视频</strong></div>
       </div>
       <p className="memory-hint">只显示当前实际可解析的格式。表格保留工作表与单元格位置，公式只读取已保存的结果；日期、货币等格式可能与表格软件的显示不同。扫描版 PDF 没有可提取文字时不会加入资料库。</p>

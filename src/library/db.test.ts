@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import "fake-indexeddb/auto";
-import { getSource, listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, markSourceSynced, putSource, rebuildMissingIndexes, removeDocument, removeScannedFolderDocument, removeSource, saveDocument, updateFolderFormats, updateRssSourceUrl } from "./db.ts";
+import { beginSourceSync, completeIndexJob, getSource, listDocuments, listSources, lookupDocuments, markDocumentIndexFailed, markSourceSynced, putSource, rebuildMissingIndexes, removeDocument, removeScannedFolderDocument, removeSource, removeSourceDocument, saveDocument, saveSourceDocument, startIndexJob, updateFolderFormats, updateIndexJob, updateRssSourceUrl, updateSourceDocumentUrl } from "./db.ts";
 import { createFolderSource, createWebClipsSource, WEB_CLIPS_SOURCE_ID } from "./model.ts";
 
 const DB = "lanshan-library";
@@ -126,4 +126,37 @@ test("订阅源改址保留同步时间，移除后的迟到更新不会重建�
   await removeSource(source.id);
   await updateRssSourceUrl(source.id, "https://example.com/late");
   assert.equal(await getSource(source.id), undefined);
+});
+
+test("仓库新同步和重新添加会使旧任务失去写入与清理资格", async () => {
+  const source = { id: "github:race", kind: "github" as const, name: "仓库", repoOwner: "owner", repoName: "repo", branch: "main", folderPath: "", enabled: true, createdAt: 101, updatedAt: 101 };
+  await putSource(source);
+  const first = await beginSourceSync(source);
+  const oldJob = await startIndexJob(source.id, "import", 1, source, first);
+  const doc = { id: "github:race:README.md", sourceId: source.id, sourcePath: "README.md", sourceRevision: "a".repeat(40), name: "README.md", content: "第一版仓库文档", importedAt: 1 };
+  assert.equal(await saveSourceDocument(doc, source, first), true);
+  const second = await beginSourceSync(source);
+  await assert.rejects(startIndexJob(source.id, "import", 1, source, first), /替代/);
+  await assert.rejects(updateIndexJob(oldJob.id, { completed: 1, failed: 1 }, source, first), /替代/);
+  await assert.rejects(completeIndexJob(oldJob.id, source, first), /替代/);
+  const newJob = await startIndexJob(source.id, "import", 1, source, second);
+  await updateIndexJob(newJob.id, { completed: 1, updated: 1 }, source, second);
+  await completeIndexJob(newJob.id, source, second);
+  assert.equal((await listSources()).find((item) => item.id === source.id)?.latestJob?.id, newJob.id);
+  assert.equal(await saveSourceDocument({ ...doc, content: "迟到旧内容" }, source, first), false);
+  assert.equal(await removeSourceDocument(doc.id, source, first), false);
+  assert.equal(await saveSourceDocument({ ...doc, content: "第二版仓库文档", importedAt: 2 }, source, second), true);
+  assert.equal(await updateSourceDocumentUrl(doc.id, source, second, doc.sourceRevision, "https://github.com/owner/repo/blob/new/README.md"), true);
+  assert.equal((await listDocuments(source.id))[0].sourceUrl, "https://github.com/owner/repo/blob/new/README.md");
+  await markDocumentIndexFailed({ ...doc, indexStatus: "ready" }, new Error("旧任务失败"), source, first);
+  assert.equal((await listDocuments(source.id))[0].indexStatus, "ready");
+  assert.equal(await removeSourceDocument(doc.id, source, second), true);
+  assert.deepEqual(await listDocuments(source.id), []);
+  assert.deepEqual((await lookupDocuments("第二版仓库文档")).docs, []);
+  await removeSource(source.id);
+  await putSource({ ...source, createdAt: 202, updatedAt: 202 });
+  assert.equal(await saveSourceDocument(doc, source, first), false);
+  assert.equal(await removeSourceDocument(doc.id, source, first), false);
+  assert.deepEqual(await listDocuments(source.id), []);
+  await removeSource(source.id);
 });

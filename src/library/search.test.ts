@@ -34,6 +34,14 @@ test("RSS 摘要的每个命中片段都标明不是全文", () => {
   assert.match(found[0].site, /RSS 摘要（非全文）/);
 });
 
+test("GitHub 文档引用指向已索引版本的原文", () => {
+  const doc = { id: "github:a:docs/guide.md", sourceId: "github:a", name: "docs/guide.md", sourceUrl: "https://github.com/owner/repo/blob/abc123/docs/guide.md", content: "青玉案计划由蓝色灯笼标记。", importedAt: 3 };
+  const found = sourcesForMatches(rankIndexes(buildIndex(doc), "青玉案计划如何标记？"), [doc]);
+  assert.equal(found[0].url, doc.sourceUrl);
+  assert.match(found[0].site, /^GitHub 仓库（保存于 /);
+  assert.match(found[0].title, /docs\/guide\.md/);
+});
+
 test("同一资料更新后重建索引，旧词不再召回", () => {
   const old = buildIndex(docs[0]);
   const updated = buildIndex({ ...docs[0], content: "海棠计划使用蓝色灯笼。" });

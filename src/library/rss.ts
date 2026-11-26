@@ -3,6 +3,7 @@ import { isPublicUrl } from "../core/providers/web.ts";
 import { completeIndexJob, getSource, listSources, markSourceSynced, putSource, saveDocument, startIndexJob, updateIndexJob, updateRssSourceUrl } from "./db.ts";
 import type { KnowledgeSource } from "./model.ts";
 import { parseFeed, type Feed } from "./rss-parse.ts";
+import { readLimitedBytes } from "./read-limited.ts";
 
 async function readFeed(url: string): Promise<Feed & { url: string }> {
   let current = url;
@@ -13,27 +14,7 @@ async function readFeed(url: string): Promise<Feed & { url: string }> {
     const location = response.status >= 300 && response.status < 400 ? response.headers.get("location") : null;
     if (location) { current = new URL(location, current).href; continue; }
     if (!response.ok) throw new Error(`订阅源返回 HTTP ${response.status}`);
-    const length = Number(response.headers.get("content-length") ?? 0);
-    if (length > 3 * 1024 * 1024) throw new Error("订阅源超过 3 MB");
-    if (!response.body) throw new Error("订阅源没有可读取的内容");
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > 3 * 1024 * 1024) throw new Error("订阅源超过 3 MB");
-        chunks.push(value);
-      }
-    } catch (error) {
-      await reader.cancel().catch(() => undefined);
-      throw error;
-    } finally { reader.releaseLock(); }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const bytes = await readLimitedBytes(response, 3 * 1024 * 1024, "订阅源");
     const head = new TextDecoder("latin1").decode(bytes.slice(0, 256));
     const encoding = /encoding=["']([\w-]+)/i.exec(head)?.[1] ?? "utf-8";
     const xml = new TextDecoder(encoding).decode(bytes);

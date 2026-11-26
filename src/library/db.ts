@@ -26,6 +26,8 @@ export interface LocalDocumentMeta {
   importedAt: number;
   sourceModifiedAt?: number;
   sourceSize?: number;
+  /** 在线仓库中的 blob SHA；相同版本复用现有索引。 */
+  sourceRevision?: string;
   /** 文件夹源内的相对路径；手动导入不记录磁盘位置。 */
   sourcePath?: string;
   /** 用户主动剪藏的网页最终地址；正文是当时读取的本地快照。 */
@@ -243,6 +245,43 @@ export async function markSourceSynced(id: string): Promise<void> {
   notifyChanged();
 }
 
+export async function beginSourceSync(source: KnowledgeSource): Promise<string> {
+  const token = crypto.randomUUID();
+  const transaction = (await db()).transaction(SOURCES, "readwrite");
+  const request = transaction.objectStore(SOURCES).get(source.id) as IDBRequest<KnowledgeSource | undefined>;
+  let accepted = false;
+  request.onsuccess = () => {
+    if (request.result?.kind === "github" && request.result.createdAt === source.createdAt) {
+      transaction.objectStore(SOURCES).put({ ...request.result, syncToken: token, updatedAt: Date.now() });
+      accepted = true;
+    }
+  };
+  await transactionDone(transaction);
+  if (!accepted) throw new Error("仓库数据源已移除或重新添加");
+  notifyChanged();
+  return token;
+}
+
+export async function sourceSyncCurrent(source: KnowledgeSource, token: string): Promise<boolean> {
+  const current = await getSource(source.id);
+  return current?.createdAt === source.createdAt && current.syncToken === token;
+}
+
+export async function finishSourceSync(source: KnowledgeSource, token: string): Promise<void> {
+  const transaction = (await db()).transaction(SOURCES, "readwrite");
+  const request = transaction.objectStore(SOURCES).get(source.id) as IDBRequest<KnowledgeSource | undefined>;
+  let finished = false;
+  request.onsuccess = () => {
+    if (request.result?.createdAt === source.createdAt && request.result.syncToken === token) {
+      transaction.objectStore(SOURCES).put({ ...request.result, lastSyncedAt: Date.now(), updatedAt: Date.now() });
+      finished = true;
+    }
+  };
+  await transactionDone(transaction);
+  if (!finished) throw new Error("仓库同步已被新任务替代");
+  notifyChanged();
+}
+
 export async function updateRssSourceUrl(id: string, feedUrl: string): Promise<void> {
   const transaction = (await db()).transaction(SOURCES, "readwrite");
   const request = transaction.objectStore(SOURCES).get(id) as IDBRequest<KnowledgeSource | undefined>;
@@ -302,8 +341,7 @@ async function getDocument(id: string): Promise<LocalDocument | undefined> {
   return document ? normalizeDocument(document) : undefined;
 }
 
-export async function startIndexJob(sourceId: string, kind: IndexJobKind, total: number): Promise<IndexJob> {
-  if (!await getSource(sourceId)) throw new Error("数据源不存在");
+export async function startIndexJob(sourceId: string, kind: IndexJobKind, total: number, expectedSource?: KnowledgeSource, syncToken?: string): Promise<IndexJob> {
   const job: IndexJob = {
     id: crypto.randomUUID(),
     sourceId,
@@ -318,59 +356,82 @@ export async function startIndexJob(sourceId: string, kind: IndexJobKind, total:
     startedAt: Date.now(),
   };
   const transaction = (await db()).transaction([TASKS, SOURCES], "readwrite");
-  transaction.objectStore(TASKS).put(job);
+  const previousJobs = transaction.objectStore(TASKS).index("bySource").getAll(sourceId) as IDBRequest<IndexJob[]>;
   const sourceRequest = transaction.objectStore(SOURCES).get(sourceId) as IDBRequest<KnowledgeSource | undefined>;
-  sourceRequest.onsuccess = () => {
-    if (sourceRequest.result) transaction.objectStore(SOURCES).put({ ...sourceRequest.result, updatedAt: job.startedAt });
+  let accepted = false;
+  const begin = () => {
+    if (previousJobs.readyState !== "done" || sourceRequest.readyState !== "done") return;
+    const source = sourceRequest.result;
+    if (!source || (expectedSource && (source.createdAt !== expectedSource.createdAt || source.syncToken !== syncToken))) return;
+    job.startedAt = previousJobs.result.reduce((latest, previous) => Math.max(latest, previous.startedAt + 1), Date.now());
+    transaction.objectStore(TASKS).put(job);
+    transaction.objectStore(SOURCES).put({ ...source, updatedAt: job.startedAt });
+    accepted = true;
   };
+  previousJobs.onsuccess = begin;
+  sourceRequest.onsuccess = begin;
   await transactionDone(transaction);
+  if (!accepted) throw new Error(expectedSource ? "仓库同步已被新任务替代" : "数据源不存在");
   notifyChanged();
   return job;
 }
 
-async function mutateIndexJob(id: string, mutate: (job: IndexJob) => IndexJob, emit = false): Promise<IndexJob> {
-  const transaction = (await db()).transaction(TASKS, "readwrite");
+async function mutateIndexJob(id: string, mutate: (job: IndexJob) => IndexJob, emit = false, expectedSource?: KnowledgeSource, syncToken?: string): Promise<IndexJob> {
+  const transaction = (await db()).transaction(expectedSource ? [TASKS, SOURCES] : [TASKS], "readwrite");
   const finished = transactionDone(transaction);
-  const request = transaction.objectStore(TASKS).get(id) as IDBRequest<IndexJob | undefined>;
   let next: IndexJob | undefined;
-  request.onsuccess = () => {
-    if (!request.result) {
-      transaction.abort();
-      return;
-    }
-    next = mutate(request.result);
-    transaction.objectStore(TASKS).put(next);
+  const update = () => {
+    const request = transaction.objectStore(TASKS).get(id) as IDBRequest<IndexJob | undefined>;
+    request.onsuccess = () => {
+      if (!request.result || (expectedSource && request.result.sourceId !== expectedSource.id)) return;
+      next = mutate(request.result);
+      transaction.objectStore(TASKS).put(next);
+    };
   };
+  if (expectedSource) {
+    const source = transaction.objectStore(SOURCES).get(expectedSource.id) as IDBRequest<KnowledgeSource | undefined>;
+    source.onsuccess = () => {
+      if (source.result?.createdAt === expectedSource.createdAt && source.result.syncToken === syncToken) update();
+    };
+  } else update();
   await finished;
-  if (!next) throw new Error("索引任务不存在");
+  if (!next) throw new Error(expectedSource ? "仓库同步已被新任务替代" : "索引任务不存在");
   if (emit) notifyChanged();
   return next;
 }
 
-export function updateIndexJob(id: string, progress: IndexJobProgress): Promise<IndexJob> {
+export function updateIndexJob(id: string, progress: IndexJobProgress, source?: KnowledgeSource, syncToken?: string): Promise<IndexJob> {
   return mutateIndexJob(id, (job) => ({
     ...job,
     ...progress,
     errors: progress.error ? [...job.errors, progress.error].slice(-50) : job.errors,
-  }));
+  }), false, source, syncToken);
 }
 
-export function completeIndexJob(id: string): Promise<IndexJob> {
-  return mutateIndexJob(id, (job) => finishIndexJob(job), true);
+export function completeIndexJob(id: string, source?: KnowledgeSource, syncToken?: string): Promise<IndexJob> {
+  return mutateIndexJob(id, (job) => finishIndexJob(job), true, source, syncToken);
 }
 
-export async function markDocumentIndexFailed(meta: LocalDocumentMeta, error: unknown): Promise<void> {
+export async function markDocumentIndexFailed(meta: LocalDocumentMeta, error: unknown, expectedSource?: KnowledgeSource, token?: string): Promise<void> {
   const message = error instanceof Error ? error.message : "索引失败";
-  const transaction = (await db()).transaction([META, DOCUMENTS], "readwrite");
-  const current = transaction.objectStore(META).get(meta.id) as IDBRequest<LocalDocumentMeta | undefined>;
-  current.onsuccess = () => {
-    if (!current.result) return;
-    transaction.objectStore(META).put({ ...current.result, indexStatus: "failed", indexError: message });
-    const document = transaction.objectStore(DOCUMENTS).get(meta.id) as IDBRequest<LocalDocument | undefined>;
-    document.onsuccess = () => {
-      if (document.result) transaction.objectStore(DOCUMENTS).put({ ...document.result, indexStatus: "failed", indexError: message });
+  const transaction = (await db()).transaction([META, DOCUMENTS, ...(expectedSource ? [SOURCES] : [])], "readwrite");
+  const mark = () => {
+    const current = transaction.objectStore(META).get(meta.id) as IDBRequest<LocalDocumentMeta | undefined>;
+    current.onsuccess = () => {
+      if (!current.result || current.result.importedAt !== meta.importedAt || current.result.sourceRevision !== meta.sourceRevision) return;
+      transaction.objectStore(META).put({ ...current.result, indexStatus: "failed", indexError: message });
+      const document = transaction.objectStore(DOCUMENTS).get(meta.id) as IDBRequest<LocalDocument | undefined>;
+      document.onsuccess = () => {
+        if (document.result) transaction.objectStore(DOCUMENTS).put({ ...document.result, indexStatus: "failed", indexError: message });
+      };
     };
   };
+  if (expectedSource) {
+    const request = transaction.objectStore(SOURCES).get(expectedSource.id) as IDBRequest<KnowledgeSource | undefined>;
+    request.onsuccess = () => {
+      if (request.result?.createdAt === expectedSource.createdAt && request.result.syncToken === token) mark();
+    };
+  } else mark();
   await transactionDone(transaction);
   notifyChanged();
 }
@@ -512,7 +573,7 @@ export async function lookupDocuments(question: string, maxHits = 5): Promise<{ 
   });
 }
 
-async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean, sourceIfMissing?: KnowledgeSource): Promise<boolean> {
+async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean, sourceIfMissing?: KnowledgeSource, expectedSource?: KnowledgeSource, syncToken?: string): Promise<boolean> {
   const doc = normalizeDocument({
     ...input,
     sourceId: input.sourceId || MANUAL_SOURCE_ID,
@@ -534,6 +595,7 @@ async function writeDocument(input: LocalDocumentInput, onlyIfCurrent: boolean, 
       const currentSource = source.result ?? sourceIfMissing;
       if (!currentSource || (currentSource.kind === "folder" && currentSource.allowedExtensions
         && !currentSource.allowedExtensions.includes(extensionForName(doc.sourcePath ?? doc.name)))) return;
+      if (expectedSource && (currentSource.createdAt !== expectedSource.createdAt || currentSource.syncToken !== syncToken)) return;
       const previous = transaction.objectStore(META).get(doc.id) as IDBRequest<LocalDocumentMeta | undefined>;
       previous.onsuccess = () => {
         if (onlyIfCurrent && previous.result?.indexedVersion === LIBRARY_INDEX_VERSION && previous.result.indexStatus === "ready") return;
@@ -558,7 +620,34 @@ export async function saveDocument(doc: LocalDocumentInput, sourceIfMissing?: Kn
   return writeDocument(doc, false, sourceIfMissing);
 }
 
-async function deleteDocument(id: string, expectedFolder?: KnowledgeSource): Promise<boolean> {
+export async function saveSourceDocument(doc: LocalDocumentInput, source: KnowledgeSource, token: string): Promise<boolean> {
+  return writeDocument(doc, false, undefined, source, token);
+}
+
+export async function updateSourceDocumentUrl(id: string, source: KnowledgeSource, token: string, revision: string, url: string): Promise<boolean> {
+  const transaction = (await db()).transaction([SOURCES, META, DOCUMENTS], "readwrite");
+  let updated = false;
+  const request = transaction.objectStore(SOURCES).get(source.id) as IDBRequest<KnowledgeSource | undefined>;
+  request.onsuccess = () => {
+    if (request.result?.createdAt !== source.createdAt || request.result.syncToken !== token) return;
+    const meta = transaction.objectStore(META).get(id) as IDBRequest<LocalDocumentMeta | undefined>;
+    meta.onsuccess = () => {
+      if (meta.result?.sourceRevision !== revision || meta.result.sourceId !== source.id) return;
+      const doc = transaction.objectStore(DOCUMENTS).get(id) as IDBRequest<LocalDocument | undefined>;
+      doc.onsuccess = () => {
+        if (!doc.result || doc.result.sourceRevision !== revision) return;
+        transaction.objectStore(META).put({ ...meta.result, sourceUrl: url });
+        transaction.objectStore(DOCUMENTS).put({ ...doc.result, sourceUrl: url });
+        updated = true;
+      };
+    };
+  };
+  await transactionDone(transaction);
+  if (updated) notifyChanged();
+  return updated;
+}
+
+async function deleteDocument(id: string, expectedSource?: KnowledgeSource, syncToken?: string): Promise<boolean> {
   const database = await db();
   const stores = [DOCUMENTS, SHARDS, META, SOURCES, ...(database.objectStoreNames.contains(LEGACY_INDEX) ? [LEGACY_INDEX] : [])];
   const transaction = database.transaction(stores, "readwrite");
@@ -567,7 +656,7 @@ async function deleteDocument(id: string, expectedFolder?: KnowledgeSource): Pro
   const remove = () => {
     const previous = transaction.objectStore(META).get(id) as IDBRequest<LocalDocumentMeta | undefined>;
     previous.onsuccess = () => {
-      if (!previous.result || (expectedFolder && previous.result.sourceId !== expectedFolder.id)) return;
+      if (!previous.result || (expectedSource && previous.result.sourceId !== expectedSource.id)) return;
       for (const bucket of previous.result.buckets ?? []) transaction.objectStore(SHARDS).delete([bucket, id]);
       if (stores.includes(LEGACY_INDEX)) transaction.objectStore(LEGACY_INDEX).delete(id);
       transaction.objectStore(DOCUMENTS).delete(id);
@@ -579,15 +668,21 @@ async function deleteDocument(id: string, expectedFolder?: KnowledgeSource): Pro
       deleted = true;
     };
   };
-  if (expectedFolder) {
-    const source = transaction.objectStore(SOURCES).get(expectedFolder.id) as IDBRequest<KnowledgeSource | undefined>;
+  if (expectedSource) {
+    const source = transaction.objectStore(SOURCES).get(expectedSource.id) as IDBRequest<KnowledgeSource | undefined>;
     source.onsuccess = () => {
       const currentSource = source.result;
       if (!currentSource) return;
-      if (currentSource.rootPath === expectedFolder.rootPath
-        && currentSource.recursive === expectedFolder.recursive
-        && currentSource.includeHidden === expectedFolder.includeHidden
-        && JSON.stringify(currentSource.allowedExtensions) === JSON.stringify(expectedFolder.allowedExtensions)) remove();
+      if (currentSource.createdAt === expectedSource.createdAt
+        && (syncToken === undefined || currentSource.syncToken === syncToken)
+        && currentSource.rootPath === expectedSource.rootPath
+        && currentSource.recursive === expectedSource.recursive
+        && currentSource.includeHidden === expectedSource.includeHidden
+        && JSON.stringify(currentSource.allowedExtensions) === JSON.stringify(expectedSource.allowedExtensions)
+        && currentSource.repoOwner === expectedSource.repoOwner
+        && currentSource.repoName === expectedSource.repoName
+        && currentSource.branch === expectedSource.branch
+        && currentSource.folderPath === expectedSource.folderPath) remove();
     };
   } else remove();
   await finished;
@@ -597,6 +692,10 @@ async function deleteDocument(id: string, expectedFolder?: KnowledgeSource): Pro
 
 export async function removeDocument(id: string): Promise<void> {
   await deleteDocument(id);
+}
+
+export async function removeSourceDocument(id: string, source: KnowledgeSource, token?: string): Promise<boolean> {
+  return deleteDocument(id, source, token);
 }
 
 export function removeScannedFolderDocument(id: string, source: KnowledgeSource): Promise<boolean> {

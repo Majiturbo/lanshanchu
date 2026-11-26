@@ -160,3 +160,17 @@ test("仓库新同步和重新添加会使旧任务失去写入与清理资格",
   assert.deepEqual(await listDocuments(source.id), []);
   await removeSource(source.id);
 });
+
+test("GitLab 仓库也按同步代际保护索引与任务", async () => {
+  const source = { id: "gitlab:race", kind: "gitlab" as const, name: "仓库", repoOwner: "team", repoName: "docs", branch: "main", folderPath: "README.md", enabled: true, createdAt: 303, updatedAt: 303 };
+  await putSource(source);
+  const first = await beginSourceSync(source);
+  const oldJob = await startIndexJob(source.id, "import", 1, source, first);
+  const second = await beginSourceSync(source);
+  assert.equal(await saveSourceDocument({ id: "gitlab:race:README.md", sourceId: source.id, name: "README.md", content: "旧内容", importedAt: 1 }, source, first), false);
+  await assert.rejects(completeIndexJob(oldJob.id, source, first), /替代/);
+  const job = await startIndexJob(source.id, "import", 0, source, second);
+  await completeIndexJob(job.id, source, second);
+  assert.equal((await listSources()).find((item) => item.id === source.id)?.latestJob?.id, job.id);
+  await removeSource(source.id);
+});

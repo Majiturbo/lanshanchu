@@ -1,4 +1,4 @@
-export interface GitHubFile { path: string; sha: string; size: number }
+export interface RepositoryFile { path: string; sha: string; size?: number }
 
 export function parseGitHubRepository(raw: string): { owner: string; repo: string } {
   let url: URL;
@@ -13,7 +13,20 @@ export function parseGitHubRepository(raw: string): { owner: string; repo: strin
   return { owner: parts[0], repo };
 }
 
-export function normalizeGitHubScope(branch: string, folder: string): { branch: string; folder: string } {
+export function parseGitLabRepository(raw: string): { owner: string; repo: string } {
+  let url: URL;
+  try { url = new URL(raw.trim()); } catch { throw new Error("请输入 GitLab 公开仓库地址"); }
+  const parts = url.pathname.replace(/\/$/u, "").split("/").filter(Boolean);
+  if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "gitlab.com" || url.username || url.password || url.search
+    || parts.length < 2 || parts.includes("-") || !parts.every((part) => /^[\w.-]{1,100}$/u.test(part))) {
+    throw new Error("请输入 https://gitlab.com/群组/仓库 格式的地址");
+  }
+  const repo = parts.at(-1)!.replace(/\.git$/iu, "");
+  if (!repo) throw new Error("请输入有效的 GitLab 仓库名");
+  return { owner: parts.slice(0, -1).join("/"), repo };
+}
+
+export function normalizeRepositoryScope(branch: string, folder: string): { branch: string; folder: string } {
   const selectedBranch = branch.trim();
   const selectedFolder = folder.trim().replace(/^\/+|\/+$/gu, "");
   if (selectedBranch.length > 200 || /[\u0000-\u001f?#\\]/u.test(selectedBranch)) throw new Error("分支名称无效");
@@ -23,12 +36,12 @@ export function normalizeGitHubScope(branch: string, folder: string): { branch: 
   return { branch: selectedBranch, folder: selectedFolder };
 }
 
-export function selectGitHubFiles(data: unknown, folder: string): GitHubFile[] {
+export function selectRepositoryFiles(data: unknown, folder: string): RepositoryFile[] {
   if (!data || typeof data !== "object" || !("tree" in data) || !Array.isArray(data.tree) || !("truncated" in data) || typeof data.truncated !== "boolean") {
     throw new Error("GitHub 文件列表格式错误");
   }
   if (data.truncated) throw new Error("仓库文件列表不完整；请选择更小的子目录");
-  const files = data.tree.flatMap((entry: unknown): GitHubFile[] => {
+  const files = data.tree.flatMap((entry: unknown): RepositoryFile[] => {
     if (!entry || typeof entry !== "object" || !("type" in entry) || entry.type !== "blob"
       || !("path" in entry) || typeof entry.path !== "string" || !("sha" in entry) || typeof entry.sha !== "string"
       || !("size" in entry) || typeof entry.size !== "number") return [];

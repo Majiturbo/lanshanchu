@@ -251,7 +251,7 @@ export async function beginSourceSync(source: KnowledgeSource): Promise<string> 
   const request = transaction.objectStore(SOURCES).get(source.id) as IDBRequest<KnowledgeSource | undefined>;
   let accepted = false;
   request.onsuccess = () => {
-    if (request.result?.kind === "github" && request.result.createdAt === source.createdAt) {
+    if ((request.result?.kind === "github" || request.result?.kind === "gitlab") && request.result.createdAt === source.createdAt) {
       transaction.objectStore(SOURCES).put({ ...request.result, syncToken: token, updatedAt: Date.now() });
       accepted = true;
     }

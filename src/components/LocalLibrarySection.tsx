@@ -18,7 +18,7 @@ import { addAndSyncFolderSources, folderSourcesAvailable, removeFolderSource, sy
 import { parseDocument, SUPPORTED_DOCUMENT_EXTENSIONS } from "../library/parse.ts";
 import { clipWebPage } from "../library/web-clips.ts";
 import { addRssSource, syncRssSource } from "../library/rss.ts";
-import { addGitHubSource, syncGitHubSource } from "../library/github.ts";
+import { addRepositorySource, syncRepositorySource } from "../library/repository.ts";
 import { openExternal } from "../lib/external.ts";
 import { settingsActions, useSettings } from "../settings/store.ts";
 
@@ -231,12 +231,12 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
     finally { setBusy(false); }
   };
 
-  const addGitHub = async () => {
+  const addRepository = async () => {
     setBusy(true);
     setStatus("正在读取公开仓库并建立索引…");
     setError("");
     try {
-      await addGitHubSource(repoUrl, repoBranch, repoFolder);
+      await addRepositorySource(repoUrl, repoBranch, repoFolder);
       setRepoUrl(""); setRepoBranch(""); setRepoFolder("");
       await refresh();
     } catch (err) {
@@ -245,17 +245,17 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
     } finally { setBusy(false); setStatus(""); }
   };
 
-  const syncGitHub = async (source: KnowledgeSourceSummary) => {
+  const syncRepository = async (source: KnowledgeSourceSummary) => {
     setBusy(true);
     setStatus(`正在同步 ${source.name}…`);
     setError("");
-    try { await syncGitHubSource(source); await refresh(); }
+    try { await syncRepositorySource(source); await refresh(); }
     catch (err) { await refresh(); setError(err instanceof Error ? err.message : "仓库同步失败"); }
     finally { setBusy(false); setStatus(""); }
   };
 
-  const removeGitHub = async (source: KnowledgeSourceSummary) => {
-    if (!window.confirm(`从知识库移除“${source.name}”及本机索引？\n\nGitHub 仓库中的文件不会删除。`)) return;
+  const removeRepository = async (source: KnowledgeSourceSummary) => {
+    if (!window.confirm(`从知识库移除“${source.name}”及本机索引？\n\n仓库中的文件不会删除。`)) return;
     setBusy(true);
     setError("");
     try { await removeSource(source.id); await refresh(); }
@@ -314,7 +314,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
       <p className="memory-hint">开启后每次命中资料会增加最多两次模型判断，并发送少量候选片段。</p>
     </>}
     {showDocuments && <>
-      <p className="memory-hint">主动导入的文件、网页、订阅内容和公开 GitHub 仓库文档保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。在线来源需手动同步，订阅只有摘要时会标明并非全文。</p>
+      <p className="memory-hint">主动导入的文件、网页、订阅内容和公开仓库文档保存在这台设备上；桌面端也可添加文件夹，应用运行时会监听变化并增量更新。命中的片段会交给模型用于回答。在线来源需手动同步，订阅只有摘要时会标明并非全文。</p>
       <input ref={input} type="file" accept={SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",")} multiple hidden onChange={(e) => void importFiles(e.target.files)} />
       <div className="local-library-actions">
         <button type="button" className="local-library-add" disabled={busy} onClick={() => input.current?.click()}>导入文件</button>
@@ -328,10 +328,10 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
         <input type="url" aria-label="RSS 或 Atom 地址" placeholder="粘贴 RSS / Atom 地址" value={rssUrl} disabled={busy} onChange={(event) => setRssUrl(event.target.value)} required />
         <button type="submit" className="local-library-add" disabled={busy || !rssUrl.trim()}>添加订阅</button>
       </form>
-      <form className="local-library-web-form local-library-github-form" onSubmit={(event) => { event.preventDefault(); void addGitHub(); }}>
-        <input type="url" aria-label="GitHub 公开仓库地址" placeholder="https://github.com/所有者/仓库" value={repoUrl} disabled={busy} onChange={(event) => setRepoUrl(event.target.value)} required />
-        <input type="text" aria-label="GitHub 分支" placeholder="分支（留空使用默认分支）" value={repoBranch} disabled={busy} onChange={(event) => setRepoBranch(event.target.value)} />
-        <input type="text" aria-label="GitHub 子目录" placeholder="子目录（留空导入整个分支）" value={repoFolder} disabled={busy} onChange={(event) => setRepoFolder(event.target.value)} />
+      <form className="local-library-web-form local-library-github-form" onSubmit={(event) => { event.preventDefault(); void addRepository(); }}>
+        <input type="url" aria-label="GitHub 或 GitLab 公开仓库地址" placeholder="GitHub 或 GitLab 仓库地址" value={repoUrl} disabled={busy} onChange={(event) => setRepoUrl(event.target.value)} required />
+        <input type="text" aria-label="仓库分支，留空使用默认分支" placeholder="分支（默认）" value={repoBranch} disabled={busy} onChange={(event) => setRepoBranch(event.target.value)} />
+        <input type="text" aria-label="仓库目录或 Markdown 文件路径，留空导入整个分支" placeholder="目录或 Markdown 文件" value={repoFolder} disabled={busy} onChange={(event) => setRepoFolder(event.target.value)} />
         <button type="submit" className="local-library-add" disabled={busy || !repoUrl.trim()}>添加仓库</button>
       </form>
       {status && <p className="memory-hint" role="status">{status}</p>}
@@ -340,7 +340,7 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
       {sources.length > 0 && <ul className="local-library-sources">{sources.map((source) => <li key={source.id}>
         <div>
           <strong>{source.name}</strong>
-          <span>{source.kind === "folder" ? source.rootPath : source.kind === "web-clips" ? "用户主动保存的网页快照" : source.kind === "rss" ? source.feedUrl : source.kind === "github" ? `${source.branch}${source.folderPath ? ` / ${source.folderPath}` : " / 整个分支"}` : "用户主动选择的文件"}</span>
+          <span>{source.kind === "folder" ? source.rootPath : source.kind === "web-clips" ? "用户主动保存的网页快照" : source.kind === "rss" ? source.feedUrl : source.kind === "github" || source.kind === "gitlab" ? `${source.kind === "github" ? "GitHub" : "GitLab"} ${source.branch}${source.folderPath ? ` / ${source.folderPath}` : " / 整个分支"}` : "用户主动选择的文件"}</span>
         </div>
         <div>
           <span>{sourceState(source)}</span>
@@ -352,9 +352,9 @@ export function LocalLibrarySection({ mode = "all" }: { mode?: LocalLibraryMode 
             <button type="button" disabled={busy} onClick={() => void syncRss(source)}>同步</button>
             <button type="button" disabled={busy} onClick={() => void removeRss(source)}>移除</button>
           </>}
-          {source.kind === "github" && <>
-            <button type="button" disabled={busy} onClick={() => void syncGitHub(source)}>同步</button>
-            <button type="button" disabled={busy} onClick={() => void removeGitHub(source)}>移除</button>
+          {(source.kind === "github" || source.kind === "gitlab") && <>
+            <button type="button" disabled={busy} onClick={() => void syncRepository(source)}>同步</button>
+            <button type="button" disabled={busy} onClick={() => void removeRepository(source)}>移除</button>
           </>}
         </div>
         {!!source.latestJob?.errors.length && <details className="local-library-source-errors">

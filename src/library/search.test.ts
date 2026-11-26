@@ -42,6 +42,13 @@ test("GitHub 文档引用指向已索引版本的原文", () => {
   assert.match(found[0].title, /docs\/guide\.md/);
 });
 
+test("GitLab 文档引用保留仓库来源与提交链接", () => {
+  const doc = { id: "gitlab:a:README.md", sourceId: "gitlab:a", name: "README.md", sourceUrl: "https://gitlab.com/team/repo/-/blob/abc123/README.md", content: "青玉案计划由蓝色灯笼标记。", importedAt: 3 };
+  const found = sourcesForMatches(rankIndexes(buildIndex(doc), "青玉案计划如何标记？"), [doc]);
+  assert.equal(found[0].url, doc.sourceUrl);
+  assert.match(found[0].site, /^GitLab 仓库（保存于 /);
+});
+
 test("同一资料更新后重建索引，旧词不再召回", () => {
   const old = buildIndex(docs[0]);
   const updated = buildIndex({ ...docs[0], content: "海棠计划使用蓝色灯笼。" });

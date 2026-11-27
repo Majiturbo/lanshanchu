@@ -68,8 +68,11 @@ export function validateTiffPages(buffer: ArrayBuffer): IFD[] {
       throw new Error("TIFF 图像通道格式不支持");
     }
     const compression = tagNumbers(page, "t259")[0] ?? 1;
-    if (page.t322 || page.t323 || tagNumbers(page, "t284")[0] === 2 || compression !== 1) {
-      throw new Error("当前只支持未压缩、非分块的 TIFF");
+    if (page.t322 || page.t323 || tagNumbers(page, "t284")[0] === 2 || ![1, 32773].includes(compression)) {
+      throw new Error("当前只支持未压缩或 PackBits 压缩的非分块 TIFF");
+    }
+    if (compression === 32773 && (depth > 8 || (tagNumbers(page, "t317")[0] ?? 1) !== 1 || (tagNumbers(page, "t266")[0] ?? 1) !== 1)) {
+      throw new Error("TIFF PackBits 图像通道格式不支持");
     }
     const offsets = tagNumbers(page, "t273");
     const sizes = tagNumbers(page, "t279");
@@ -79,14 +82,73 @@ export function validateTiffPages(buffer: ArrayBuffer): IFD[] {
         offsets.some((value, index) => !Number.isSafeInteger(value) || value < 8 || !Number.isSafeInteger(sizes[index]) || sizes[index] < 1 || value + sizes[index] > bytes.length)) {
       throw new Error("TIFF 图像数据损坏");
     }
+    const rowBytes = Math.ceil(width * depth * samples / 8);
     if (compression === 1) {
-      const rowBytes = Math.ceil(width * depth * samples / 8);
       if (sizes.some((size, index) => size < rowBytes * Math.min(rowsPerStrip, height - index * rowsPerStrip))) {
         throw new Error("TIFF 非压缩图像数据不完整");
       }
+    } else {
+      offsets.forEach((offset, index) => {
+        const rows = Math.min(rowsPerStrip, height - index * rowsPerStrip);
+        unpackPackBitsStrip(bytes.subarray(offset, offset + sizes[index]), rowBytes, rows);
+      });
     }
   }
   return pages;
+}
+
+function unpackPackBitsStrip(input: Uint8Array, rowBytes: number, rows: number, output?: Uint8Array): void {
+  let source = 0;
+  for (let row = 0; row < rows; row++) {
+    let column = 0;
+    while (column < rowBytes) {
+      if (source >= input.length) throw new Error("TIFF PackBits 条带数据不完整");
+      const run = (input[source++] << 24) >> 24;
+      if (run === -128) continue;
+      const count = run >= 0 ? run + 1 : 1 - run;
+      if (column + count > rowBytes || source + (run >= 0 ? count : 1) > input.length) {
+        throw new Error("TIFF PackBits 条带数据损坏");
+      }
+      if (output) {
+        const target = row * rowBytes + column;
+        if (run >= 0) output.set(input.subarray(source, source + count), target);
+        else output.fill(input[source], target, target + count);
+      }
+      source += run >= 0 ? count : 1;
+      column += count;
+    }
+  }
+  while (source < input.length && input[source] === 128) source++;
+  if (source !== input.length) throw new Error("TIFF PackBits 条带数据损坏");
+}
+
+export function decodeTiffPage(buffer: ArrayBuffer, page: IFD): Uint8Array {
+  const compression = tagNumbers(page, "t259")[0] ?? 1;
+  if (compression === 1) UTIF.decodeImage(buffer, page);
+  else {
+    const width = tagNumbers(page, "t256")[0];
+    const height = tagNumbers(page, "t257")[0];
+    const depth = tagNumbers(page, "t258")[0] ?? 1;
+    const samples = tagNumbers(page, "t277")[0] ?? tagNumbers(page, "t258").length;
+    const rowsPerStrip = tagNumbers(page, "t278")[0] ?? height;
+    const rowBytes = Math.ceil(width * depth * samples / 8);
+    const data = new Uint8Array(rowBytes * height);
+    const bytes = new Uint8Array(buffer);
+    const offsets = tagNumbers(page, "t273");
+    const sizes = tagNumbers(page, "t279");
+    for (let index = 0; index < offsets.length; index++) {
+      const rows = Math.min(rowsPerStrip, height - index * rowsPerStrip);
+      const strip = new Uint8Array(rowBytes * rows);
+      unpackPackBitsStrip(bytes.subarray(offsets[index], offsets[index] + sizes[index]), rowBytes, rows, strip);
+      data.set(strip, index * rowsPerStrip * rowBytes);
+    }
+    page.width = width;
+    page.height = height;
+    page.data = data;
+  }
+  const rgba = UTIF.toRGBA8(page);
+  if (rgba.length !== page.width * page.height * 4) throw new Error("TIFF 页面图像数据不完整");
+  return rgba;
 }
 
 export async function parseTiff(file: File): Promise<ParsedDocument> {
@@ -107,9 +169,7 @@ export async function parseTiff(file: File): Promise<ParsedDocument> {
       const context = canvas.getContext("2d");
       if (!context) throw new Error("无法绘制 TIFF 页面");
       try {
-        UTIF.decodeImage(buffer, page);
-        const rgba = UTIF.toRGBA8(page);
-        if (rgba.length !== width * height * 4) throw new Error("TIFF 页面图像数据不完整");
+        const rgba = decodeTiffPage(buffer, page);
         context.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
         const text = await ocr.recognizeImage(canvas);
         if (!text) throw new Error("页面未识别到文字，请检查扫描清晰度");

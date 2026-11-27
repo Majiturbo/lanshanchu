@@ -9,10 +9,12 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   "csv", "tsv", "json", "jsonl", "yaml", "yml", "xml",
   "pdf", "docx", "pptx", "odt", "epub", "xlsx", "ods",
   "enex",
+  "png", "jpg", "jpeg", "webp",
 ] as const;
 
 const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "text", "md", "markdown", "csv", "tsv", "json", "jsonl", "yaml", "yml"]);
 const HTML_EXTENSIONS = new Set(["html", "htm", "xhtml"]);
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
 
 export function documentExtension(name: string): string {
   return /\.([^.]+)$/u.exec(name.trim())?.[1]?.toLocaleLowerCase() ?? "";
@@ -62,7 +64,7 @@ async function readPdf(file: File): Promise<ParsedDocument> {
   ]);
   GlobalWorkerOptions.workerSrc = worker.default;
   const task = getDocument({ data: new Uint8Array(await file.arrayBuffer()), stopAtErrors: true });
-  let ocr: Awaited<ReturnType<typeof import("./parse-ocr.ts")["createPdfOcr"]>> | undefined;
+  let ocr: Awaited<ReturnType<typeof import("./parse-ocr.ts")["createDocumentOcr"]>> | undefined;
   let pdf;
   try {
     pdf = await task.promise;
@@ -75,7 +77,7 @@ async function readPdf(file: File): Promise<ParsedDocument> {
       let text = pdfPageText(content.items);
       if (!text) {
         if (!ocr) {
-          try { ocr = await (await import("./parse-ocr.ts")).createPdfOcr(); }
+          try { ocr = await (await import("./parse-ocr.ts")).createDocumentOcr(); }
           catch (error) {
             console.warn("文字识别组件加载失败", error);
             throw new Error(`${file.name}：文字识别组件加载失败，请检查网络后重试`, { cause: error });
@@ -155,6 +157,24 @@ export async function parseDocument(file: File): Promise<ParsedDocument> {
     try { raw = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()); }
     catch { throw new Error(`${file.name}：文本编码无法读取，请转为 UTF-8`); }
     return (await import("./parse-enex.ts")).parseEnex(raw, file.name);
+  }
+  if (IMAGE_EXTENSIONS.has(extension)) {
+    const { createDocumentOcr, validateOcrImage } = await import("./parse-ocr.ts");
+    try { await validateOcrImage(file); }
+    catch (error) { throw new Error(`${file.name}：${error instanceof Error ? error.message : "图片无法读取"}`, { cause: error }); }
+    let ocr: Awaited<ReturnType<typeof import("./parse-ocr.ts")["createDocumentOcr"]>>;
+    try { ocr = await createDocumentOcr(); }
+    catch (error) {
+      console.warn("图片文字识别组件加载失败", error);
+      throw new Error(`${file.name}：文字识别组件加载失败，请检查网络后重试`, { cause: error });
+    }
+    try {
+      return { content: checkText(await ocr.recognizeImage(file), file.name) };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;
+      console.warn("图片文字识别失败", error);
+      throw new Error(`${file.name}：图片文字识别失败，请检查图片是否损坏`, { cause: error });
+    } finally { await ocr.close(); }
   }
   if (extension === "pdf" || extension === "docx") {
     const format = extension === "pdf" ? "PDF" : "DOCX";

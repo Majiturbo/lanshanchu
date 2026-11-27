@@ -9,7 +9,7 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   "csv", "tsv", "json", "jsonl", "yaml", "yml", "xml",
   "pdf", "docx", "pptx", "odt", "epub", "xlsx", "ods",
   "enex",
-  "png", "jpg", "jpeg", "webp", "bmp", "gif",
+  "png", "jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff",
 ] as const;
 
 const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "text", "md", "markdown", "csv", "tsv", "json", "jsonl", "yaml", "yml"]);
@@ -175,6 +175,16 @@ export async function parseDocument(file: File): Promise<ParsedDocument> {
       console.warn("图片文字识别失败", error);
       throw new Error(`${file.name}：图片文字识别失败，请检查图片是否损坏`, { cause: error });
     } finally { await ocr.close(); }
+  }
+  if (extension === "tif" || extension === "tiff") {
+    try {
+      const parsed = await (await import("./parse-tiff.ts")).parseTiff(file);
+      return { ...parsed, content: checkText(parsed.content, file.name) };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith(`${file.name}：`)) throw error;
+      console.warn("TIFF 解析失败", error);
+      throw new Error(`${file.name}：${error instanceof Error ? error.message : "TIFF 解析失败"}`, { cause: error });
+    }
   }
   if (extension === "pdf" || extension === "docx") {
     const format = extension === "pdf" ? "PDF" : "DOCX";

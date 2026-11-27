@@ -112,8 +112,8 @@ export async function createDocumentOcr() {
   });
 
   return {
-    async recognizeImage(file: File): Promise<string> {
-      return normalizeOcrText((await worker.recognize(file)).data.text);
+    async recognizeImage(image: File | HTMLCanvasElement): Promise<string> {
+      return normalizeOcrText((await worker.recognize(image)).data.text);
     },
     async recognize(page: PDFPageProxy): Promise<string> {
       const size = page.getViewport({ scale: 1 });

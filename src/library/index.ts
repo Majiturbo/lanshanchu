@@ -58,25 +58,39 @@ export function buildIndex(doc: LocalDocument): DocumentIndex[] {
   return [...buckets.values()];
 }
 
-export function rankIndexes(indexes: DocumentIndex[], question: string, maxHits = MAX_HITS): IndexMatch[] {
+export function rankIndexes(indexes: DocumentIndex[], question: string, maxHits = MAX_HITS, totalDocuments?: number): IndexMatch[] {
   const query = queryTerms(question);
   if (!query.length) return [];
-  const hits = new Map<string, IndexMatch>();
+  const matchedDocuments = new Set(indexes.map((index) => index.id));
+  const documentCount = Math.max(totalDocuments ?? matchedDocuments.size, matchedDocuments.size);
+  const termDocuments = new Map(query.map((term) => [term, new Set<string>()]));
   for (const index of indexes) {
     for (const term of query) {
+      if (index.postings[term]?.length) termDocuments.get(term)!.add(index.id);
+    }
+  }
+  const hits = new Map<string, { id: string; start: number; weights: number[] }>();
+  for (const index of indexes) {
+    for (const term of query) {
+      const frequency = termDocuments.get(term)!.size;
+      if (!frequency) continue;
+      const weight = Math.log(1 + (documentCount - frequency + 0.5) / (frequency + 0.5));
       for (const start of index.postings[term] ?? []) {
         const key = `${index.id}:${start}`;
-        const hit = hits.get(key) ?? { id: index.id, start, score: 0 };
-        hit.score += term.length > 1 ? 2 : 1;
+        const hit = hits.get(key) ?? { id: index.id, start, weights: [] };
+        hit.weights.push(weight * (term.length > 1 ? 2 : 1));
         hits.set(key, hit);
       }
     }
   }
   const chosen: IndexMatch[] = [];
   const perDocument = new Map<string, number>();
-  const ranked = [...hits.values()].sort((a, b) => b.score - a.score);
-  const minimum = query.length === 1 ? 1 : Math.max(2, (ranked[0]?.score ?? 0) * 0.45);
-  for (const hit of ranked) {
+  const ranked = [...hits.values()].map(({ id, start, weights }) => {
+    weights.sort((a, b) => b - a);
+    return { match: { id, start, score: weights[0] + weights.slice(1, 4).reduce((sum, value) => sum + value * 0.1, 0) }, coverage: weights.length };
+  }).sort((a, b) => b.match.score - a.match.score || b.coverage - a.coverage);
+  const minimum = query.length === 1 ? 0 : (ranked[0]?.match.score ?? 0) * 0.45;
+  for (const { match: hit } of ranked) {
     if (hit.score < minimum) break;
     if ((perDocument.get(hit.id) ?? 0) >= 2) continue;
     chosen.push(hit);

@@ -101,6 +101,17 @@ test("修改文件夹格式时立即清理旧索引，迟到的同步不能恢�
   await removeSource(source.id);
 });
 
+test("本地查询优先返回命中罕见词的资料", async () => {
+  const source = createFolderSource("ranking-folder", "/资料/排序", "排序");
+  await putSource(source);
+  for (let index = 0; index < 9; index++) {
+    await saveDocument({ id: `oak-${index}`, sourceId: source.id, sourcePath: `${index}.md`, name: `${index}.md`, content: "oak", importedAt: index });
+  }
+  await saveDocument({ id: "maple", sourceId: source.id, sourcePath: "maple.md", name: "maple.md", content: "maple", importedAt: 10 });
+  assert.deepEqual((await lookupDocuments("oak maple", 1)).docs.map((doc) => doc.id), ["maple"]);
+  await removeSource(source.id);
+});
+
 test("重复剪藏同一网页替换原文和索引，移除后不再召回", async () => {
   const base = { id: "web:test", sourceId: WEB_CLIPS_SOURCE_ID, sourceUrl: "https://example.com/article", name: "海棠计划", format: "html" };
   await saveDocument({ ...base, content: "海棠计划使用蓝色灯笼。", importedAt: 1 }, createWebClipsSource());

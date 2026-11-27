@@ -514,7 +514,7 @@ export async function lookupDocuments(question: string, maxHits = 5): Promise<{ 
             output.incomplete ||= metadata.result.some((meta) => normalizeDocument(meta).indexStatus === "failed")
               || [...latestTasks.values()].some((task) => task.status === "failed" || task.status === "partial");
             const readyIds = new Set(metadata.result.filter((meta) => normalizeDocument(meta).indexStatus === "ready").map((meta) => meta.id));
-            const ranked = rankIndexes(indexes.filter((index) => readyIds.has(index.id)), question, maxHits);
+            const ranked = rankIndexes(indexes.filter((index) => readyIds.has(index.id)), question, maxHits, readyIds.size);
             let position = 0;
             const seenDocs = new Set<string>();
             const next = () => {

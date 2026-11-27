@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildIndex, rankIndexes } from "./index.ts";
+import { buildIndex, rankIndexes, type DocumentIndex } from "./index.ts";
 import { parseJudgment, retrieveLocal, sourcesForMatches } from "./search.ts";
 import type { LLMProvider } from "../core/providers/types.ts";
 
@@ -62,6 +62,27 @@ test("问题只共享常见词的旧文件不作为引用", () => {
   const fresh = { id: "fresh", name: "新.md", content: "青铜门计划的紫色纸鹤标记新导入资料。", importedAt: 2 };
   const found = rankIndexes([...buildIndex(old), ...buildIndex(fresh)], "青铜门计划的紫色纸鹤是什么？");
   assert.deepEqual(found.map((hit) => hit.id), ["fresh"]);
+});
+
+test("罕见词证据排在只命中常见词的文件前", () => {
+  const indexes: DocumentIndex[] = Array.from({ length: 9 }, (_, index) => ({
+    id: `common-${index}`, bucket: 0, terms: ["oak"], postings: { oak: [0] },
+  }));
+  indexes.push({ id: "specific", bucket: 0, terms: ["maple"], postings: { maple: [0] } });
+  assert.deepEqual(rankIndexes(indexes, "oak maple", 1).map((hit) => hit.id), ["specific"]);
+  const reverse = [
+    ...Array.from({ length: 9 }, (_, index) => ({ id: `maple-${index}`, name: "常见.md", content: "maple", importedAt: index })).flatMap(buildIndex),
+    ...buildIndex({ id: "rare-oak", name: "罕见.md", content: "oak", importedAt: 10 }),
+  ];
+  assert.deepEqual(rankIndexes(reverse, "oak maple", 1, 1000).map((hit) => hit.id), ["rare-oak"]);
+  const shared = [
+    ...Array.from({ length: 9 }, (_, index) => ({ id: `map-${index}`, name: "共享子词.md", content: "map", importedAt: index })).flatMap(buildIndex),
+    ...buildIndex({ id: "unique-oak", name: "罕见.md", content: "oak", importedAt: 10 }),
+  ];
+  assert.deepEqual(rankIndexes(shared, "map maple oak", 1, 1000).map((hit) => hit.id), ["unique-oak"]);
+  for (const question of ["mapping maple oak", "maple mapping oak"]) {
+    assert.deepEqual(rankIndexes(reverse, question, 1, 1000).map((hit) => hit.id), ["rare-oak"]);
+  }
 });
 
 test("单字中文与英文子串仍可检索", () => {

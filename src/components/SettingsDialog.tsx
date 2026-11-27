@@ -438,7 +438,7 @@ function FormatCapabilities() {
         <div><span>电子表格</span><strong>XLSX、ODS、CSV、TSV</strong></div>
         <div><span>电子书</span><strong>EPUB</strong></div>
         <div><span>笔记导出</span><strong>Evernote ENEX（文字，不含图片和附件）</strong></div>
-        <div><span>图片文字</span><strong>PNG、JPG、JPEG、WebP</strong></div>
+        <div><span>图片文字</span><strong>PNG、JPG、JPEG、WebP、BMP、GIF（静态）</strong></div>
         <div><span>尚未提供</span><strong>旧版 Office、音视频</strong></div>
       </div>
       <p className="memory-hint">表格公式只读取已保存的结果；日期、货币等格式可能与表格软件显示不同。扫描版 PDF 与图片首次识别需联网下载语言数据，识别在本机完成；没有识别到文字的文件不会加入资料库。</p>

@@ -4,6 +4,42 @@ import type { PDFPageProxy } from "pdfjs-dist/types/src/display/api";
 const MAX_RENDER_PIXELS = 3_000_000;
 const MAX_IMAGE_PIXELS = 16_000_000;
 
+function gifFrameCount(bytes: Uint8Array): number {
+  if (bytes.length < 14) return 0;
+  let offset = 13;
+  if (bytes[10] & 0x80) offset += 3 * (1 << ((bytes[10] & 7) + 1));
+  let frames = 0;
+  const skipBlocks = () => {
+    while (offset < bytes.length) {
+      const size = bytes[offset++];
+      if (!size) return true;
+      offset += size;
+      if (offset > bytes.length) return false;
+    }
+    return false;
+  };
+  while (offset < bytes.length) {
+    const marker = bytes[offset++];
+    if (marker === 0x3b) return frames;
+    if (marker === 0x21) {
+      if (offset >= bytes.length) return 0;
+      offset++;
+      if (!skipBlocks()) return 0;
+    } else if (marker === 0x2c) {
+      if (offset + 9 > bytes.length) return 0;
+      const packed = bytes[offset + 8];
+      offset += 9;
+      if (packed & 0x80) offset += 3 * (1 << ((packed & 7) + 1));
+      if (offset >= bytes.length) return 0;
+      offset++;
+      if (!skipBlocks()) return 0;
+      frames++;
+      if (frames > 1) return frames;
+    } else return 0;
+  }
+  return 0;
+}
+
 /** 先读压缩文件头，避免小文件在解码后占用过大的内存。 */
 export async function validateOcrImage(file: File): Promise<void> {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -44,8 +80,21 @@ export async function validateOcrImage(file: File): Promise<void> {
       width = view.getUint16(26, true) & 0x3fff;
       height = view.getUint16(28, true) & 0x3fff;
     }
+  } else if (bytes.length >= 26 && bytes[0] === 0x42 && bytes[1] === 0x4d) {
+    const dibSize = view.getUint32(14, true);
+    if (dibSize >= 40) {
+      width = view.getInt32(18, true);
+      height = Math.abs(view.getInt32(22, true));
+    }
+  } else if (bytes.length >= 14 && ["GIF87a", "GIF89a"].includes(String.fromCharCode(...bytes.slice(0, 6)))) {
+    const frames = gifFrameCount(bytes);
+    if (frames > 1) throw new Error("动画 GIF 暂不支持导入");
+    if (frames === 1) {
+      width = view.getUint16(6, true);
+      height = view.getUint16(8, true);
+    }
   }
-  if (!width || !height) throw new Error("图片格式无法读取或文件已损坏");
+  if (width <= 0 || height <= 0) throw new Error("图片格式无法读取或文件已损坏");
   if (width * height > MAX_IMAGE_PIXELS) throw new Error("图片像素过大，最多支持 1600 万像素");
 }
 

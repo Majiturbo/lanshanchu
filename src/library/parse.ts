@@ -9,12 +9,12 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   "csv", "tsv", "json", "jsonl", "yaml", "yml", "xml",
   "pdf", "docx", "pptx", "odt", "epub", "xlsx", "ods",
   "enex",
-  "png", "jpg", "jpeg", "webp",
+  "png", "jpg", "jpeg", "webp", "bmp", "gif",
 ] as const;
 
 const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "text", "md", "markdown", "csv", "tsv", "json", "jsonl", "yaml", "yml"]);
 const HTML_EXTENSIONS = new Set(["html", "htm", "xhtml"]);
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "bmp", "gif"]);
 
 export function documentExtension(name: string): string {
   return /\.([^.]+)$/u.exec(name.trim())?.[1]?.toLocaleLowerCase() ?? "";

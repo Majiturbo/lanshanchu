@@ -21,6 +21,8 @@ test("目录扫描与单文件导入共用同一份格式能力", async () => {
   assert.equal(folderAllowsDocumentName("报告.PPTX"), true);
   assert.equal(folderAllowsDocumentName("扫描.JPEG", ["jpeg"]), true);
   assert.equal(folderAllowsDocumentName("扫描.JPEG", ["pdf"]), false);
+  assert.equal(folderAllowsDocumentName("扫描.BMP", ["bmp"]), true);
+  assert.equal(folderAllowsDocumentName("动画.GIF", ["gif"]), true);
 });
 
 test("DOCX 压缩条目校验发现正文损坏", async () => {

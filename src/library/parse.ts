@@ -56,12 +56,13 @@ export function pdfPageText(items: readonly ({ str: string; hasEOL?: boolean } |
 }
 
 async function readPdf(file: File): Promise<ParsedDocument> {
-  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
+  const [{ getDocument, GlobalWorkerOptions, OPS }, worker] = await Promise.all([
     import("pdfjs-dist/legacy/build/pdf.mjs"),
     import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
   ]);
   GlobalWorkerOptions.workerSrc = worker.default;
   const task = getDocument({ data: new Uint8Array(await file.arrayBuffer()), stopAtErrors: true });
+  let ocr: Awaited<ReturnType<typeof import("./parse-ocr.ts")["createPdfOcr"]>> | undefined;
   let pdf;
   try {
     pdf = await task.promise;
@@ -71,7 +72,32 @@ async function readPdf(file: File): Promise<ParsedDocument> {
     for (let number = 1; number <= pdf.numPages; number++) {
       const page = await pdf.getPage(number);
       const content = await page.getTextContent();
-      const text = pdfPageText(content.items);
+      let text = pdfPageText(content.items);
+      if (!text) {
+        if (!ocr) {
+          try { ocr = await (await import("./parse-ocr.ts")).createPdfOcr(); }
+          catch (error) {
+            console.warn("文字识别组件加载失败", error);
+            throw new Error(`${file.name}：文字识别组件加载失败，请检查网络后重试`, { cause: error });
+          }
+        }
+        try { text = await ocr.recognize(page); }
+        catch (error) {
+          console.warn("PDF 页面文字识别失败", error);
+          throw new Error(`${file.name}：第 ${number} 页文字识别失败`, { cause: error });
+        }
+        if (!text) {
+          const imageOps = new Set([
+            OPS.paintImageXObject, OPS.paintImageXObjectRepeat, OPS.paintInlineImageXObject,
+            OPS.paintInlineImageXObjectGroup, OPS.paintImageMaskXObject, OPS.paintImageMaskXObjectGroup,
+            OPS.paintImageMaskXObjectRepeat,
+          ]);
+          const operations = await page.getOperatorList();
+          if (operations.fnArray.some((operation) => imageOps.has(operation))) {
+            throw new Error(`${file.name}：第 ${number} 页包含图片但未识别到文字，请检查扫描清晰度`);
+          }
+        }
+      }
       if (!text) continue;
       if (pieces.length) { pieces.push("\n\n"); length += 2; }
       const start = length;
@@ -80,10 +106,11 @@ async function readPdf(file: File): Promise<ParsedDocument> {
       if (length > MAX_TEXT_BYTES) throw new Error(`${file.name}：提取的文字不能超过 2 MB`);
       pages.push({ number, start, end: length });
     }
-    if (!pages.length) throw new Error(`${file.name}：PDF 没有可提取的文字；扫描版需要先进行文字识别`);
+    if (!pages.length) throw new Error(`${file.name}：PDF 没有识别到文字`);
     return { content: checkText(pieces.join(""), file.name), pages };
   } finally {
-    await task.destroy();
+    try { await ocr?.close(); }
+    finally { await task.destroy(); }
   }
 }
 

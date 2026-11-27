@@ -16,7 +16,7 @@ const host = process.env.TAURI_DEV_HOST;
 
 // 同时服务于浏览器开发（示例模式）与 Tauri 桌面 / 移动应用
 export default defineConfig({
-  plugins: [react(), devNet()],
+  plugins: [react(), devNet(), ocrAssets()],
   // 相对路径：Tauri 生产包用自定义协议加载，绝对 /assets/... 在 iOS/Android 会白屏
   base: "./",
   clearScreen: false,
@@ -33,6 +33,37 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari15",
   },
 });
+
+const OCR_FILES = [
+  "worker.min.js",
+  "core/tesseract-core-lstm.wasm.js",
+  "core/tesseract-core-simd-lstm.wasm.js",
+  "core/tesseract-core-relaxedsimd-lstm.wasm.js",
+] as const;
+
+function ocrAssets(): Plugin {
+  const source = (name: string) => name === "worker.min.js"
+    ? resolve(root, "node_modules/tesseract.js/dist/worker.min.js")
+    : resolve(root, "node_modules/tesseract.js-core", name.slice("core/".length));
+  return {
+    name: "lanshan-ocr-assets",
+    configureServer(server) {
+      server.middlewares.use("/__lanshan/ocr/", (req, res, next) => {
+        const name = (req.url ?? "").replace(/^\//u, "").split("?")[0];
+        if (!(OCR_FILES as readonly string[]).includes(name)) return next();
+        void readFile(source(name)).then((bytes) => {
+          res.setHeader("content-type", "text/javascript; charset=utf-8");
+          res.end(bytes);
+        }).catch(next);
+      });
+    },
+    async generateBundle() {
+      for (const name of OCR_FILES) {
+        this.emitFile({ type: "asset", fileName: `__lanshan/ocr/${name}`, source: await readFile(source(name)) });
+      }
+    },
+  };
+}
 
 /**
  * 只在开发服务器上有、只给开发时的浏览器页面用（src/core/devNet.ts）：
